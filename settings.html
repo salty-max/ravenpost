@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wow-locker companion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0c10; --panel: #15161b; --panel-2: #1d1e24; --ink: #e8e2cf; --dim: #a39d8c; --faint: #6f6a5e;
+    --gold: #ffd100; --gold-dim: #c9a227; --border: #5c5c5c; --red: #8b1a10; --green: #1eff00; --danger: #ff4d3d;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: radial-gradient(ellipse at top, #1a1b22, var(--bg) 60%) fixed; color: var(--ink);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; display: flex; flex-direction: column; gap: 28px; }
+  header { display: flex; align-items: center; gap: 12px; }
+  header h1 { font: 700 20px Cinzel, serif; color: var(--gold); margin: 0; text-shadow: 0 1px 2px #000; letter-spacing: .04em; }
+  header .v { color: var(--faint); font-size: 12px; margin-left: auto; }
+  .frame { position: relative; background: linear-gradient(#17181e, #101115); border: 2px solid var(--border);
+    border-radius: 6px; box-shadow: inset 0 0 0 1px #000, inset 0 0 0 2px #2a2a2e, 0 6px 18px #0008; padding: 26px 18px 18px; }
+  .title { position: absolute; top: -13px; left: 50%; transform: translateX(-50%); white-space: nowrap;
+    font: 700 13px Cinzel, serif; color: var(--gold); text-shadow: 0 1px 2px #000; letter-spacing: .05em;
+    background: linear-gradient(#2b2416, #17130b); border: 1px solid var(--gold-dim); border-radius: 3px; padding: 3px 14px; }
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .grow { flex: 1; min-width: 0; }
+  .dim { color: var(--dim); } .faint { color: var(--faint); font-size: 12px; }
+  .ok { color: var(--green); } .err { color: var(--danger); }
+  button { font: 600 13px system-ui, sans-serif; color: var(--gold); cursor: pointer; padding: 6px 14px; border-radius: 4px;
+    border: 1px solid #000; background: linear-gradient(#a3241a, #6d140d); box-shadow: inset 0 1px 0 #ffffff30, 0 1px 2px #000;
+    text-shadow: 0 1px 1px #000; }
+  button:hover { filter: brightness(1.15); } button:disabled { opacity: .5; cursor: default; filter: none; }
+  button.dark { background: linear-gradient(#34353c, #1f2026); color: var(--ink); }
+  button.bnet { background: #148eff; color: #fff; border-color: #0b5cad; }
+  input[type=text] { font: inherit; color: var(--ink); background: #000a; border: 1px solid var(--border); border-radius: 4px; padding: 6px 9px; width: 100%; }
+  input[type=checkbox] { accent-color: var(--gold-dim); width: 16px; height: 16px; margin: 0; }
+  label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+  .code { font: 600 22px ui-monospace, monospace; letter-spacing: .3em; color: var(--gold); background: #000a;
+    border: 1px solid var(--border); border-radius: 4px; padding: 4px 14px; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 7px 6px; border-top: 1px solid #ffffff10; vertical-align: middle; }
+  tr:first-child td { border-top: 0; }
+  .name { font-weight: 600; }
+  .install { margin-top: 10px; } .install:first-child { margin-top: 0; }
+  .install h3 { margin: 0 0 4px; font-size: 13px; color: var(--gold); font-weight: 600; }
+  .accounts { display: flex; flex-direction: column; gap: 4px; padding-left: 4px; }
+  .empty { color: var(--dim); text-align: center; padding: 6px 0; }
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+  .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: #2a0d0a; border: 1px solid var(--danger);
+    color: #ffd0cc; padding: 8px 14px; border-radius: 4px; display: none; max-width: calc(100% - 32px); }
+  a { color: #3fc7eb; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="11" width="26" height="17" rx="2" fill="#7a4a1e" stroke="#000"/><path d="M3 13 Q16 2 29 13" fill="#8f5a26" stroke="#000"/><rect x="3" y="15" width="26" height="2.5" fill="#c9a227"/><rect x="13" y="14" width="6" height="8" rx="1" fill="#ffd100" stroke="#000"/><circle cx="16" cy="18" r="1.2" fill="#000"/></svg>
+    <h1>wow-locker</h1><span class="dim" data-t="companion"></span>
+    <span class="v" id="version"></span>
+  </header>
+
+  <section class="frame"><span class="title" data-t="account"></span><div id="account"></div></section>
+  <section class="frame"><span class="title" data-t="characters"></span><div id="characters"></div></section>
+  <section class="frame"><span class="title" data-t="folders"></span><div id="folders"></div></section>
+  <section class="frame"><span class="title" data-t="options"></span><div id="options"></div></section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const KEY = new URLSearchParams(location.hash.slice(1)).get("k") || "";
+const FR = (navigator.language || "").toLowerCase().startsWith("fr");
+const T = FR ? {
+  companion: "compagnon", account: "Compte", characters: "Personnages", folders: "Dossiers World of Warcraft", options: "Options",
+  linked: (b) => `Lié à <b>${b}</b>.`, notLinked: "Pas encore lié. Connectez-vous avec Battle.net pour que le compagnon puisse envoyer les données de vos personnages.",
+  link: "Lier avec Battle.net", unlink: "Délier", waiting: "En attente de la connexion Battle.net dans votre navigateur…", reopen: "Rouvrir la page",
+  expired: "Le code a expiré.", retry: "Réessayer", server: "Serveur",
+  noChars: "Aucun personnage pour l'instant : l'addon écrit ses données à la déconnexion ou au /reload.",
+  synced: (n) => `envoyé${n ? ` · +${n} événement${n > 1 ? "s" : ""}` : ""}`, unknown: "pas sur ce compte Battle.net", invalid: "illisible", pending: "pas encore envoyé", off: "non envoyé",
+  syncNow: "Synchroniser", lastSync: (t) => `Dernier envoi : ${t}`, never: "jamais",
+  noInstall: "Aucun dossier World of Warcraft trouvé. Ajoutez-le ci-dessous.", noFile: "l'addon n'a pas encore tourné",
+  add: "Ajouter un dossier…", addPath: "ou collez un chemin", added: "Ajouté à la main", remove: "Retirer",
+  launch: "Lancer à l'ouverture de session", save: "Enregistrer", serverHint: "Changer de serveur délie le compagnon.",
+  addon: "Addon : copiez le dossier <b>WowLocker</b> dans <code>Interface/AddOns</code> de chaque version du jeu.",
+  forbidden: "Ouvrez cette page depuis l'icône du compagnon (menu Réglages).",
+} : {
+  companion: "companion", account: "Account", characters: "Characters", folders: "World of Warcraft folders", options: "Options",
+  linked: (b) => `Linked to <b>${b}</b>.`, notLinked: "Not linked yet. Log in with Battle.net so the companion can upload your characters' data.",
+  link: "Link with Battle.net", unlink: "Unlink", waiting: "Waiting for the Battle.net login in your browser…", reopen: "Open the page again",
+  expired: "The code expired.", retry: "Try again", server: "Server",
+  noChars: "No characters yet: the addon writes its data when you log out or /reload.",
+  synced: (n) => `uploaded${n ? ` · +${n} event${n > 1 ? "s" : ""}` : ""}`, unknown: "not on this Battle.net account", invalid: "unreadable", pending: "not uploaded yet", off: "not uploaded",
+  syncNow: "Sync now", lastSync: (t) => `Last upload: ${t}`, never: "never",
+  noInstall: "No World of Warcraft folder found. Add it below.", noFile: "the addon hasn't run yet",
+  add: "Add a folder…", addPath: "or paste a path", added: "Added by hand", remove: "Remove",
+  launch: "Launch at login", save: "Save", serverHint: "Changing the server unlinks the companion.",
+  addon: "Addon: copy the <b>WowLocker</b> folder into <code>Interface/AddOns</code> of each game version.",
+  forbidden: "Open this page from the companion's icon (Settings).",
+};
+const CLASS = { WARRIOR: "#c69b6d", PALADIN: "#f48cba", HUNTER: "#aad372", ROGUE: "#fff468", PRIEST: "#ffffff", SHAMAN: "#0070dd",
+  MAGE: "#3fc7eb", WARLOCK: "#8788ee", DRUID: "#ff7c0a", DEATHKNIGHT: "#c41e3a", MONK: "#00ff98" };
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const $ = (id) => document.getElementById(id);
+document.querySelectorAll("[data-t]").forEach((el) => (el.textContent = T[el.dataset.t]));
+document.documentElement.lang = FR ? "fr" : "en";
+
+let state = null;
+
+async function api(path, body) {
+  const res = await fetch(path, {
+    method: body === undefined && path === "/api/state" ? "GET" : "POST",
+    headers: { "X-Locker-Key": KEY, "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (res.status === 403) throw new Error(T.forbidden);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+async function act(path, body) {
+  try { state = await api(path, body ?? {}); lastJSON = JSON.stringify(state); renderedAt = Date.now(); render(); } catch (e) { toast(e.message); }
+}
+function toast(msg) {
+  const el = $("toast"); el.textContent = msg; el.style.display = "block";
+  clearTimeout(toast.t); toast.t = setTimeout(() => (el.style.display = "none"), 5000);
+}
+const ago = (iso) => {
+  if (!iso) return T.never;
+  const s = (Date.now() - Date.parse(iso)) / 1000;
+  const rtf = new Intl.RelativeTimeFormat(FR ? "fr" : "en", { numeric: "auto" });
+  if (s < 60) return rtf.format(-Math.round(s), "second");
+  if (s < 3600) return rtf.format(-Math.round(s / 60), "minute");
+  if (s < 86400) return rtf.format(-Math.round(s / 3600), "hour");
+  return new Date(iso).toLocaleString(FR ? "fr-FR" : "en-GB");
+};
+
+function render() {
+  const s = state;
+  $("version").textContent = "v" + s.version;
+
+  // Account
+  const p = s.pairing;
+  let acc;
+  if (p && p.status === "waiting") {
+    acc = `<div class="stack"><div class="row"><span class="code">${esc(p.code)}</span><span class="dim grow">${T.waiting}</span></div>
+      <div class="row"><a href="${esc(p.url)}" target="_blank" rel="noopener">${T.reopen}</a></div></div>`;
+  } else if (s.paired) {
+    acc = `<div class="row"><span class="grow ok">✓ <span style="color:var(--ink)">${T.linked(esc(s.battletag || "Battle.net"))}</span></span>
+      <button class="dark" onclick="act('/api/unpair')">${T.unlink}</button></div>`;
+  } else {
+    acc = `<div class="stack"><div class="dim">${T.notLinked}</div>
+      ${p && p.status === "expired" ? `<div class="err">${T.expired}</div>` : ""}
+      <div class="row"><button class="bnet" onclick="act('/api/pair')">${p && p.status === "expired" ? T.retry : T.link}</button>
+      <span class="faint">${T.server}: ${esc(s.server)}</span></div></div>`;
+  }
+  $("account").innerHTML = acc;
+
+  // Characters
+  const excluded = new Set(s.excludedCharacters || []);
+  const rows = s.characters.map((c) => {
+    const status = c.excluded ? `<span class="faint">${T.off}</span>`
+      : c.status === "synced" ? `<span class="ok">${T.synced(c.events)}</span>`
+      : c.status === "unknown" ? `<span class="err">${T.unknown}</span>`
+      : c.status === "invalid" ? `<span class="err">${T.invalid}</span>`
+      : `<span class="faint">${T.pending}</span>`;
+    return `<tr>
+      <td style="width:28px"><input type="checkbox" ${excluded.has(c.guid) ? "" : "checked"} onchange="toggleChar(${s.characters.indexOf(c)}, this.checked)"></td>
+      <td><span class="name" style="color:${CLASS[c.class] || "var(--ink)"}">${esc(c.name)}</span> <span class="dim">${c.level ? esc(c.level) : ""}</span>
+        <div class="faint">${esc(c.realm)} · ${esc(c.install)} · ${esc(c.account)}</div></td>
+      <td style="text-align:right">${status}</td></tr>`;
+  }).join("");
+  $("characters").innerHTML = `<div class="stack">
+    ${s.characters.length ? `<table>${rows}</table>` : `<div class="empty">${T.noChars}</div>`}
+    ${(s.errors || []).map((e) => `<div class="err">${esc(e)}</div>`).join("")}
+    <div class="row"><span class="faint grow">${T.lastSync(esc(ago(s.lastSync)))}</span>
+      <button class="dark" ${s.paired ? "" : "disabled"} onclick="act('/api/sync')">${T.syncNow}</button></div></div>`;
+
+  // Folders (not while a path is being typed)
+  if (document.activeElement?.id !== "path") {
+  const offAcc = new Set(s.excludedAccounts || []);
+  const installs = s.installs.map((i, ii) => `<div class="install"><h3>${esc(i.label)} <span class="faint">${esc(i.path)}</span></h3>
+    <div class="accounts">${i.accounts.map((a, ai) => `<label><input type="checkbox" ${offAcc.has(a.dir) ? "" : "checked"}
+      onchange="toggleAcc(${ii}, ${ai}, this.checked)"> ${esc(a.name)}
+      ${a.hasFile ? "" : `<span class="faint">· ${T.noFile}</span>`}</label>`).join("")}</div></div>`).join("");
+  const manual = s.folders.map((f, i) => `<div class="row"><span class="grow faint">${esc(f)}</span>
+    <button class="dark" onclick="removeFolder(${i})">${T.remove}</button></div>`).join("");
+  $("folders").innerHTML = `<div class="stack">
+    ${installs || `<div class="empty">${T.noInstall}</div>`}
+    ${manual ? `<div><div class="dim" style="margin-bottom:4px">${T.added}</div>${manual}</div>` : ""}
+    <div class="row"><button class="dark" onclick="act('/api/browse')">${T.add}</button>
+      <input type="text" class="grow" id="path" placeholder="${T.addPath}" style="width:auto" onkeydown="if(event.key==='Enter')addPath()"></div>
+    <div class="faint">${T.addon}</div></div>`;
+  }
+
+  // Options
+  if (document.activeElement?.id !== "server") {
+    $("options").innerHTML = `<div class="stack">
+      <label><input type="checkbox" ${s.launchAtLogin ? "checked" : ""} onchange="act('/api/settings', { launchAtLogin: this.checked })"> ${T.launch}</label>
+      <div><div class="dim" style="margin-bottom:4px">${T.server}</div>
+        <div class="row"><input type="text" class="grow" id="server" value="${esc(s.server)}" style="width:auto"
+          onkeydown="if(event.key==='Enter')saveServer()">
+        <button class="dark" onclick="saveServer()">${T.save}</button></div>
+        <div class="faint" style="margin-top:4px">${T.serverHint}</div></div></div>`;
+  }
+}
+
+function toggleChar(i, on) {
+  const guid = state.characters[i].guid;
+  const set = new Set(state.excludedCharacters || []);
+  on ? set.delete(guid) : set.add(guid);
+  act("/api/settings", { excludedCharacters: [...set] });
+}
+function toggleAcc(ii, ai, on) {
+  const dir = state.installs[ii].accounts[ai].dir;
+  const set = new Set(state.excludedAccounts || []);
+  on ? set.delete(dir) : set.add(dir);
+  act("/api/settings", { excludedAccounts: [...set] });
+}
+function removeFolder(i) { act("/api/settings", { folders: state.folders.filter((_, j) => j !== i) }); }
+function addPath() {
+  const v = $("path").value.trim();
+  if (v) act("/api/settings", { folders: [...state.folders, v] });
+}
+function saveServer() {
+  const v = $("server").value.trim();
+  if (v && v !== state.server) act("/api/settings", { server: v });
+}
+
+// Re-render only when something changed (a rebuilt button can swallow a
+// click), or once a minute for the relative times.
+let lastJSON = "", renderedAt = 0;
+async function refresh() {
+  if (document.hidden) return;
+  try {
+    const next = await api("/api/state");
+    const json = JSON.stringify(next);
+    if (json !== lastJSON || Date.now() - renderedAt > 60_000) {
+      state = next; lastJSON = json; renderedAt = Date.now(); render();
+    }
+  } catch (e) { toast(e.message); }
+}
+refresh();
+setInterval(refresh, 2000);
+document.addEventListener("visibilitychange", refresh);
+</script>
+</body>
+</html>
