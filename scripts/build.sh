@@ -5,7 +5,7 @@
 #
 # dist/
 #   wow-locker-companion-macos.zip     wow-locker.app (universal, menu bar only)
-#   wow-locker-companion-windows.zip   wow-locker.exe (amd64 + arm64)
+#   wow-locker-companion-windows-x64.exe / -arm64.exe
 #   WowLocker-addon.zip                the addon, to unzip into Interface/AddOns
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -52,12 +52,11 @@ PLIST
 codesign --force --deep --sign - "$APP" # ad hoc: not notarized
 (cd dist/tmp && ditto -c -k --keepParent wow-locker.app ../wow-locker-companion-macos.zip)
 
-# ── Windows: no console window ──
-mkdir -p dist/tmp/windows
+# ── Windows: no console window; plain .exe downloads (nothing to unzip) ──
 for arch in amd64 arm64; do
-  CGO_ENABLED=0 GOOS=windows GOARCH=$arch go build -trimpath -ldflags "$LDFLAGS -H=windowsgui" -o "dist/tmp/windows/wow-locker-$arch.exe" .
+  name=$([ $arch = amd64 ] && echo x64 || echo arm64)
+  CGO_ENABLED=0 GOOS=windows GOARCH=$arch go build -trimpath -ldflags "$LDFLAGS -H=windowsgui" -o "dist/wow-locker-companion-windows-$name.exe" .
 done
-(cd dist/tmp/windows && zip -q ../../wow-locker-companion-windows.zip ./*.exe)
 
 # ── the addon ──
 (cd "$ROOT/addon" && zip -qr "$OLDPWD/dist/WowLocker-addon.zip" WowLocker)
