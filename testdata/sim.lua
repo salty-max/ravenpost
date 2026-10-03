@@ -73,19 +73,19 @@ WowLockerDB = {
 					["type"] = "level",
 				}, -- [9]
 				{
+					["max"] = 75,
+					["name"] = "Cooking",
+					["rank"] = 26,
+					["section"] = "Professions",
+					["t"] = 1790900282,
+					["type"] = "skill",
+				}, -- [10]
+				{
 					["learned"] = true,
 					["max"] = 75,
 					["name"] = "First Aid",
 					["rank"] = 1,
 					["section"] = "Weapon Skills",
-					["t"] = 1790900282,
-					["type"] = "skill",
-				}, -- [10]
-				{
-					["max"] = 75,
-					["name"] = "Cooking",
-					["rank"] = 26,
-					["section"] = "Professions",
 					["t"] = 1790900282,
 					["type"] = "skill",
 				}, -- [11]
@@ -160,6 +160,90 @@ WowLockerDB = {
 			["race"] = "Gnome",
 			["realm"] = "Soulseeker",
 			["state"] = {
+				["bags"] = {
+					{
+						["bag"] = 0,
+						["items"] = {
+							{
+								["count"] = 20,
+								["id"] = 2589,
+								["name"] = "Linen Cloth",
+								["q"] = 1,
+								["slot"] = 1,
+							}, -- [1]
+							{
+								["count"] = 3,
+								["id"] = 858,
+								["name"] = "Lesser Healing Potion",
+								["q"] = 1,
+								["slot"] = 2,
+							}, -- [2]
+							{
+								["count"] = 1,
+								["id"] = 5195,
+								["name"] = "Gold-flecked Gloves",
+								["q"] = 2,
+								["slot"] = 5,
+							}, -- [3]
+						},
+						["name"] = "Backpack",
+						["size"] = 16,
+					}, -- [1]
+					{
+						["bag"] = 1,
+						["items"] = {
+							{
+								["count"] = 12,
+								["id"] = 4338,
+								["name"] = "Mageweave Cloth",
+								["q"] = 1,
+								["slot"] = 3,
+							}, -- [1]
+						},
+						["name"] = "Linen Bag",
+						["size"] = 6,
+					}, -- [2]
+				},
+				["bank"] = {
+					["at"] = 1790902390,
+					["containers"] = {
+						{
+							["bag"] = -1,
+							["items"] = {
+								{
+									["count"] = 40,
+									["id"] = 2589,
+									["name"] = "Linen Cloth",
+									["q"] = 1,
+									["slot"] = 1,
+								}, -- [1]
+								{
+									["count"] = 1,
+									["id"] = 6256,
+									["name"] = "Fishing Pole",
+									["q"] = 1,
+									["slot"] = 7,
+								}, -- [2]
+							},
+							["name"] = "Bank",
+							["size"] = 24,
+						}, -- [1]
+						{
+							["bag"] = 5,
+							["items"] = {
+								{
+									["count"] = 3,
+									["id"] = 774,
+									["name"] = "Malachite",
+									["q"] = 2,
+									["slot"] = 2,
+								}, -- [1]
+							},
+							["name"] = "Green Woolen Bag",
+							["size"] = 8,
+						}, -- [2]
+					},
+				},
 				["cooldowns"] = {
 					{
 						["name"] = "Mooncloth",
@@ -233,10 +317,10 @@ WowLockerDB = {
 				["resting"] = true,
 				["skills"] = {
 					{
-						["max"] = 110,
-						["name"] = "Staves",
-						["rank"] = 99,
-						["section"] = "Weapon Skills",
+						["max"] = 75,
+						["name"] = "Cooking",
+						["rank"] = 26,
+						["section"] = "Professions",
 					}, -- [1]
 					{
 						["max"] = 75,
@@ -245,10 +329,10 @@ WowLockerDB = {
 						["section"] = "Weapon Skills",
 					}, -- [2]
 					{
-						["max"] = 75,
-						["name"] = "Cooking",
-						["rank"] = 26,
-						["section"] = "Professions",
+						["max"] = 110,
+						["name"] = "Staves",
+						["rank"] = 99,
+						["section"] = "Weapon Skills",
 					}, -- [3]
 				},
 				["subZone"] = "Moonbrook",
