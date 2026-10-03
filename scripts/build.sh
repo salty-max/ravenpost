@@ -59,7 +59,7 @@ for arch in amd64 arm64; do
 done
 
 # ── the addon ──
-(cd "$ROOT/addon" && zip -qr "$OLDPWD/dist/WowLocker-addon.zip" WowLocker)
+(cd "$ROOT/addon" && zip -qr "$OLDPWD/dist/WowLocker-addon.zip" WowLocker -x '*.DS_Store')
 
 rm -rf dist/tmp
 ls -lh dist
