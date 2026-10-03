@@ -57,8 +57,8 @@
 <body>
 <main>
   <header>
-    <svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="11" width="26" height="17" rx="2" fill="#7a4a1e" stroke="#000"/><path d="M3 13 Q16 2 29 13" fill="#8f5a26" stroke="#000"/><rect x="3" y="15" width="26" height="2.5" fill="#c9a227"/><rect x="13" y="14" width="6" height="8" rx="1" fill="#ffd100" stroke="#000"/><circle cx="16" cy="18" r="1.2" fill="#000"/></svg>
-    <h1>WoWLocker</h1><span class="dim" data-t="companion"></span>
+    <img src="/icon.png" width="34" height="34" alt="" aria-hidden="true">
+    <h1>WoWLocker</h1>
     <span class="v" id="version"></span>
   </header>
 
@@ -73,7 +73,7 @@
 const KEY = new URLSearchParams(location.hash.slice(1)).get("k") || "";
 const FR = (navigator.language || "").toLowerCase().startsWith("fr");
 const T = FR ? {
-  companion: "compagnon", account: "Compte", characters: "Personnages", folders: "Dossiers World of Warcraft", options: "Options",
+  account: "Compte", characters: "Personnages", folders: "Dossiers World of Warcraft", options: "Options",
   linked: (b) => `Lié à <b>${b}</b>.`, notLinked: "Pas encore lié. Connectez-vous avec Battle.net pour que le compagnon puisse envoyer les données de vos personnages.",
   link: "Lier avec Battle.net", unlink: "Délier", waiting: "En attente de la connexion Battle.net dans votre navigateur…", reopen: "Rouvrir la page",
   expired: "Le code a expiré.", retry: "Réessayer", server: "Serveur",
@@ -88,7 +88,7 @@ const T = FR ? {
   addon: "Addon : copiez le dossier <b>WowLocker</b> dans <code>Interface/AddOns</code> de chaque version du jeu.",
   forbidden: "Ouvrez cette page depuis l'icône du compagnon (menu Réglages).",
 } : {
-  companion: "companion", account: "Account", characters: "Characters", folders: "World of Warcraft folders", options: "Options",
+  account: "Account", characters: "Characters", folders: "World of Warcraft folders", options: "Options",
   linked: (b) => `Linked to <b>${b}</b>.`, notLinked: "Not linked yet. Log in with Battle.net so the companion can upload your characters' data.",
   link: "Link with Battle.net", unlink: "Unlink", waiting: "Waiting for the Battle.net login in your browser…", reopen: "Open the page again",
   expired: "The code expired.", retry: "Try again", server: "Server",

@@ -23,6 +23,11 @@ const settingsPort = 47615
 //go:embed settings.html
 var settingsHTML []byte
 
+// The app icon (apps/web/public/icon.svg at 128 px) for the page's header.
+//
+//go:embed icon.png
+var iconPNG []byte
+
 func settingsURL(cfg Config) string {
 	return fmt.Sprintf("http://127.0.0.1:%d/#k=%s", settingsPort, cfg.Key)
 }
@@ -69,6 +74,15 @@ func (a *App) serveSettings(l net.Listener) error {
 		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; frame-ancestors 'none'")
 		w.Header().Set("Cache-Control", "no-store")
 		_, _ = w.Write(settingsHTML)
+	})
+	mux.HandleFunc("GET /icon.png", func(w http.ResponseWriter, r *http.Request) {
+		if r.Host != host {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		w.Header().Set("Content-Type", "image/png")
+		w.Header().Set("Cache-Control", "max-age=86400")
+		_, _ = w.Write(iconPNG)
 	})
 	mux.HandleFunc("GET /api/state", guard(func(w http.ResponseWriter, r *http.Request) { a.writeState(w) }))
 	mux.HandleFunc("POST /api/settings", guard(func(w http.ResponseWriter, r *http.Request) {
