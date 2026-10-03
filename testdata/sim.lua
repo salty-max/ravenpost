@@ -6,8 +6,10 @@ WowLockerDB = {
 			["events"] = {
 				{
 					["level"] = 22,
+					["money"] = 12345,
 					["t"] = 1790900000,
 					["type"] = "login",
+					["xp"] = 1542,
 				}, -- [1]
 				{
 					["color"] = "0070dd",
@@ -156,8 +158,10 @@ WowLockerDB = {
 				}, -- [16]
 				{
 					["level"] = 23,
+					["money"] = 12345,
 					["t"] = 1790902480,
 					["type"] = "logout",
+					["xp"] = 1542,
 				}, -- [17]
 			},
 			["faction"] = "Alliance",
