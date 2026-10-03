@@ -4,7 +4,7 @@
 #   WOWLOCKER_SERVER=https://wow-locker.example companion/scripts/build.sh
 #
 # dist/
-#   wow-locker-companion-macos.zip     wow-locker.app (universal, menu bar only)
+#   wow-locker-companion-macos.zip     WoWLocker.app (universal, menu bar only)
 #   wow-locker-companion-windows-x64.exe / -arm64.exe
 #   WowLocker-addon.zip                the addon, to unzip into Interface/AddOns
 set -euo pipefail
@@ -21,7 +21,7 @@ rm -rf dist && mkdir -p dist/tmp
 for arch in arm64 amd64; do
   CGO_ENABLED=1 GOOS=darwin GOARCH=$arch go build -trimpath -ldflags "$LDFLAGS" -o dist/tmp/wow-locker-$arch .
 done
-APP=dist/tmp/wow-locker.app
+APP=dist/tmp/WoWLocker.app
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 lipo -create -output "$APP/Contents/MacOS/wow-locker" dist/tmp/wow-locker-arm64 dist/tmp/wow-locker-amd64
 ICONSET=dist/tmp/AppIcon.iconset && mkdir -p "$ICONSET"
@@ -36,8 +36,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>wow-locker</string>
-  <key>CFBundleDisplayName</key><string>wow-locker</string>
+  <key>CFBundleName</key><string>WoWLocker</string>
+  <key>CFBundleDisplayName</key><string>WoWLocker</string>
   <key>CFBundleIdentifier</key><string>app.wow-locker.companion</string>
   <key>CFBundleExecutable</key><string>wow-locker</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
@@ -50,7 +50,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 codesign --force --deep --sign - "$APP" # ad hoc: not notarized
-(cd dist/tmp && ditto -c -k --keepParent wow-locker.app ../wow-locker-companion-macos.zip)
+(cd dist/tmp && ditto -c -k --keepParent WoWLocker.app ../wow-locker-companion-macos.zip)
 
 # ── Windows: no console window; plain .exe downloads (nothing to unzip) ──
 for arch in amd64 arm64; do

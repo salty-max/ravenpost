@@ -9,7 +9,7 @@ import (
 	"math"
 )
 
-// The tray icon, drawn in code: a chest (the wow-locker icon) at 32×32.
+// The tray icon, drawn in code: a chest (the WoWLocker icon) at 32×32.
 // macOS gets a black template image (the menu bar tints it for light/dark);
 // Windows gets the coloured one wrapped in an .ico.
 

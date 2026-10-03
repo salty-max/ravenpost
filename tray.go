@@ -16,13 +16,13 @@ type trayText struct {
 var trayEN = trayText{
 	notLinked: "Not linked to Battle.net", linked: "Linked to %s", link: "Link with Battle.net…",
 	lastUpload: "Last upload: %s", never: "no upload yet", syncNow: "Sync now", settings: "Settings…",
-	open: "Open wow-locker", quit: "Quit", waiting: "Waiting for the Battle.net login…",
+	open: "Open WoWLocker", quit: "Quit", waiting: "Waiting for the Battle.net login…",
 }
 
 var trayFR = trayText{
 	notLinked: "Pas lié à Battle.net", linked: "Lié à %s", link: "Lier avec Battle.net…",
 	lastUpload: "Dernier envoi : %s", never: "aucun envoi", syncNow: "Synchroniser", settings: "Réglages…",
-	open: "Ouvrir wow-locker", quit: "Quitter", waiting: "En attente de la connexion Battle.net…",
+	open: "Ouvrir WoWLocker", quit: "Quitter", waiting: "En attente de la connexion Battle.net…",
 }
 
 func (a *App) runTray(quit func()) {
@@ -40,7 +40,7 @@ func (a *App) runTray(quit func()) {
 
 	systray.Run(func() {
 		setIcon(a.store.Get().Token != "")
-		systray.SetTooltip("wow-locker")
+		systray.SetTooltip("WoWLocker")
 
 		status := systray.AddMenuItem("", "")
 		status.Disable()

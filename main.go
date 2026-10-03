@@ -1,5 +1,5 @@
-// The wow-locker companion: a menu-bar (macOS) / tray (Windows) app that
-// uploads the WowLocker addon's SavedVariables to wow-locker whenever the
+// The WoWLocker companion: a menu-bar (macOS) / tray (Windows) app that
+// uploads the WoWLocker addon's SavedVariables to WoWLocker whenever the
 // game writes them (logout, /reload, disconnect).
 package main
 
@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-var version = "0.1.0"
+var version = "0.1.1"
 
 func main() {
 	headless := flag.Bool("headless", false, "no tray icon: sync until interrupted (settings page still served)")
@@ -63,7 +63,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go app.syncer.Run(ctx)
-	log.Printf("wow-locker companion %s started", version)
+	log.Printf("WoWLocker companion %s started", version)
 
 	// Not linked yet (first run): open the settings page to get started.
 	if store.Get().Token == "" {

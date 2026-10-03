@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// The wow-locker API, as used by the companion (see apps/api/src/lib/companion.ts).
+// The WoWLocker API, as used by the companion (see apps/api/src/lib/companion.ts).
 
 var httpClient = &http.Client{Timeout: 60 * time.Second}
 

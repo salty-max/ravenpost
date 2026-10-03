@@ -40,7 +40,7 @@ func setLaunchAtLogin(on bool) error {
 	// Opened straight from the download, macOS runs the app from a random
 	// read-only copy that is gone after a reboot.
 	if strings.Contains(exe, "/AppTranslocation/") {
-		return errors.New("move wow-locker to the Applications folder first, then open it from there")
+		return errors.New("move WoWLocker to the Applications folder first, then open it from there")
 	}
 	plist := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

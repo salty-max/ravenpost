@@ -14,7 +14,7 @@ import (
 // Config is everything the companion remembers, in
 // <user config dir>/wow-locker/config.json (0600: it holds the upload token).
 type Config struct {
-	// The wow-locker server (the web app's origin; the API lives under /api).
+	// The WoWLocker server (the web app's origin; the API lives under /api).
 	Server string `json:"server"`
 	// Upload token from pairing, valid only for Server. Empty: not paired.
 	Token     string `json:"token,omitempty"`
