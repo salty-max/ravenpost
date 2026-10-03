@@ -35,6 +35,22 @@ func setLaunchAtLogin(on bool) error {
 	return k.SetStringValue(runValue, fmt.Sprintf(`"%s"`, exe))
 }
 
+// A Windows toast, through PowerShell's WinRT access (no extra module). Title
+// and body go in through environment variables, never as script text.
+func showNotification(title, body string) error {
+	script := `[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null;` +
+		`$x = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02);` +
+		`$t = $x.GetElementsByTagName('text');` +
+		`$t.Item(0).AppendChild($x.CreateTextNode($env:WL_TITLE)) > $null;` +
+		`$t.Item(1).AppendChild($x.CreateTextNode($env:WL_BODY)) > $null;` +
+		`$app = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe';` +
+		`[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($app).Show([Windows.UI.Notifications.ToastNotification]::new($x))`
+	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", script)
+	cmd.Env = append(os.Environ(), "WL_TITLE="+title, "WL_BODY="+body)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	return cmd.Run()
+}
+
 // Where the Battle.net launcher installed the game.
 func registryRoots() []string {
 	var out []string

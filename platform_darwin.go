@@ -61,6 +61,16 @@ func setLaunchAtLogin(on bool) error {
 
 func registryRoots() []string { return nil }
 
+// A Notification Center banner. Title and body go in as arguments, never as
+// script text, so nothing in them can break out of the AppleScript.
+func showNotification(title, body string) error {
+	return exec.Command("osascript",
+		"-e", "on run argv",
+		"-e", "display notification (item 2 of argv) with title (item 1 of argv)",
+		"-e", "end run",
+		title, body).Run()
+}
+
 func openURL(url string) error {
 	if os.Getenv("WOWLOCKER_NO_BROWSER") != "" {
 		log.Printf("open %s", url)

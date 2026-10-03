@@ -81,6 +81,7 @@ const T = FR ? {
   syncNow: "Synchroniser", lastSync: (t) => `Dernier envoi : ${t}`, never: "jamais",
   noInstall: "Aucun dossier World of Warcraft trouvé. Ajoutez-le ci-dessous.", noFile: "l'addon n'a pas encore tourné",
   add: "Ajouter un dossier…", addPath: "ou collez un chemin", added: "Ajouté à la main", remove: "Retirer",
+  notifyUploads: "Notification après chaque envoi", uploading: (n) => `Envoi de ${n}…`,
   launch: "Lancer à l'ouverture de session", save: "Enregistrer", serverHint: "Changer de serveur délie le compagnon.",
   addon: "Addon : copiez le dossier <b>WowLocker</b> dans <code>Interface/AddOns</code> de chaque version du jeu.",
   forbidden: "Ouvrez cette page depuis l'icône du compagnon (menu Réglages).",
@@ -94,6 +95,7 @@ const T = FR ? {
   syncNow: "Sync now", lastSync: (t) => `Last upload: ${t}`, never: "never",
   noInstall: "No World of Warcraft folder found. Add it below.", noFile: "the addon hasn't run yet",
   add: "Add a folder…", addPath: "or paste a path", added: "Added by hand", remove: "Remove",
+  notifyUploads: "Notify after each upload", uploading: (n) => `Uploading ${n}…`,
   launch: "Launch at login", save: "Save", serverHint: "Changing the server unlinks the companion.",
   addon: "Addon: copy the <b>WowLocker</b> folder into <code>Interface/AddOns</code> of each game version.",
   forbidden: "Open this page from the companion's icon (Settings).",
@@ -173,7 +175,9 @@ function render() {
   $("characters").innerHTML = `<div class="stack">
     ${s.characters.length ? `<table>${rows}</table>` : `<div class="empty">${T.noChars}</div>`}
     ${(s.errors || []).map((e) => `<div class="err">${esc(e)}</div>`).join("")}
-    <div class="row"><span class="faint grow">${T.lastSync(esc(ago(s.lastSync)))}</span>
+    <div class="row"><span class="faint grow">${(s.uploading || []).length
+      ? `<span class="ok">⟳ ${esc(T.uploading(s.uploading.join(", ")))}</span>`
+      : T.lastSync(esc(ago(s.lastSync)))}</span>
       <button class="dark" ${s.paired ? "" : "disabled"} onclick="act('/api/sync')">${T.syncNow}</button></div></div>`;
 
   // Folders (not while a path is being typed)
@@ -197,6 +201,7 @@ function render() {
   if (document.activeElement?.id !== "server") {
     $("options").innerHTML = `<div class="stack">
       <label><input type="checkbox" ${s.launchAtLogin ? "checked" : ""} onchange="act('/api/settings', { launchAtLogin: this.checked })"> ${T.launch}</label>
+      <label><input type="checkbox" ${s.quietUploads ? "" : "checked"} onchange="act('/api/settings', { quietUploads: !this.checked })"> ${T.notifyUploads}</label>
       <div><div class="dim" style="margin-bottom:4px">${T.server}</div>
         <div class="row"><input type="text" class="grow" id="server" value="${esc(s.server)}" style="width:auto"
           onkeydown="if(event.key==='Enter')saveServer()">

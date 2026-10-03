@@ -11,25 +11,32 @@ import (
 
 type trayText struct {
 	notLinked, linked, link, lastUpload, never, syncNow, settings, open, quit, waiting string
+	uploading, synced, syncedEvents                                                    string
+}
+
+func trayStrings() trayText {
+	if strings.HasPrefix(strings.ToLower(systemLanguage()), "fr") {
+		return trayFR
+	}
+	return trayEN
 }
 
 var trayEN = trayText{
 	notLinked: "Not linked to Battle.net", linked: "Linked to %s", link: "Link with Battle.net…",
 	lastUpload: "Last upload: %s", never: "no upload yet", syncNow: "Sync now", settings: "Settings…",
 	open: "Open WoWLocker", quit: "Quit", waiting: "Waiting for the Battle.net login…",
+	uploading: "Uploading %s…", synced: "%s synced", syncedEvents: "%s synced · +%d events",
 }
 
 var trayFR = trayText{
 	notLinked: "Pas lié à Battle.net", linked: "Lié à %s", link: "Lier avec Battle.net…",
 	lastUpload: "Dernier envoi : %s", never: "aucun envoi", syncNow: "Synchroniser", settings: "Réglages…",
 	open: "Ouvrir WoWLocker", quit: "Quitter", waiting: "En attente de la connexion Battle.net…",
+	uploading: "Envoi de %s…", synced: "%s synchronisé", syncedEvents: "%s synchronisé · +%d événements",
 }
 
 func (a *App) runTray(quit func()) {
-	t := trayEN
-	if strings.HasPrefix(strings.ToLower(systemLanguage()), "fr") {
-		t = trayFR
-	}
+	t := trayStrings()
 	setIcon := func(linked bool) {
 		if runtime.GOOS == "darwin" {
 			systray.SetTemplateIcon(chestIcon(true, !linked), chestIcon(true, !linked))
@@ -74,6 +81,9 @@ func (a *App) runTray(quit func()) {
 				syncNow.Disable()
 			}
 			snap := a.syncer.Snapshot()
+			if len(snap.Uploading) > 0 && linked {
+				status.SetTitle(fmt.Sprintf(t.uploading, strings.Join(snap.Uploading, ", ")))
+			}
 			when := t.never
 			if !snap.LastSync.IsZero() {
 				when = snap.LastSync.Local().Format("15:04")

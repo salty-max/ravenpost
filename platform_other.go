@@ -22,3 +22,7 @@ func openURL(url string) error {
 }
 func pickFolder() (string, error) { return "", errors.New("no folder picker here") }
 func systemLanguage() string      { return os.Getenv("LANG") }
+func showNotification(title, body string) error {
+	log.Printf("notification: %s: %s", title, body)
+	return nil
+}

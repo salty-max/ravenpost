@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strings"
 	"sync"
@@ -32,6 +33,7 @@ type Pairing struct {
 func NewApp(store *Store) *App {
 	a := &App{store: store, syncer: NewSyncer(store), changed: make(chan struct{}, 1)}
 	a.syncer.onChange = a.notify
+	a.syncer.onUploaded = a.uploadedNotification
 	return a
 }
 
@@ -134,6 +136,7 @@ type SettingsUpdate struct {
 	Folders            *[]string `json:"folders"`
 	ExcludedAccounts   *[]string `json:"excludedAccounts"`
 	ExcludedCharacters *[]string `json:"excludedCharacters"`
+	QuietUploads       *bool     `json:"quietUploads"`
 }
 
 func (a *App) ApplySettings(u SettingsUpdate) error {
@@ -166,6 +169,9 @@ func (a *App) ApplySettings(u SettingsUpdate) error {
 		if u.ExcludedCharacters != nil {
 			c.ExcludedCharacters = clean(*u.ExcludedCharacters)
 		}
+		if u.QuietUploads != nil {
+			c.QuietUploads = *u.QuietUploads
+		}
 	})
 	if err != nil {
 		return err
@@ -183,4 +189,24 @@ func clean(list []string) []string {
 		}
 	}
 	return out
+}
+
+// After each upload: a system notification ("Sealinedion synced · +5 events"),
+// unless turned off in the settings.
+func (a *App) uploadedNotification(chars []UploadedCharacter) {
+	if a.store.Get().QuietUploads {
+		return
+	}
+	t := trayStrings()
+	parts := make([]string, 0, len(chars))
+	for _, c := range chars {
+		if c.Events > 0 {
+			parts = append(parts, fmt.Sprintf(t.syncedEvents, c.Name, c.Events))
+		} else {
+			parts = append(parts, fmt.Sprintf(t.synced, c.Name))
+		}
+	}
+	if err := showNotification("WoWLocker", strings.Join(parts, "\n")); err != nil {
+		log.Printf("notification: %v", err)
+	}
 }

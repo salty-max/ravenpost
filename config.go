@@ -25,6 +25,8 @@ type Config struct {
 	ExcludedAccounts   []string `json:"excludedAccounts"`
 	ExcludedCharacters []string `json:"excludedCharacters"`
 	LaunchAtLogin      bool     `json:"launchAtLogin"`
+	// No system notification after each upload (they're on by default).
+	QuietUploads bool `json:"quietUploads"`
 	// Secret of the local settings page (other web pages can't call it).
 	Key string `json:"key"`
 	// SavedVariables file → hash of what was last uploaded from it.

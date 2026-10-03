@@ -64,6 +64,16 @@ type Syncer struct {
 
 	kick     chan struct{}
 	onChange func()
+	// Character names of the upload in progress (tray, settings page).
+	uploading []string
+	// Called after a successful upload with the characters' names and new events.
+	onUploaded func(synced []UploadedCharacter)
+}
+
+// UploadedCharacter: one character of a successful upload.
+type UploadedCharacter struct {
+	Name   string
+	Events int
 }
 
 func NewSyncer(store *Store) *Syncer {
@@ -243,6 +253,22 @@ func (s *Syncer) processFile(ctx context.Context, path string, f *fileState) err
 	}
 
 	format, _ := db["format"].(float64)
+	names := []string{}
+	for _, g := range sortedKeys(selected) {
+		if ch := s.characters[g]; ch != nil && ch.Name != "" {
+			names = append(names, ch.Name)
+		}
+	}
+	s.mu.Lock()
+	s.uploading = names
+	s.mu.Unlock()
+	s.onChange()
+	defer func() {
+		s.mu.Lock()
+		s.uploading = nil
+		s.mu.Unlock()
+		s.onChange()
+	}()
 	var res uploadResult
 	err = call(ctx, "POST", cfg.Server, "/api/companion/upload", cfg.Token,
 		map[string]any{"format": format, "characters": selected}, &res)
@@ -258,17 +284,22 @@ func (s *Syncer) processFile(ctx context.Context, path string, f *fileState) err
 	now := time.Now()
 	s.mu.Lock()
 	var synced []string
+	var uploaded []UploadedCharacter
 	for _, r := range res.Characters {
 		if ch := s.characters[r.GUID]; ch != nil {
 			ch.Status, ch.Events, ch.SyncedAt, ch.ID = r.Status, r.Events, now, r.CharacterID
 		}
 		if r.Status == "synced" {
 			synced = append(synced, fmt.Sprintf("%s (+%d)", r.Name, r.Events))
+			uploaded = append(uploaded, UploadedCharacter{Name: r.Name, Events: r.Events})
 		}
 	}
 	s.lastSync, s.lastError = now, ""
 	s.mu.Unlock()
 	log.Printf("uploaded %s: %s", path, strings.Join(synced, ", "))
+	if s.onUploaded != nil && len(uploaded) > 0 {
+		s.onUploaded(uploaded)
+	}
 	return s.store.Update(func(c *Config) { c.Uploaded[path] = hash })
 }
 
@@ -279,12 +310,13 @@ type Snapshot struct {
 	LastSync   time.Time   `json:"lastSync,omitzero"`
 	LastError  string      `json:"lastError,omitempty"`
 	Errors     []string    `json:"errors"`
+	Uploading  []string    `json:"uploading"`
 }
 
 func (s *Syncer) Snapshot() Snapshot {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	out := Snapshot{Installs: s.installs, LastSync: s.lastSync, LastError: s.lastError, Errors: []string{}}
+	out := Snapshot{Installs: s.installs, LastSync: s.lastSync, LastError: s.lastError, Errors: []string{}, Uploading: append([]string{}, s.uploading...)}
 	for _, c := range s.characters {
 		out.Characters = append(out.Characters, *c)
 	}
