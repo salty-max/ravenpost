@@ -79,19 +79,19 @@ WowLockerDB = {
 					["type"] = "level",
 				}, -- [9]
 				{
-					["max"] = 75,
-					["name"] = "Cooking",
-					["rank"] = 26,
-					["section"] = "Professions",
-					["t"] = 1790900282,
-					["type"] = "skill",
-				}, -- [10]
-				{
 					["learned"] = true,
 					["max"] = 75,
 					["name"] = "First Aid",
 					["rank"] = 1,
 					["section"] = "Weapon Skills",
+					["t"] = 1790900282,
+					["type"] = "skill",
+				}, -- [10]
+				{
+					["max"] = 75,
+					["name"] = "Cooking",
+					["rank"] = 26,
+					["section"] = "Professions",
 					["t"] = 1790900282,
 					["type"] = "skill",
 				}, -- [11]
@@ -327,10 +327,10 @@ WowLockerDB = {
 				["resting"] = true,
 				["skills"] = {
 					{
-						["max"] = 75,
-						["name"] = "Cooking",
-						["rank"] = 26,
-						["section"] = "Professions",
+						["max"] = 110,
+						["name"] = "Staves",
+						["rank"] = 99,
+						["section"] = "Weapon Skills",
 					}, -- [1]
 					{
 						["max"] = 75,
@@ -339,10 +339,10 @@ WowLockerDB = {
 						["section"] = "Weapon Skills",
 					}, -- [2]
 					{
-						["max"] = 110,
-						["name"] = "Staves",
-						["rank"] = 99,
-						["section"] = "Weapon Skills",
+						["max"] = 75,
+						["name"] = "Cooking",
+						["rank"] = 26,
+						["section"] = "Professions",
 					}, -- [3]
 				},
 				["subZone"] = "Moonbrook",
