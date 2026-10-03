@@ -52,26 +52,25 @@ WowLockerDB = {
 					["zone"] = "Westfall",
 				}, -- [6]
 				{
+					["level"] = 18,
+					["questId"] = 155,
+					["t"] = 1790900212,
+					["title"] = "The Defias Brotherhood",
+					["type"] = "quest_accept",
+				}, -- [7]
+				{
 					["money"] = 3500,
 					["questId"] = 155,
 					["t"] = 1790900272,
 					["title"] = "The Defias Brotherhood",
 					["type"] = "quest",
 					["xp"] = 1650,
-				}, -- [7]
+				}, -- [8]
 				{
 					["level"] = 23,
 					["played"] = 90000,
 					["t"] = 1790900282,
 					["type"] = "level",
-				}, -- [8]
-				{
-					["max"] = 75,
-					["name"] = "Cooking",
-					["rank"] = 26,
-					["section"] = "Professions",
-					["t"] = 1790900282,
-					["type"] = "skill",
 				}, -- [9]
 				{
 					["learned"] = true,
@@ -83,12 +82,20 @@ WowLockerDB = {
 					["type"] = "skill",
 				}, -- [10]
 				{
+					["max"] = 75,
+					["name"] = "Cooking",
+					["rank"] = 26,
+					["section"] = "Professions",
+					["t"] = 1790900282,
+					["type"] = "skill",
+				}, -- [11]
+				{
 					["faction"] = "Stormwind",
 					["label"] = "Friendly",
 					["standing"] = 5,
 					["t"] = 1790900282,
 					["type"] = "reputation",
-				}, -- [11]
+				}, -- [12]
 				{
 					["group"] = {
 						"Namzan", -- [1]
@@ -99,7 +106,7 @@ WowLockerDB = {
 					["name"] = "The Deadmines",
 					["t"] = 1790900582,
 					["type"] = "dungeon_enter",
-				}, -- [12]
+				}, -- [13]
 				{
 					["attacker"] = "Edwin VanCleef",
 					["instance"] = "The Deadmines",
@@ -110,7 +117,7 @@ WowLockerDB = {
 					["t"] = 1790901187,
 					["type"] = "close_call",
 					["zone"] = "The Deadmines",
-				}, -- [13]
+				}, -- [14]
 				{
 					["hardcore"] = true,
 					["instance"] = "The Deadmines",
@@ -123,7 +130,7 @@ WowLockerDB = {
 					["x"] = 42.1,
 					["y"] = 74.6,
 					["zone"] = "The Deadmines",
-				}, -- [14]
+				}, -- [15]
 				{
 					["closeCalls"] = 1,
 					["deaths"] = 1,
@@ -136,12 +143,12 @@ WowLockerDB = {
 					["name"] = "The Deadmines",
 					["t"] = 1790902390,
 					["type"] = "dungeon_leave",
-				}, -- [15]
+				}, -- [16]
 				{
 					["level"] = 23,
 					["t"] = 1790902480,
 					["type"] = "logout",
-				}, -- [16]
+				}, -- [17]
 			},
 			["faction"] = "Alliance",
 			["knownSkills"] = {
@@ -226,10 +233,10 @@ WowLockerDB = {
 				["resting"] = true,
 				["skills"] = {
 					{
-						["max"] = 75,
-						["name"] = "Cooking",
-						["rank"] = 26,
-						["section"] = "Professions",
+						["max"] = 110,
+						["name"] = "Staves",
+						["rank"] = 99,
+						["section"] = "Weapon Skills",
 					}, -- [1]
 					{
 						["max"] = 75,
@@ -238,10 +245,10 @@ WowLockerDB = {
 						["section"] = "Weapon Skills",
 					}, -- [2]
 					{
-						["max"] = 110,
-						["name"] = "Staves",
-						["rank"] = 99,
-						["section"] = "Weapon Skills",
+						["max"] = 75,
+						["name"] = "Cooking",
+						["rank"] = 26,
+						["section"] = "Professions",
 					}, -- [3]
 				},
 				["subZone"] = "Moonbrook",
