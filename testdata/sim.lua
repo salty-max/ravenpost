@@ -37,18 +37,24 @@ WowLockerDB = {
 				{
 					["attacker"] = "Defias Pillager",
 					["level"] = 22,
+					["mapId"] = 1436,
 					["pct"] = 7,
 					["subZone"] = "Moonbrook",
 					["t"] = 1790900122,
 					["type"] = "close_call",
+					["x"] = 42.1,
+					["y"] = 74.6,
 					["zone"] = "Westfall",
 				}, -- [5]
 				{
 					["level"] = 22,
+					["mapId"] = 1436,
 					["pct"] = 13,
 					["subZone"] = "Moonbrook",
 					["t"] = 1790900152,
 					["type"] = "close_call",
+					["x"] = 42.1,
+					["y"] = 74.6,
 					["zone"] = "Westfall",
 				}, -- [6]
 				{
@@ -111,11 +117,14 @@ WowLockerDB = {
 					["attacker"] = "Edwin VanCleef",
 					["instance"] = "The Deadmines",
 					["level"] = 23,
+					["mapId"] = 1436,
 					["pct"] = 8,
 					["spell"] = "Thrash",
 					["subZone"] = "Moonbrook",
 					["t"] = 1790901187,
 					["type"] = "close_call",
+					["x"] = 42.1,
+					["y"] = 74.6,
 					["zone"] = "The Deadmines",
 				}, -- [14]
 				{
@@ -123,6 +132,7 @@ WowLockerDB = {
 					["instance"] = "The Deadmines",
 					["killer"] = "Edwin VanCleef",
 					["level"] = 23,
+					["mapId"] = 1436,
 					["spell"] = "Thrash",
 					["subZone"] = "Moonbrook",
 					["t"] = 1790901190,
