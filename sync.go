@@ -316,10 +316,28 @@ type Snapshot struct {
 	LastUploaded []UploadedCharacter `json:"lastUploaded"`
 }
 
+// installsNow: the last scan (every 30 s), except that an account whose file
+// was missing then is checked again: right after the addon's first save, the
+// page shouldn't still say it hasn't run. A copy: callers can't race the scan.
+func (s *Syncer) installsNow() []Install {
+	out := make([]Install, len(s.installs))
+	for i, in := range s.installs {
+		in.Accounts = append([]Account(nil), in.Accounts...)
+		for j, a := range in.Accounts {
+			if !a.HasFile {
+				_, err := os.Stat(a.File)
+				in.Accounts[j].HasFile = err == nil
+			}
+		}
+		out[i] = in
+	}
+	return out
+}
+
 func (s *Syncer) Snapshot() Snapshot {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	out := Snapshot{Installs: s.installs, LastSync: s.lastSync, LastError: s.lastError, Errors: []string{}, Uploading: append([]string{}, s.uploading...), LastUploaded: append([]UploadedCharacter{}, s.lastUploaded...)}
+	out := Snapshot{Installs: s.installsNow(), LastSync: s.lastSync, LastError: s.lastError, Errors: []string{}, Uploading: append([]string{}, s.uploading...), LastUploaded: append([]UploadedCharacter{}, s.lastUploaded...)}
 	for _, c := range s.characters {
 		out.Characters = append(out.Characters, *c)
 	}
