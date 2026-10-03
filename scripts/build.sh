@@ -53,6 +53,15 @@ codesign --force --deep --sign - "$APP" # ad hoc: not notarized
 (cd dist/tmp && ditto -c -k --keepParent WoWLocker.app ../wow-locker-companion-macos.zip)
 
 # ── Windows: no console window; plain .exe downloads (nothing to unzip) ──
+# Embedded resources: icon, version info (publisher, product, version) and a
+# GUI manifest. An unsigned .exe without them looks even less trustworthy to
+# SmartScreen / Smart App Control.
+go run github.com/tc-hib/go-winres@v0.3.3 simply --arch amd64,arm64 --manifest gui \
+  --icon "$ROOT/apps/web/public/pwa-512.png" \
+  --product-name WoWLocker --file-description "WoWLocker companion" \
+  --product-version "$VERSION" --file-version "$VERSION" \
+  --copyright "© salty-max, MIT License" --original-filename wow-locker-companion.exe
+trap 'rm -f rsrc_windows_*.syso' EXIT
 for arch in amd64 arm64; do
   name=$([ $arch = amd64 ] && echo x64 || echo arm64)
   CGO_ENABLED=0 GOOS=windows GOARCH=$arch go build -trimpath -ldflags "$LDFLAGS -H=windowsgui" -o "dist/wow-locker-companion-windows-$name.exe" .

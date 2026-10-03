@@ -81,8 +81,11 @@ func (a *App) runTray(quit func()) {
 				syncNow.Disable()
 			}
 			snap := a.syncer.Snapshot()
+			// The upload in progress, then for a minute what it brought.
 			if len(snap.Uploading) > 0 && linked {
 				status.SetTitle(fmt.Sprintf(t.uploading, strings.Join(snap.Uploading, ", ")))
+			} else if linked && len(snap.LastUploaded) > 0 && time.Since(snap.LastSync) < time.Minute {
+				status.SetTitle("✓ " + uploadedSummary(t, snap.LastUploaded))
 			}
 			when := t.never
 			if !snap.LastSync.IsZero() {
@@ -96,7 +99,7 @@ func (a *App) runTray(quit func()) {
 		refresh()
 
 		go func() {
-			tick := time.NewTicker(30 * time.Second) // keeps "last upload" honest
+			tick := time.NewTicker(15 * time.Second) // keeps "last upload" honest, ends the ✓ line
 			defer tick.Stop()
 			for {
 				select {
@@ -121,4 +124,17 @@ func (a *App) runTray(quit func()) {
 			}
 		}()
 	}, quit)
+}
+
+// "Sealinedion synced · +5 events, Namzie synced"
+func uploadedSummary(t trayText, chars []UploadedCharacter) string {
+	parts := make([]string, 0, len(chars))
+	for _, c := range chars {
+		if c.Events > 0 {
+			parts = append(parts, fmt.Sprintf(t.syncedEvents, c.Name, c.Events))
+		} else {
+			parts = append(parts, fmt.Sprintf(t.synced, c.Name))
+		}
+	}
+	return strings.Join(parts, ", ")
 }

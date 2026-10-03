@@ -50,6 +50,7 @@
   .stack { display: flex; flex-direction: column; gap: 12px; }
   .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: #2a0d0a; border: 1px solid var(--danger);
     color: #ffd0cc; padding: 8px 14px; border-radius: 4px; display: none; max-width: calc(100% - 32px); }
+  .toast.ok { background: #0f2410; border-color: #2e7d32; color: #c8f7c5; }
   a { color: #3fc7eb; }
 </style>
 </head>
@@ -81,7 +82,8 @@ const T = FR ? {
   syncNow: "Synchroniser", lastSync: (t) => `Dernier envoi : ${t}`, never: "jamais",
   noInstall: "Aucun dossier World of Warcraft trouvé. Ajoutez-le ci-dessous.", noFile: "l'addon n'a pas encore tourné",
   add: "Ajouter un dossier…", addPath: "ou collez un chemin", added: "Ajouté à la main", remove: "Retirer",
-  notifyUploads: "Notification après chaque envoi", uploading: (n) => `Envoi de ${n}…`,
+  uploading: (n) => `Envoi de ${n}…`,
+  uploaded: (n, e) => `${n} synchronisé${e ? ` · +${e} événement${e > 1 ? "s" : ""}` : ""}`,
   launch: "Lancer à l'ouverture de session", save: "Enregistrer", serverHint: "Changer de serveur délie le compagnon.",
   addon: "Addon : copiez le dossier <b>WowLocker</b> dans <code>Interface/AddOns</code> de chaque version du jeu.",
   forbidden: "Ouvrez cette page depuis l'icône du compagnon (menu Réglages).",
@@ -95,7 +97,8 @@ const T = FR ? {
   syncNow: "Sync now", lastSync: (t) => `Last upload: ${t}`, never: "never",
   noInstall: "No World of Warcraft folder found. Add it below.", noFile: "the addon hasn't run yet",
   add: "Add a folder…", addPath: "or paste a path", added: "Added by hand", remove: "Remove",
-  notifyUploads: "Notify after each upload", uploading: (n) => `Uploading ${n}…`,
+  uploading: (n) => `Uploading ${n}…`,
+  uploaded: (n, e) => `${n} synced${e ? ` · +${e} event${e > 1 ? "s" : ""}` : ""}`,
   launch: "Launch at login", save: "Save", serverHint: "Changing the server unlinks the companion.",
   addon: "Addon: copy the <b>WowLocker</b> folder into <code>Interface/AddOns</code> of each game version.",
   forbidden: "Open this page from the companion's icon (Settings).",
@@ -123,8 +126,8 @@ async function api(path, body) {
 async function act(path, body) {
   try { state = await api(path, body ?? {}); lastJSON = JSON.stringify(state); renderedAt = Date.now(); render(); } catch (e) { toast(e.message); }
 }
-function toast(msg) {
-  const el = $("toast"); el.textContent = msg; el.style.display = "block";
+function toast(msg, ok = false) {
+  const el = $("toast"); el.textContent = msg; el.style.display = "block"; el.classList.toggle("ok", ok);
   clearTimeout(toast.t); toast.t = setTimeout(() => (el.style.display = "none"), 5000);
 }
 const ago = (iso) => {
@@ -201,7 +204,6 @@ function render() {
   if (document.activeElement?.id !== "server") {
     $("options").innerHTML = `<div class="stack">
       <label><input type="checkbox" ${s.launchAtLogin ? "checked" : ""} onchange="act('/api/settings', { launchAtLogin: this.checked })"> ${T.launch}</label>
-      <label><input type="checkbox" ${s.quietUploads ? "" : "checked"} onchange="act('/api/settings', { quietUploads: !this.checked })"> ${T.notifyUploads}</label>
       <div><div class="dim" style="margin-bottom:4px">${T.server}</div>
         <div class="row"><input type="text" class="grow" id="server" value="${esc(s.server)}" style="width:auto"
           onkeydown="if(event.key==='Enter')saveServer()">
@@ -239,6 +241,10 @@ async function refresh() {
   if (document.hidden) return;
   try {
     const next = await api("/api/state");
+    // A new upload while the page is open: say what it brought.
+    if (state && next.lastSync && next.lastSync !== state.lastSync && (next.lastUploaded || []).length) {
+      toast("✓ " + next.lastUploaded.map((c) => T.uploaded(c.name, c.events)).join(", "), true);
+    }
     const json = JSON.stringify(next);
     if (json !== lastJSON || Date.now() - renderedAt > 60_000) {
       state = next; lastJSON = json; renderedAt = Date.now(); render();

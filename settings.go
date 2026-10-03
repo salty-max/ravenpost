@@ -110,7 +110,6 @@ type stateView struct {
 	Folders            []string `json:"folders"`
 	ExcludedAccounts   []string `json:"excludedAccounts"`
 	ExcludedCharacters []string `json:"excludedCharacters"`
-	QuietUploads       bool     `json:"quietUploads"`
 	Snapshot
 }
 
@@ -126,7 +125,6 @@ func (a *App) writeState(w http.ResponseWriter) {
 		Folders:            cfg.Folders,
 		ExcludedAccounts:   cfg.ExcludedAccounts,
 		ExcludedCharacters: cfg.ExcludedCharacters,
-		QuietUploads:       cfg.QuietUploads,
 		Snapshot:           a.syncer.Snapshot(),
 	}
 	if v.Folders == nil {

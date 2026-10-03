@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"unsafe"
 
+	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 )
 
@@ -35,20 +36,58 @@ func setLaunchAtLogin(on bool) error {
 	return k.SetStringValue(runValue, fmt.Sprintf(`"%s"`, exe))
 }
 
-// A Windows toast, through PowerShell's WinRT access (no extra module). Title
-// and body go in through environment variables, never as script text.
-func showNotification(title, body string) error {
-	script := `[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null;` +
-		`$x = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02);` +
-		`$t = $x.GetElementsByTagName('text');` +
-		`$t.Item(0).AppendChild($x.CreateTextNode($env:WL_TITLE)) > $null;` +
-		`$t.Item(1).AppendChild($x.CreateTextNode($env:WL_BODY)) > $null;` +
-		`$app = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe';` +
-		`[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($app).Show([Windows.UI.Notifications.ToastNotification]::new($x))`
-	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", script)
-	cmd.Env = append(os.Environ(), "WL_TITLE="+title, "WL_BODY="+body)
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	return cmd.Run()
+// The folder picker and opening links are plain Win32 calls: no PowerShell,
+// rundll32 or other script host. Smart App Control judges unsigned programs by
+// what they do, and a hidden PowerShell running a script is what malware does
+// (0.1.2's system notifications went through it and got the companion blocked).
+
+var (
+	shell32 = windows.NewLazySystemDLL("shell32.dll")
+	ole32   = windows.NewLazySystemDLL("ole32.dll")
+
+	pSHBrowseForFolder   = shell32.NewProc("SHBrowseForFolderW")
+	pSHGetPathFromIDList = shell32.NewProc("SHGetPathFromIDListW")
+	pCoInitializeEx      = ole32.NewProc("CoInitializeEx")
+	pCoUninitialize      = ole32.NewProc("CoUninitialize")
+	pCoTaskMemFree       = ole32.NewProc("CoTaskMemFree")
+)
+
+// The native "choose a folder" dialog (SHBrowseForFolder, the new style).
+func pickFolder() (string, error) {
+	const (
+		coinitApartmentThreaded = 0x2
+		bifReturnOnlyFSDirs     = 0x1
+		bifNewDialogStyle       = 0x40
+	)
+	type browseInfo struct {
+		Owner       windows.Handle
+		Root        uintptr
+		DisplayName *uint16
+		Title       *uint16
+		Flags       uint32
+		Callback    uintptr
+		LParam      uintptr
+		Image       int32
+	}
+	// The dialog needs COM in a single-threaded apartment, on one OS thread.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	if r, _, _ := pCoInitializeEx.Call(0, coinitApartmentThreaded); int32(r) >= 0 {
+		defer pCoUninitialize.Call()
+	}
+	var display [windows.MAX_PATH]uint16
+	title, _ := windows.UTF16PtrFromString("World of Warcraft folder")
+	bi := browseInfo{DisplayName: &display[0], Title: title, Flags: bifReturnOnlyFSDirs | bifNewDialogStyle}
+	pidl, _, _ := pSHBrowseForFolder.Call(uintptr(unsafe.Pointer(&bi)))
+	if pidl == 0 {
+		return "", nil // cancelled
+	}
+	defer pCoTaskMemFree.Call(pidl)
+	var path [windows.MAX_PATH]uint16
+	if r, _, _ := pSHGetPathFromIDList.Call(pidl, uintptr(unsafe.Pointer(&path[0]))); r == 0 {
+		return "", fmt.Errorf("not a folder on disk")
+	}
+	return windows.UTF16ToString(path[:]), nil
 }
 
 // Where the Battle.net launcher installed the game.
@@ -77,19 +116,13 @@ func openURL(url string) error {
 		return nil
 	}
 
-	return exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
-}
-
-// A native folder picker, through PowerShell (no GUI toolkit needed).
-func pickFolder() (string, error) {
-	script := `Add-Type -AssemblyName System.Windows.Forms;` +
-		`$d = New-Object System.Windows.Forms.FolderBrowserDialog;` +
-		`$d.Description = 'World of Warcraft folder';` +
-		`if ($d.ShowDialog() -eq 'OK') { $d.SelectedPath }`
-	cmd := exec.Command("powershell", "-NoProfile", "-STA", "-Command", script)
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	out, err := cmd.Output()
-	return strings.TrimSpace(string(out)), err
+	// ShellExecute "open": the default browser, as any app opens a link.
+	verb, _ := windows.UTF16PtrFromString("open")
+	target, err := windows.UTF16PtrFromString(url)
+	if err != nil {
+		return err
+	}
+	return windows.ShellExecute(0, verb, target, nil, nil, windows.SW_SHOWNORMAL)
 }
 
 func systemLanguage() string {
