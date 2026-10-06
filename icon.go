@@ -9,58 +9,50 @@ import (
 	"math"
 )
 
-// The tray icon, drawn in code: a chest (the WoWLocker icon) at 32×32.
-// macOS gets a black template image (the menu bar tints it for light/dark);
-// Windows gets the coloured one wrapped in an .ico.
+// The tray icon, drawn in code: a sealed letter (Ravenpost carries your
+// characters' records) at 32×32. macOS gets a black template image (the menu
+// bar tints it for light/dark); Windows gets the coloured one wrapped in an .ico.
 
-func chestIcon(template bool, dim bool) []byte {
+func envelopeIcon(template bool, dim bool) []byte {
 	const n = 32
 	img := image.NewNRGBA(image.Rect(0, 0, n, n))
-	wood := color.NRGBA{0x8f, 0x5a, 0x26, 0xff}
-	band := color.NRGBA{0xc9, 0xa2, 0x27, 0xff}
-	lock := color.NRGBA{0xff, 0xd1, 0x00, 0xff}
-	edge := color.NRGBA{0x10, 0x0a, 0x04, 0xff}
+	paper := color.NRGBA{0xf1, 0xe2, 0xbf, 0xff}
+	fold := color.NRGBA{0x8a, 0x6a, 0x3c, 0xff}
+	seal := color.NRGBA{0xa5, 0x1d, 0x17, 0xff}
+	edge := color.NRGBA{0x2a, 0x1d, 0x12, 0xff}
 	if template {
-		wood, band, lock, edge = color.NRGBA{0, 0, 0, 0xff}, color.NRGBA{0, 0, 0, 0xff}, color.NRGBA{0, 0, 0, 0xff}, color.NRGBA{0, 0, 0, 0xff}
+		paper, fold, seal, edge = color.NRGBA{0, 0, 0, 0xff}, color.NRGBA{0, 0, 0, 0xff}, color.NRGBA{0, 0, 0, 0xff}, color.NRGBA{0, 0, 0, 0xff}
 	}
-	if dim { // not linked: a fainter icon
-		for _, c := range []*color.NRGBA{&wood, &band, &lock, &edge} {
+	if dim { // nothing linked: a fainter icon
+		for _, c := range []*color.NRGBA{&paper, &fold, &seal, &edge} {
 			c.A = 0x70
 		}
 	}
-	inLid := func(x, y float64) bool { // a half-ellipse lid over the body
-		cx, top, base := 16.0, 7.0, 14.0
-		rx, ry := 13.0, base-top
-		return y >= top && y < base && (x-cx)*(x-cx)/(rx*rx)+(y-base)*(y-base)/(ry*ry) <= 1
-	}
+	const left, right, top, bottom = 3.0, 29.0, 8.0, 25.0
 	for y := 0; y < n; y++ {
 		for x := 0; x < n; x++ {
 			fx, fy := float64(x)+0.5, float64(y)+0.5
-			body := fx >= 3 && fx <= 29 && fy >= 14 && fy <= 28
-			if !body && !inLid(fx, fy) {
+			if fx < left || fx > right || fy < top || fy > bottom {
 				continue
 			}
-			c := wood
-			switch {
-			case math.Abs(fy-15) < 1.6: // the metal band where the lid closes
-				c = band
-				if template && math.Abs(fy-14.5) < 0.9 && (fx < 12.5 || fx > 19.5) {
-					continue // the seam: lid and body read apart in one colour
-				}
-			case fx < 4 || fx > 28 || fy > 27:
+			c := paper
+			if fx < left+1 || fx > right-1 || fy < top+1 || fy > bottom-1 {
 				c = edge
 			}
-			// The lock plate, with a keyhole cut through (transparent in the template).
-			if fx >= 12.5 && fx <= 19.5 && fy >= 13 && fy <= 22 {
-				c = lock
-				if math.Hypot(fx-16, fy-17) < 1.6 || (math.Abs(fx-16) < 0.8 && fy > 17 && fy < 20.5) {
-					if template {
-						continue
-					}
-					c = edge
+			// The flap: a V from the top corners to the middle.
+			mid := (left + right) / 2
+			flapY := top + (16.0-top)*(1-math.Abs(fx-mid)/(mid-left))
+			if math.Abs(fy-flapY) < 0.9 {
+				c = fold
+				if template {
+					continue // the fold, cut through in one colour
 				}
-				if template && (fx < 13.5 || fx > 18.5 || fy > 21) {
-					continue // a gap around the plate so it reads in one colour
+			}
+			// The wax seal where the flap meets.
+			if d := math.Hypot(fx-mid, fy-16.5); d < 3.6 {
+				c = seal
+				if template && d > 2.6 {
+					continue // a ring around the seal so it reads in one colour
 				}
 			}
 			img.SetNRGBA(x, y, c)

@@ -13,11 +13,12 @@ import (
 	"time"
 )
 
-// The WoWLocker API, as used by the companion (see apps/api/src/lib/companion.ts).
+// The sites' APIs, as Ravenpost uses them (WoWLocker: apps/api/src/lib/companion.ts;
+// Hearthtale: apps/api/src/lib/companion.ts and upload.ts).
 
 var httpClient = &http.Client{Timeout: 60 * time.Second}
 
-var errUnauthorized = errors.New("the server no longer knows this companion: pair it again")
+var errUnauthorized = errors.New("the site no longer knows this computer: link it again")
 
 type pairStart struct {
 	Code      string `json:"code"`
@@ -27,18 +28,27 @@ type pairStart struct {
 }
 
 type pairPoll struct {
-	Status     string `json:"status"` // pending | paired | expired
-	Token      string `json:"token"`
-	BattleTag  string `json:"battletag"`
-	Characters int    `json:"characters"`
+	Status    string `json:"status"` // pending | paired | expired
+	Token     string `json:"token"`
+	BattleTag string `json:"battletag"`
 }
 
-type uploadResult struct {
+type wowlockerResult struct {
 	Characters []struct {
 		GUID        string `json:"guid"`
 		Name        string `json:"name"`
 		Status      string `json:"status"` // synced | unknown | invalid
 		Events      int    `json:"events"`
+		CharacterID int    `json:"characterId"`
+	} `json:"characters"`
+}
+
+type hearthtaleResult struct {
+	Characters []struct {
+		GUID        string `json:"guid"`
+		Name        string `json:"name"`
+		Status      string `json:"status"` // saved | unlinked | invalid
+		Chapters    int    `json:"chapters"`
 		CharacterID int    `json:"characterId"`
 	} `json:"characters"`
 }
@@ -74,7 +84,7 @@ func call(ctx context.Context, method, server, path, token string, body any, out
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "wow-locker-companion/"+version)
+	req.Header.Set("User-Agent", "ravenpost/"+version)
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}

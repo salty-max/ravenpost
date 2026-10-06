@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// A game client folder (_classic_era_, _anniversary_, …) and its accounts.
+// A game client folder (_classic_era_, _anniversary_, Forever's…) and its accounts.
 type Install struct {
 	Path     string    `json:"path"`
 	Flavour  string    `json:"flavour"` // the folder name
@@ -19,10 +19,13 @@ type Install struct {
 type Account struct {
 	Name string `json:"name"`
 	Dir  string `json:"dir"`
-	// The addon's SavedVariables (absent until the addon has run once).
-	File    string `json:"file"`
-	HasFile bool   `json:"hasFile"`
+	// Each site's saved files under it (none until its addon has run once):
+	// WoWLocker's one file, Hearthtale's one per character.
+	Files map[string][]string `json:"files"`
 }
+
+// HasFiles: has this site's addon run on this account yet?
+func (a Account) HasFiles(id string) bool { return len(a.Files[id]) > 0 }
 
 var flavourLabels = map[string]string{
 	"_classic_era_":     "Classic Era · Hardcore · Season",
@@ -31,6 +34,7 @@ var flavourLabels = map[string]string{
 	"_retail_":          "Retail",
 	"_classic_era_ptr_": "Classic Era PTR",
 	"_classic_ptr_":     "Classic PTR",
+	"_classic_beta_":    "World of Warcraft: Forever (beta)",
 }
 
 // The usual install locations, plus where the Battle.net launcher says it put
@@ -107,11 +111,28 @@ func accounts(install string) []Account {
 			continue
 		}
 		dir := filepath.Join(base, e.Name())
-		file := filepath.Join(dir, "SavedVariables", "WowLocker.lua")
-		_, err := os.Stat(file)
-		out = append(out, Account{Name: e.Name(), Dir: dir, File: file, HasFile: err == nil})
+		out = append(out, Account{Name: e.Name(), Dir: dir, Files: savedFiles(dir)})
 	}
 	return out
+}
+
+// savedFiles: the sites' saved files under an account folder.
+func savedFiles(dir string) map[string][]string {
+	files := map[string][]string{}
+	if f := filepath.Join(dir, "SavedVariables", "WowLocker.lua"); isFile(f) {
+		files[WoWLocker] = []string{f}
+	}
+	// <account>/<realm>/<character>/SavedVariables/Hearthtale.lua
+	if found, _ := filepath.Glob(filepath.Join(dir, "*", "*", "SavedVariables", "Hearthtale.lua")); len(found) > 0 {
+		sort.Strings(found)
+		files[Hearthtale] = found
+	}
+	return files
+}
+
+func isFile(p string) bool {
+	st, err := os.Stat(p)
+	return err == nil && !st.IsDir()
 }
 
 func isDir(p string) bool {

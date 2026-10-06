@@ -15,7 +15,20 @@ import (
 )
 
 const runKey = `Software\Microsoft\Windows\CurrentVersion\Run`
-const runValue = "wow-locker"
+const runValue = "ravenpost"
+
+// The WoWLocker companion's (Ravenpost's former self): removed on migration.
+const legacyRunValue = "wow-locker"
+
+// removeLegacyLaunch: the old companion no longer starts at login. True if it did.
+func removeLegacyLaunch() bool {
+	k, err := registry.OpenKey(registry.CURRENT_USER, runKey, registry.SET_VALUE)
+	if err != nil {
+		return false
+	}
+	defer k.Close()
+	return k.DeleteValue(legacyRunValue) == nil
+}
 
 func setLaunchAtLogin(on bool) error {
 	k, _, err := registry.CreateKey(registry.CURRENT_USER, runKey, registry.SET_VALUE)
@@ -111,7 +124,7 @@ func registryRoots() []string {
 }
 
 func openURL(url string) error {
-	if os.Getenv("WOWLOCKER_NO_BROWSER") != "" {
+	if os.Getenv("RAVENPOST_NO_BROWSER") != "" {
 		log.Printf("open %s", url)
 		return nil
 	}

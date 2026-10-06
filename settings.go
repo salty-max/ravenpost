@@ -23,7 +23,7 @@ const settingsPort = 47615
 //go:embed settings.html
 var settingsHTML []byte
 
-// The app icon (apps/web/public/icon.svg at 128 px) for the page's header.
+// The app icon, for the page's header.
 //
 //go:embed icon.png
 var iconPNG []byte
@@ -48,7 +48,7 @@ func (a *App) serveSettings(l net.Listener) error {
 				return
 			}
 			key := a.store.Get().Key
-			if subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Locker-Key")), []byte(key)) != 1 {
+			if subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Ravenpost-Key")), []byte(key)) != 1 {
 				http.Error(w, "forbidden", http.StatusForbidden)
 				return
 			}
@@ -93,8 +93,8 @@ func (a *App) serveSettings(l net.Listener) error {
 		}
 		reply(w, a.ApplySettings(u))
 	}))
-	mux.HandleFunc("POST /api/pair", guard(func(w http.ResponseWriter, r *http.Request) { reply(w, a.StartPairing()) }))
-	mux.HandleFunc("POST /api/unpair", guard(func(w http.ResponseWriter, r *http.Request) { reply(w, a.Unpair()) }))
+	mux.HandleFunc("POST /api/pair", guard(func(w http.ResponseWriter, r *http.Request) { reply(w, a.StartPairing(r.URL.Query().Get("site"))) }))
+	mux.HandleFunc("POST /api/unpair", guard(func(w http.ResponseWriter, r *http.Request) { reply(w, a.Unpair(r.URL.Query().Get("site"))) }))
 	mux.HandleFunc("POST /api/sync", guard(func(w http.ResponseWriter, r *http.Request) {
 		a.syncer.SyncNow(true)
 		time.Sleep(300 * time.Millisecond) // let a quick upload land before answering
@@ -114,27 +114,35 @@ func (a *App) serveSettings(l net.Listener) error {
 	return srv.Serve(l)
 }
 
+// siteView: one site, as the page shows it.
+type siteView struct {
+	Service
+	Server    string   `json:"server"`
+	Paired    bool     `json:"paired"`
+	BattleTag string   `json:"battletag"`
+	Pairing   *Pairing `json:"pairing"`
+}
+
 type stateView struct {
-	Version            string   `json:"version"`
-	Server             string   `json:"server"`
-	Paired             bool     `json:"paired"`
-	BattleTag          string   `json:"battletag"`
-	Pairing            *Pairing `json:"pairing"`
-	LaunchAtLogin      bool     `json:"launchAtLogin"`
-	Folders            []string `json:"folders"`
-	ExcludedAccounts   []string `json:"excludedAccounts"`
-	ExcludedCharacters []string `json:"excludedCharacters"`
+	Version            string     `json:"version"`
+	Sites              []siteView `json:"sites"`
+	LaunchAtLogin      bool       `json:"launchAtLogin"`
+	Folders            []string   `json:"folders"`
+	ExcludedAccounts   []string   `json:"excludedAccounts"`
+	ExcludedCharacters []string   `json:"excludedCharacters"`
 	Snapshot
 }
 
 func (a *App) writeState(w http.ResponseWriter) {
 	cfg := a.store.Get()
+	var sites []siteView
+	for _, svc := range services {
+		l := cfg.LinkFor(svc.ID)
+		sites = append(sites, siteView{Service: svc, Server: l.Server, Paired: l.Token != "", BattleTag: l.BattleTag, Pairing: a.Pairing(svc.ID)})
+	}
 	v := stateView{
 		Version:            version,
-		Server:             cfg.Server,
-		Paired:             cfg.Token != "",
-		BattleTag:          cfg.BattleTag,
-		Pairing:            a.Pairing(),
+		Sites:              sites,
 		LaunchAtLogin:      cfg.LaunchAtLogin,
 		Folders:            cfg.Folders,
 		ExcludedAccounts:   cfg.ExcludedAccounts,

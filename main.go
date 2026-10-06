@@ -1,6 +1,7 @@
-// The WoWLocker companion: a menu-bar (macOS) / tray (Windows) app that
-// uploads the WoWLocker addon's SavedVariables to WoWLocker whenever the
-// game writes them (logout, /reload, disconnect).
+// Ravenpost: a menu-bar (macOS) / tray (Windows) app that carries World of
+// Warcraft addons' saved files to their sites whenever the game writes them
+// (logout, /reload, disconnect): WoWLocker's to wow-locker.app, Hearthtale's
+// to hearthtale.app (services.go). Formerly the WoWLocker companion.
 package main
 
 import (
@@ -16,7 +17,7 @@ import (
 	"time"
 )
 
-var version = "0.1.5"
+var version = "0.2.0"
 
 func main() {
 	headless := flag.Bool("headless", false, "no tray icon: sync until interrupted (settings page still served)")
@@ -41,7 +42,7 @@ func main() {
 		app.syncer.tick(ctx)
 		snap := app.syncer.Snapshot()
 		for _, c := range snap.Characters {
-			fmt.Printf("%-12s %3d  %-8s %s · %s\n", c.Name, c.Level, c.Status, c.Install, c.Account)
+			fmt.Printf("%-10s %-12s %3d  %-8s %s · %s\n", c.Service, c.Name, c.Level, c.Status, c.Install, c.Account)
 		}
 		for _, e := range snap.Errors {
 			fmt.Println("error:", e)
@@ -63,10 +64,10 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go app.syncer.Run(ctx)
-	log.Printf("WoWLocker companion %s started", version)
+	log.Printf("Ravenpost %s started", version)
 
-	// Not linked yet (first run): open the settings page to get started.
-	if store.Get().Token == "" {
+	// Nothing linked yet (first run): open the settings page to get started.
+	if !app.linkedAny() {
 		_ = openURL(settingsURL(store.Get()))
 	}
 
@@ -79,13 +80,13 @@ func main() {
 	app.runTray(cancel)
 }
 
-// Logs go to <config dir>/wow-locker/companion.log (and stderr), kept small.
+// Logs go to <config dir>/ravenpost/ravenpost.log (and stderr), kept small.
 func setupLog() {
 	dir, err := configDir()
 	if err != nil {
 		return
 	}
-	path := filepath.Join(dir, "companion.log")
+	path := filepath.Join(dir, "ravenpost.log")
 	if st, err := os.Stat(path); err == nil && st.Size() > 1<<20 {
 		_ = os.Rename(path, path+".old")
 	}

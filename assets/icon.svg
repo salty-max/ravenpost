@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="38%" r="70%">
+      <stop offset="0" stop-color="#3a2a1b"/><stop offset="1" stop-color="#120d09"/>
+    </radialGradient>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f6e8c6"/><stop offset="1" stop-color="#d9c08c"/>
+    </linearGradient>
+    <radialGradient id="wax" cx="40%" cy="35%" r="70%">
+      <stop offset="0" stop-color="#e2493a"/><stop offset="0.6" stop-color="#a51d17"/><stop offset="1" stop-color="#5a0b08"/>
+    </radialGradient>
+    <linearGradient id="feather" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3b4256"/><stop offset="1" stop-color="#0d0f16"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect x="10" y="10" width="492" height="492" rx="104" fill="none" stroke="#c9a227" stroke-width="6" opacity="0.8"/>
+  <!-- the raven's feather behind the letter -->
+  <g transform="rotate(-38 300 200)">
+    <path d="M300 60 C340 110 350 210 316 330 C300 300 290 260 286 220 C276 150 282 100 300 60 Z" fill="url(#feather)" stroke="#05060a" stroke-width="6"/>
+    <path d="M300 70 L304 330" stroke="#8a93ad" stroke-width="5" stroke-linecap="round" opacity="0.8"/>
+  </g>
+  <!-- the letter -->
+  <g stroke="#2a1d12" stroke-width="10" stroke-linejoin="round">
+    <rect x="96" y="176" width="320" height="216" rx="14" fill="url(#paper)"/>
+    <path d="M100 184 L256 300 L412 184" fill="none" stroke="#8a6a3c" stroke-width="10"/>
+  </g>
+  <!-- the wax seal -->
+  <circle cx="256" cy="300" r="46" fill="url(#wax)" stroke="#3a0705" stroke-width="7"/>
+  <circle cx="256" cy="300" r="30" fill="none" stroke="#6d120c" stroke-width="5"/>
+  <path d="M256 280 L262 294 L276 300 L262 306 L256 320 L250 306 L236 300 L250 294 Z" fill="#e8c75a" stroke="#5a3a0c" stroke-width="3"/>
+</svg>

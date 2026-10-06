@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-// The game writes SavedVariables on logout, /reload and disconnect. Polling
+// The game writes saved files on logout, /reload and disconnect. Polling
 // file times every few seconds is cheap, needs no OS-specific watcher and
 // survives the game replacing the file (it writes a new one, then renames).
 const (
@@ -25,8 +25,9 @@ const (
 	maxUploadSize = 8 << 20
 )
 
-// A character seen in a SavedVariables file.
+// A character seen in a site's saved file.
 type Character struct {
+	Service  string `json:"service"`
 	GUID     string `json:"guid"`
 	Name     string `json:"name"`
 	Realm    string `json:"realm"`
@@ -35,14 +36,17 @@ type Character struct {
 	Account  string `json:"account"` // the account folder
 	Install  string `json:"install"` // the client folder's label
 	Excluded bool   `json:"excluded"`
-	// From the last upload.
-	Status   string    `json:"status,omitempty"` // synced | unknown | invalid
+	// From the last upload. WoWLocker: synced | unknown | invalid (+ events);
+	// Hearthtale: saved | unlinked | invalid (+ chapters).
+	Status   string    `json:"status,omitempty"`
 	Events   int       `json:"events"`
+	Chapters int       `json:"chapters"`
 	SyncedAt time.Time `json:"syncedAt,omitzero"`
 	ID       int       `json:"characterId,omitempty"`
 }
 
 type fileState struct {
+	service   string
 	modTime   time.Time
 	nextTry   time.Time
 	err       string
@@ -57,7 +61,7 @@ type Syncer struct {
 	mu         sync.Mutex
 	installs   []Install
 	files      map[string]*fileState
-	characters map[string]*Character
+	characters map[string]*Character // by service + "|" + GUID
 	lastSync   time.Time
 	lastError  string
 	scannedAt  time.Time
@@ -66,15 +70,15 @@ type Syncer struct {
 	onChange func()
 	// Character names of the upload in progress (tray, settings page).
 	uploading []string
-	// Called after a successful upload with the characters' names and new events.
 	// The characters of the last successful upload: shown in the tray and settings page.
 	lastUploaded []UploadedCharacter
 }
 
 // UploadedCharacter: one character of a successful upload.
 type UploadedCharacter struct {
-	Name   string `json:"name"`
-	Events int    `json:"events"`
+	Service string `json:"service"`
+	Name    string `json:"name"`
+	Events  int    `json:"events"`
 }
 
 func NewSyncer(store *Store) *Syncer {
@@ -128,11 +132,15 @@ func (s *Syncer) tick(ctx context.Context) {
 		live := map[string]bool{}
 		for _, in := range s.installs {
 			for _, a := range in.Accounts {
-				live[a.File] = true
-				if s.files[a.File] == nil {
-					s.files[a.File] = &fileState{}
+				for service, paths := range a.Files {
+					for _, p := range paths {
+						live[p] = true
+						if s.files[p] == nil {
+							s.files[p] = &fileState{}
+						}
+						s.files[p].service, s.files[p].install, s.files[p].account = service, in, a
+					}
 				}
-				s.files[a.File].install, s.files[a.File].account = in, a
 			}
 		}
 		for p := range s.files {
@@ -159,8 +167,8 @@ func (s *Syncer) tick(ctx context.Context) {
 	}
 }
 
-// process reads one SavedVariables file, lists its characters and uploads it
-// when its content (or the selection) changed since the last upload.
+// process reads one saved file, lists its characters and uploads it when its
+// content (or the selection) changed since the last upload.
 func (s *Syncer) process(ctx context.Context, path string) {
 	s.mu.Lock()
 	f := s.files[path]
@@ -171,7 +179,12 @@ func (s *Syncer) process(ctx context.Context, path string) {
 	f.uploading = true
 	s.mu.Unlock()
 
-	err := s.processFile(ctx, path, f)
+	var err error
+	if f.service == Hearthtale {
+		err = s.processHearthtale(ctx, path, f)
+	} else {
+		err = s.processWoWLocker(ctx, path, f)
+	}
 
 	s.mu.Lock()
 	f.uploading = false
@@ -187,19 +200,86 @@ func (s *Syncer) process(ctx context.Context, path string) {
 	s.onChange()
 }
 
-func (s *Syncer) processFile(ctx context.Context, path string, f *fileState) error {
+// read: the file's raw content and its variables.
+func read(path string) ([]byte, map[string]any, error) {
 	st, err := os.Stat(path)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	if st.Size() > maxUploadSize {
-		return fmt.Errorf("file too large (%d MB)", st.Size()>>20)
+		return nil, nil, fmt.Errorf("file too large (%d MB)", st.Size()>>20)
 	}
 	raw, err := os.ReadFile(path)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	vars, err := ParseSavedVariables(string(raw))
+	return raw, vars, err
+}
+
+// character: the entry for one character of one site (created on first sight).
+func (s *Syncer) character(service, guid string) *Character {
+	key := service + "|" + guid
+	ch := s.characters[key]
+	if ch == nil {
+		ch = &Character{Service: service, GUID: guid}
+		s.characters[key] = ch
+	}
+	return ch
+}
+
+// uploadHash: the content, and which characters it sends (the selection changes the upload).
+func uploadHash(raw []byte, selected []string) string {
+	sum := sha256.New()
+	sum.Write(raw)
+	for _, g := range selected {
+		sum.Write([]byte("\x00" + g))
+	}
+	return hex.EncodeToString(sum.Sum(nil))
+}
+
+// announce marks an upload in progress (tray, settings page); the returned func ends it.
+func (s *Syncer) announce(names []string) func() {
+	s.mu.Lock()
+	s.uploading = names
+	s.mu.Unlock()
+	s.onChange()
+	return func() {
+		s.mu.Lock()
+		s.uploading = nil
+		s.mu.Unlock()
+		s.onChange()
+	}
+}
+
+// failed: the site no longer knows this computer (its link is dropped), or try the file again later.
+func (s *Syncer) failed(service string, f *fileState, err error) error {
+	if errors.Is(err, errUnauthorized) {
+		_ = s.store.Update(func(c *Config) {
+			if l := c.Links[service]; l != nil {
+				l.Token, l.BattleTag = "", ""
+			}
+		})
+	}
+	s.mu.Lock()
+	f.modTime = time.Time{}
+	s.mu.Unlock()
+	return err
+}
+
+func (s *Syncer) done(uploaded []UploadedCharacter) {
+	s.mu.Lock()
+	s.lastSync, s.lastError = time.Now(), ""
+	if len(uploaded) > 0 {
+		s.lastUploaded = uploaded
+	}
+	s.mu.Unlock()
+}
+
+// ── WoWLocker: one file per game account, all its characters in one upload ──
+
+func (s *Syncer) processWoWLocker(ctx context.Context, path string, f *fileState) error {
+	raw, vars, err := read(path)
 	if err != nil {
 		return err
 	}
@@ -210,6 +290,7 @@ func (s *Syncer) processFile(ctx context.Context, path string, f *fileState) err
 	chars, _ := db["characters"].(map[string]any)
 
 	cfg := s.store.Get()
+	link := cfg.LinkFor(WoWLocker)
 	accountOff := contains(cfg.ExcludedAccounts, f.account.Dir)
 	selected := map[string]any{}
 	s.mu.Lock()
@@ -218,11 +299,7 @@ func (s *Syncer) processFile(ctx context.Context, path string, f *fileState) err
 		if c == nil {
 			continue
 		}
-		ch := s.characters[guid]
-		if ch == nil {
-			ch = &Character{GUID: guid}
-			s.characters[guid] = ch
-		}
+		ch := s.character(WoWLocker, guid)
 		ch.Name, _ = c["name"].(string)
 		ch.Realm, _ = c["realm"].(string)
 		ch.Class, _ = c["class"].(string)
@@ -237,71 +314,128 @@ func (s *Syncer) processFile(ctx context.Context, path string, f *fileState) err
 			selected[guid] = c
 		}
 	}
+	f.modTime = fileTime(path)
 	s.mu.Unlock()
 
 	// Same content and same selection as the last upload: nothing to do.
-	sum := sha256.New()
-	sum.Write(raw)
-	for _, g := range sortedKeys(selected) {
-		sum.Write([]byte("\x00" + g))
-	}
-	hash := hex.EncodeToString(sum.Sum(nil))
-	s.mu.Lock()
-	f.modTime = st.ModTime()
-	s.mu.Unlock()
-	if cfg.Token == "" || len(selected) == 0 || cfg.Uploaded[path] == hash {
+	hash := uploadHash(raw, sortedKeys(selected))
+	if link.Token == "" || len(selected) == 0 || cfg.Uploaded[path] == hash {
 		return nil
 	}
 
 	format, _ := db["format"].(float64)
 	names := []string{}
 	for _, g := range sortedKeys(selected) {
-		if ch := s.characters[g]; ch != nil && ch.Name != "" {
+		if ch := s.characters[WoWLocker+"|"+g]; ch != nil && ch.Name != "" {
 			names = append(names, ch.Name)
 		}
 	}
-	s.mu.Lock()
-	s.uploading = names
-	s.mu.Unlock()
-	s.onChange()
-	defer func() {
-		s.mu.Lock()
-		s.uploading = nil
-		s.mu.Unlock()
-		s.onChange()
-	}()
-	var res uploadResult
-	err = call(ctx, "POST", cfg.Server, "/api/companion/upload", cfg.Token,
+	defer s.announce(names)()
+	var res wowlockerResult
+	err = call(ctx, "POST", link.Server, "/api/companion/upload", link.Token,
 		map[string]any{"format": format, "characters": selected}, &res)
-	if errors.Is(err, errUnauthorized) {
-		_ = s.store.Update(func(c *Config) { c.Token, c.BattleTag = "", "" })
-	}
 	if err != nil {
-		s.mu.Lock()
-		f.modTime = time.Time{} // try this file again
-		s.mu.Unlock()
-		return err
+		return s.failed(WoWLocker, f, err)
 	}
 	now := time.Now()
 	s.mu.Lock()
 	var synced []string
 	var uploaded []UploadedCharacter
 	for _, r := range res.Characters {
-		if ch := s.characters[r.GUID]; ch != nil {
+		if ch := s.characters[WoWLocker+"|"+r.GUID]; ch != nil {
 			ch.Status, ch.Events, ch.SyncedAt, ch.ID = r.Status, r.Events, now, r.CharacterID
 		}
 		if r.Status == "synced" {
 			synced = append(synced, fmt.Sprintf("%s (+%d)", r.Name, r.Events))
-			uploaded = append(uploaded, UploadedCharacter{Name: r.Name, Events: r.Events})
+			uploaded = append(uploaded, UploadedCharacter{Service: WoWLocker, Name: r.Name, Events: r.Events})
 		}
 	}
-	s.lastSync, s.lastError = now, ""
-	if len(uploaded) > 0 {
-		s.lastUploaded = uploaded
-	}
 	s.mu.Unlock()
-	log.Printf("uploaded %s: %s", path, strings.Join(synced, ", "))
+	s.done(uploaded)
+	log.Printf("uploaded %s to WoWLocker: %s", path, strings.Join(synced, ", "))
 	return s.store.Update(func(c *Config) { c.Uploaded[path] = hash })
+}
+
+// ── Hearthtale: one file per character, its book as the addon wrote it at logout ──
+
+// hearthtaleFields: what the site reads of a character's record (the rest,
+// its raw moments, stays on this computer).
+var hearthtaleFields = []string{"guid", "name", "realm", "region", "race", "class", "hardcore", "closed", "book", "link"}
+
+func (s *Syncer) processHearthtale(ctx context.Context, path string, f *fileState) error {
+	raw, vars, err := read(path)
+	if err != nil {
+		return err
+	}
+	rec, _ := vars["HearthtaleChar"].(map[string]any)
+	if rec == nil {
+		return errors.New("no HearthtaleChar in the file")
+	}
+	guid, _ := rec["guid"].(string)
+	if guid == "" {
+		return errors.New("a journal without its character")
+	}
+	cfg := s.store.Get()
+	link := cfg.LinkFor(Hearthtale)
+	s.mu.Lock()
+	ch := s.character(Hearthtale, guid)
+	ch.Name, _ = rec["name"].(string)
+	ch.Realm, _ = rec["realm"].(string)
+	ch.Class, _ = rec["class"].(string)
+	if book, ok := rec["book"].(map[string]any); ok {
+		if lvl, ok := book["level"].(float64); ok {
+			ch.Level = int(lvl)
+		}
+	}
+	ch.Account, ch.Install = f.account.Name, f.install.Label
+	ch.Excluded = contains(cfg.ExcludedAccounts, f.account.Dir) || contains(cfg.ExcludedCharacters, guid)
+	excluded := ch.Excluded
+	f.modTime = fileTime(path)
+	s.mu.Unlock()
+
+	if _, ok := rec["book"].(map[string]any); !ok {
+		return nil // no logout written by this version of the addon yet
+	}
+	hash := uploadHash(raw, []string{guid})
+	if link.Token == "" || excluded || cfg.Uploaded[path] == hash {
+		return nil
+	}
+	sent := map[string]any{}
+	for _, k := range hearthtaleFields {
+		if v, ok := rec[k]; ok {
+			sent[k] = v
+		}
+	}
+	defer s.announce([]string{ch.Name})()
+	var res hearthtaleResult
+	if err := call(ctx, "POST", link.Server, "/api/companion/upload", link.Token, map[string]any{"characters": []any{sent}}, &res); err != nil {
+		return s.failed(Hearthtale, f, err)
+	}
+	now := time.Now()
+	var uploaded []UploadedCharacter
+	s.mu.Lock()
+	for _, r := range res.Characters {
+		if r.GUID != guid {
+			continue
+		}
+		ch.Status, ch.Chapters, ch.SyncedAt, ch.ID = r.Status, r.Chapters, now, r.CharacterID
+		if r.Status == "saved" {
+			uploaded = append(uploaded, UploadedCharacter{Service: Hearthtale, Name: r.Name})
+		}
+	}
+	status := ch.Status
+	s.mu.Unlock()
+	s.done(uploaded)
+	log.Printf("uploaded %s to Hearthtale: %s", path, status)
+	return s.store.Update(func(c *Config) { c.Uploaded[path] = hash })
+}
+
+func fileTime(path string) time.Time {
+	st, err := os.Stat(path)
+	if err != nil {
+		return time.Time{}
+	}
+	return st.ModTime()
 }
 
 // Snapshot is what the settings page and the tray show.
@@ -316,17 +450,16 @@ type Snapshot struct {
 	LastUploaded []UploadedCharacter `json:"lastUploaded"`
 }
 
-// installsNow: the last scan (every 30 s), except that an account whose file
-// was missing then is checked again: right after the addon's first save, the
+// installsNow: the last scan (every 30 s), except that an account whose files
+// were missing then is looked at again: right after an addon's first save, the
 // page shouldn't still say it hasn't run. A copy: callers can't race the scan.
 func (s *Syncer) installsNow() []Install {
 	out := make([]Install, len(s.installs))
 	for i, in := range s.installs {
 		in.Accounts = append([]Account(nil), in.Accounts...)
 		for j, a := range in.Accounts {
-			if !a.HasFile {
-				_, err := os.Stat(a.File)
-				in.Accounts[j].HasFile = err == nil
+			if len(a.Files) < len(services) {
+				in.Accounts[j].Files = savedFiles(a.Dir)
 			}
 		}
 		out[i] = in
@@ -346,7 +479,10 @@ func (s *Syncer) Snapshot() Snapshot {
 		if a.Level != b.Level {
 			return a.Level > b.Level
 		}
-		return a.Name < b.Name
+		if a.Name != b.Name {
+			return a.Name < b.Name
+		}
+		return a.Service < b.Service
 	})
 	for _, f := range s.files {
 		if f.err != "" {

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>WoWLocker companion</title>
+<title>Ravenpost</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
 <style>
@@ -52,17 +52,21 @@
     color: #ffd0cc; padding: 8px 14px; border-radius: 4px; display: none; max-width: calc(100% - 32px); }
   .toast.ok { background: #0f2410; border-color: #2e7d32; color: #c8f7c5; }
   a { color: #3fc7eb; }
+  .site { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid #ffffff10; }
+  .site:first-child { padding-top: 0; border-top: 0; }
+  .site h3 { margin: 0; font: 700 14px Cinzel, serif; color: var(--gold); letter-spacing: .04em; }
+  .tag { font-size: 11px; padding: 1px 6px; border-radius: 3px; border: 1px solid #ffffff25; color: var(--dim); margin-left: 6px; }
 </style>
 </head>
 <body>
 <main>
   <header>
     <img src="/icon.png" width="34" height="34" alt="" aria-hidden="true">
-    <h1>WoWLocker</h1>
+    <h1>Ravenpost</h1>
     <span class="v" id="version"></span>
   </header>
 
-  <section class="frame"><span class="title" data-t="account"></span><div id="account"></div></section>
+  <section class="frame"><span class="title" data-t="sites"></span><div id="sites"></div></section>
   <section class="frame"><span class="title" data-t="characters"></span><div id="characters"></div></section>
   <section class="frame"><span class="title" data-t="folders"></span><div id="folders"></div></section>
   <section class="frame"><span class="title" data-t="options"></span><div id="options"></div></section>
@@ -73,35 +77,39 @@
 const KEY = new URLSearchParams(location.hash.slice(1)).get("k") || "";
 const FR = (navigator.language || "").toLowerCase().startsWith("fr");
 const T = FR ? {
-  account: "Compte", characters: "Personnages", folders: "Dossiers World of Warcraft", options: "Options",
-  linked: (b) => `Lié à <b>${b}</b>.`, notLinked: "Pas encore lié. Connectez-vous avec Battle.net pour que le compagnon puisse envoyer les données de vos personnages.",
-  link: "Lier avec Battle.net", unlink: "Délier", waiting: "En attente de la connexion Battle.net dans votre navigateur…", reopen: "Rouvrir la page",
+  sites: "Sites", characters: "Personnages", folders: "Dossiers World of Warcraft", options: "Options",
+  linked: (b) => `Lié à <b>${b}</b>.`, notLinked: "Pas encore lié.",
+  why: { wowlocker: "Vos personnages, leur équipement et leurs évènements sur wow-locker.app.", hearthtale: "Les livres de vos personnages, à lire sur hearthtale.app." },
+  link: "Lier", unlink: "Délier", waiting: "En attente de vous dans votre navigateur…", reopen: "Rouvrir la page",
   expired: "Le code a expiré.", retry: "Réessayer", server: "Serveur",
-  noChars: "Aucun personnage pour l'instant : l'addon écrit ses données à la déconnexion ou au /reload.",
-  synced: (n) => `envoyé${n ? ` · +${n} événement${n > 1 ? "s" : ""}` : ""}`, unknown: "pas sur ce compte Battle.net", invalid: "illisible", pending: "pas encore envoyé", off: "non envoyé",
+  noChars: "Aucun personnage pour l'instant : les addons écrivent leurs données à la déconnexion ou au /reload.",
+  synced: (n) => `envoyé${n ? ` · +${n} évènement${n > 1 ? "s" : ""}` : ""}`, unknown: "pas sur ce compte Battle.net", invalid: "illisible", pending: "pas encore envoyé", off: "non envoyé",
+  saved: (n) => `livre envoyé${n ? ` · ${n} chapitre${n > 1 ? "s" : ""}` : ""}`, unlinked: "à lier : /ht link CODE (code sur hearthtale.app)",
   syncNow: "Synchroniser", lastSync: (t) => `Dernier envoi : ${t}`, never: "jamais",
-  noInstall: "Aucun dossier World of Warcraft trouvé. Ajoutez-le ci-dessous.", noFile: "l'addon n'a pas encore tourné",
+  noInstall: "Aucun dossier World of Warcraft trouvé. Ajoutez-le ci-dessous.", ran: (names) => `addons : ${names}`, noFile: "aucun addon n'a encore tourné",
   add: "Ajouter un dossier…", addPath: "ou collez un chemin", added: "Ajouté à la main", remove: "Retirer",
   uploading: (n) => `Envoi de ${n}…`,
-  uploaded: (n, e) => `${n} synchronisé${e ? ` · +${e} événement${e > 1 ? "s" : ""}` : ""}`,
-  launch: "Lancer à l'ouverture de session", save: "Enregistrer", serverHint: "Changer de serveur délie le compagnon.",
-  addon: "Addon : copiez le dossier <b>WowLocker</b> dans <code>Interface/AddOns</code> de chaque version du jeu.",
-  forbidden: "Ouvrez cette page depuis l'icône du compagnon (menu Réglages).",
+  uploaded: (n, e) => `${n} synchronisé${e ? ` · +${e} évènement${e > 1 ? "s" : ""}` : ""}`,
+  launch: "Lancer à l'ouverture de session", save: "Enregistrer", serverHint: "Changer le serveur d'un site le délie.",
+  addon: "Addons : copiez le dossier de chaque addon (<b>WowLocker</b>, <b>Hearthtale</b>) dans <code>Interface/AddOns</code> de chaque version du jeu.",
+  forbidden: "Ouvrez cette page depuis l'icône de Ravenpost (menu Réglages).",
 } : {
-  account: "Account", characters: "Characters", folders: "World of Warcraft folders", options: "Options",
-  linked: (b) => `Linked to <b>${b}</b>.`, notLinked: "Not linked yet. Log in with Battle.net so the companion can upload your characters' data.",
-  link: "Link with Battle.net", unlink: "Unlink", waiting: "Waiting for the Battle.net login in your browser…", reopen: "Open the page again",
+  sites: "Sites", characters: "Characters", folders: "World of Warcraft folders", options: "Options",
+  linked: (b) => `Linked to <b>${b}</b>.`, notLinked: "Not linked yet.",
+  why: { wowlocker: "Your characters, their gear and what happens to them, on wow-locker.app.", hearthtale: "Your characters' books, to read on hearthtale.app." },
+  link: "Link", unlink: "Unlink", waiting: "Waiting for you in your browser…", reopen: "Open the page again",
   expired: "The code expired.", retry: "Try again", server: "Server",
-  noChars: "No characters yet: the addon writes its data when you log out or /reload.",
+  noChars: "No characters yet: the addons write their data when you log out or /reload.",
   synced: (n) => `uploaded${n ? ` · +${n} event${n > 1 ? "s" : ""}` : ""}`, unknown: "not on this Battle.net account", invalid: "unreadable", pending: "not uploaded yet", off: "not uploaded",
+  saved: (n) => `book sent${n ? ` · ${n} chapter${n > 1 ? "s" : ""}` : ""}`, unlinked: "to link: /ht link CODE (code from hearthtale.app)",
   syncNow: "Sync now", lastSync: (t) => `Last upload: ${t}`, never: "never",
-  noInstall: "No World of Warcraft folder found. Add it below.", noFile: "the addon hasn't run yet",
+  noInstall: "No World of Warcraft folder found. Add it below.", ran: (names) => `addons: ${names}`, noFile: "no addon has run yet",
   add: "Add a folder…", addPath: "or paste a path", added: "Added by hand", remove: "Remove",
   uploading: (n) => `Uploading ${n}…`,
   uploaded: (n, e) => `${n} synced${e ? ` · +${e} event${e > 1 ? "s" : ""}` : ""}`,
-  launch: "Launch at login", save: "Save", serverHint: "Changing the server unlinks the companion.",
-  addon: "Addon: copy the <b>WowLocker</b> folder into <code>Interface/AddOns</code> of each game version.",
-  forbidden: "Open this page from the companion's icon (Settings).",
+  launch: "Launch at login", save: "Save", serverHint: "Changing a site's server unlinks it.",
+  addon: "Addons: copy each addon's folder (<b>WowLocker</b>, <b>Hearthtale</b>) into <code>Interface/AddOns</code> of each game version.",
+  forbidden: "Open this page from Ravenpost's icon (Settings).",
 };
 const CLASS = { WARRIOR: "#c69b6d", PALADIN: "#f48cba", HUNTER: "#aad372", ROGUE: "#fff468", PRIEST: "#ffffff", SHAMAN: "#0070dd",
   MAGE: "#3fc7eb", WARLOCK: "#8788ee", DRUID: "#ff7c0a", DEATHKNIGHT: "#c41e3a", MONK: "#00ff98" };
@@ -115,7 +123,7 @@ let state = null;
 async function api(path, body) {
   const res = await fetch(path, {
     method: body === undefined && path === "/api/state" ? "GET" : "POST",
-    headers: { "X-Locker-Key": KEY, "Content-Type": "application/json" },
+    headers: { "X-Ravenpost-Key": KEY, "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (res.status === 403) throw new Error(T.forbidden);
@@ -144,34 +152,39 @@ function render() {
   const s = state;
   $("version").textContent = "v" + s.version;
 
-  // Account
-  const p = s.pairing;
-  let acc;
-  if (p && p.status === "waiting") {
-    acc = `<div class="stack"><div class="row"><span class="code">${esc(p.code)}</span><span class="dim grow">${T.waiting}</span></div>
-      <div class="row"><a href="${esc(p.url)}" target="_blank" rel="noopener">${T.reopen}</a></div></div>`;
-  } else if (s.paired) {
-    acc = `<div class="row"><span class="grow ok">✓ <span style="color:var(--ink)">${T.linked(esc(s.battletag || "Battle.net"))}</span></span>
-      <button class="dark" onclick="act('/api/unpair')">${T.unlink}</button></div>`;
-  } else {
-    acc = `<div class="stack"><div class="dim">${T.notLinked}</div>
-      ${p && p.status === "expired" ? `<div class="err">${T.expired}</div>` : ""}
-      <div class="row"><button class="bnet" onclick="act('/api/pair')">${p && p.status === "expired" ? T.retry : T.link}</button>
-      <span class="faint">${T.server}: ${esc(s.server)}</span></div></div>`;
-  }
-  $("account").innerHTML = acc;
+  // Sites: each linked on its own
+  const siteName = Object.fromEntries(s.sites.map((x) => [x.id, x.name]));
+  $("sites").innerHTML = s.sites.map((site) => {
+    const p = site.pairing;
+    let body;
+    if (p && p.status === "waiting") {
+      body = `<div class="row"><span class="code">${esc(p.code)}</span><span class="dim grow">${T.waiting}</span></div>
+        <div class="row"><a href="${esc(p.url)}" target="_blank" rel="noopener">${T.reopen}</a></div>`;
+    } else if (site.paired) {
+      body = `<div class="row"><span class="grow ok">✓ <span style="color:var(--ink)">${T.linked(esc(site.battletag || "Battle.net"))}</span></span>
+        <button class="dark" onclick="act('/api/unpair?site=${site.id}')">${T.unlink}</button></div>`;
+    } else {
+      body = `<div class="dim">${T.notLinked} ${T.why[site.id] || ""}</div>
+        ${p && p.status === "expired" ? `<div class="err">${T.expired}</div>` : ""}
+        <div class="row"><button class="bnet" onclick="act('/api/pair?site=${site.id}')">${p && p.status === "expired" ? T.retry : T.link + " " + esc(site.name)}</button>
+        <span class="faint">${esc(site.server)}</span></div>`;
+    }
+    return `<div class="site"><h3>${esc(site.name)}</h3>${body}</div>`;
+  }).join("");
 
   // Characters
   const excluded = new Set(s.excludedCharacters || []);
   const rows = s.characters.map((c) => {
     const status = c.excluded ? `<span class="faint">${T.off}</span>`
       : c.status === "synced" ? `<span class="ok">${T.synced(c.events)}</span>`
+      : c.status === "saved" ? `<span class="ok">${T.saved(c.chapters)}</span>`
       : c.status === "unknown" ? `<span class="err">${T.unknown}</span>`
+      : c.status === "unlinked" ? `<span class="err">${T.unlinked}</span>`
       : c.status === "invalid" ? `<span class="err">${T.invalid}</span>`
       : `<span class="faint">${T.pending}</span>`;
     return `<tr>
       <td style="width:28px"><input type="checkbox" ${excluded.has(c.guid) ? "" : "checked"} onchange="toggleChar(${s.characters.indexOf(c)}, this.checked)"></td>
-      <td><span class="name" style="color:${CLASS[c.class] || "var(--ink)"}">${esc(c.name)}</span> <span class="dim">${c.level ? esc(c.level) : ""}</span>
+      <td><span class="name" style="color:${CLASS[c.class] || "var(--ink)"}">${esc(c.name)}</span> <span class="dim">${c.level ? esc(c.level) : ""}</span><span class="tag">${esc(siteName[c.service] || c.service)}</span>
         <div class="faint">${esc(c.realm)} · ${esc(c.install)} · ${esc(c.account)}</div></td>
       <td style="text-align:right">${status}</td></tr>`;
   }).join("");
@@ -181,7 +194,7 @@ function render() {
     <div class="row"><span class="faint grow">${(s.uploading || []).length
       ? `<span class="ok">⟳ ${esc(T.uploading(s.uploading.join(", ")))}</span>`
       : T.lastSync(esc(ago(s.lastSync)))}</span>
-      <button class="dark" ${s.paired ? "" : "disabled"} onclick="act('/api/sync')">${T.syncNow}</button></div></div>`;
+      <button class="dark" ${s.sites.some((x) => x.paired) ? "" : "disabled"} onclick="act('/api/sync')">${T.syncNow}</button></div></div>`;
 
   // Folders (not while a path is being typed)
   if (document.activeElement?.id !== "path") {
@@ -189,7 +202,7 @@ function render() {
   const installs = s.installs.map((i, ii) => `<div class="install"><h3>${esc(i.label)} <span class="faint">${esc(i.path)}</span></h3>
     <div class="accounts">${i.accounts.map((a, ai) => `<label><input type="checkbox" ${offAcc.has(a.dir) ? "" : "checked"}
       onchange="toggleAcc(${ii}, ${ai}, this.checked)"> ${esc(a.name)}
-      ${a.hasFile ? "" : `<span class="faint">· ${T.noFile}</span>`}</label>`).join("")}</div></div>`).join("");
+      <span class="faint">· ${Object.keys(a.files || {}).length ? T.ran(Object.keys(a.files).map((id) => siteName[id] || id).join(", ")) : T.noFile}</span></label>`).join("")}</div></div>`).join("");
   const manual = s.folders.map((f, i) => `<div class="row"><span class="grow faint">${esc(f)}</span>
     <button class="dark" onclick="removeFolder(${i})">${T.remove}</button></div>`).join("");
   $("folders").innerHTML = `<div class="stack">
@@ -200,15 +213,15 @@ function render() {
     <div class="faint">${T.addon}</div></div>`;
   }
 
-  // Options
-  if (document.activeElement?.id !== "server") {
+  // Options (not while a server is being typed)
+  if (!document.activeElement?.id?.startsWith("server-")) {
     $("options").innerHTML = `<div class="stack">
       <label><input type="checkbox" ${s.launchAtLogin ? "checked" : ""} onchange="act('/api/settings', { launchAtLogin: this.checked })"> ${T.launch}</label>
-      <div><div class="dim" style="margin-bottom:4px">${T.server}</div>
-        <div class="row"><input type="text" class="grow" id="server" value="${esc(s.server)}" style="width:auto"
-          onkeydown="if(event.key==='Enter')saveServer()">
-        <button class="dark" onclick="saveServer()">${T.save}</button></div>
-        <div class="faint" style="margin-top:4px">${T.serverHint}</div></div></div>`;
+      ${s.sites.map((site) => `<div><div class="dim" style="margin-bottom:4px">${T.server} · ${esc(site.name)}</div>
+        <div class="row"><input type="text" class="grow" id="server-${site.id}" value="${esc(site.server)}" style="width:auto"
+          onkeydown="if(event.key==='Enter')saveServer('${site.id}')">
+        <button class="dark" onclick="saveServer('${site.id}')">${T.save}</button></div></div>`).join("")}
+      <div class="faint">${T.serverHint}</div></div>`;
   }
 }
 
@@ -229,9 +242,10 @@ function addPath() {
   const v = $("path").value.trim();
   if (v) act("/api/settings", { folders: [...state.folders, v] });
 }
-function saveServer() {
-  const v = $("server").value.trim();
-  if (v && v !== state.server) act("/api/settings", { server: v });
+function saveServer(id) {
+  const v = $("server-" + id).value.trim();
+  const site = state.sites.find((x) => x.id === id);
+  if (v && site && v !== site.server) act("/api/settings", { servers: { [id]: v } });
 }
 
 // Re-render only when something changed (a rebuilt button can swallow a

@@ -11,14 +11,28 @@ import (
 	"strings"
 )
 
-const agentLabel = "app.wow-locker.companion"
+const agentLabel = "app.ravenpost"
 
-func agentPath() (string, error) {
+// The WoWLocker companion's (Ravenpost's former self): removed on migration.
+const legacyAgentLabel = "app.wow-locker.companion"
+
+func agentPath() (string, error) { return agentFile(agentLabel) }
+
+func agentFile(label string) (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, "Library", "LaunchAgents", agentLabel+".plist"), nil
+	return filepath.Join(home, "Library", "LaunchAgents", label+".plist"), nil
+}
+
+// removeLegacyLaunch: the old companion no longer starts at login. True if it did.
+func removeLegacyLaunch() bool {
+	path, err := agentFile(legacyAgentLabel)
+	if err != nil {
+		return false
+	}
+	return os.Remove(path) == nil
 }
 
 // A LaunchAgent: started by launchd at login, nothing to approve.
@@ -40,7 +54,7 @@ func setLaunchAtLogin(on bool) error {
 	// Opened straight from the download, macOS runs the app from a random
 	// read-only copy that is gone after a reboot.
 	if strings.Contains(exe, "/AppTranslocation/") {
-		return errors.New("move WoWLocker to the Applications folder first, then open it from there")
+		return errors.New("move Ravenpost to the Applications folder first, then open it from there")
 	}
 	plist := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -62,7 +76,7 @@ func setLaunchAtLogin(on bool) error {
 func registryRoots() []string { return nil }
 
 func openURL(url string) error {
-	if os.Getenv("WOWLOCKER_NO_BROWSER") != "" {
+	if os.Getenv("RAVENPOST_NO_BROWSER") != "" {
 		log.Printf("open %s", url)
 		return nil
 	}

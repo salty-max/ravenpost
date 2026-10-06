@@ -1,1 +1,4 @@
 dist/
+# go-winres output (scripts/build.sh)
+*.syso
+/ravenpost

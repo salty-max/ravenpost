@@ -1,34 +1,33 @@
 #!/usr/bin/env bash
-# Release build of the companion (run on a Mac: the macOS app needs cgo).
+# Release build of Ravenpost (run on a Mac: the macOS app needs cgo).
 #
-#   WOWLOCKER_SERVER=https://wow-locker.example companion/scripts/build.sh
+#   scripts/build.sh
 #
 # dist/
-#   wow-locker-companion-macos.zip     WoWLocker.app (universal, menu bar only)
-#   wow-locker-companion-windows-x64.exe / -arm64.exe
-#   WowLocker-addon.zip                the addon, to unzip into Interface/AddOns
+#   ravenpost-macos.zip            Ravenpost.app (universal, menu bar only)
+#   ravenpost-windows-x64.exe      Windows (tray), no installer
+#   ravenpost-windows-arm64.exe
 set -euo pipefail
 cd "$(dirname "$0")/.."
-ROOT=$(cd .. && pwd)
 VERSION=$(sed -n 's/^var version = "\(.*\)"/\1/p' main.go)
-SERVER=${WOWLOCKER_SERVER:-}
-LDFLAGS="-s -w"
-[ -n "$SERVER" ] && LDFLAGS="$LDFLAGS -X main.defaultServer=$SERVER"
-[ -z "$SERVER" ] && echo "warning: WOWLOCKER_SERVER not set, the default server stays localhost" >&2
+WOWLOCKER=${WOWLOCKER_SERVER:-https://wow-locker.app}
+HEARTHTALE=${HEARTHTALE_SERVER:-https://hearthtale.app}
+LDFLAGS="-s -w -X main.wowlockerServer=$WOWLOCKER -X main.hearthtaleServer=$HEARTHTALE"
+ICON=assets/icon-512.png
 rm -rf dist && mkdir -p dist/tmp
 
 # ── macOS: universal binary in an .app bundle ──
 for arch in arm64 amd64; do
-  CGO_ENABLED=1 GOOS=darwin GOARCH=$arch go build -trimpath -ldflags "$LDFLAGS" -o dist/tmp/wow-locker-$arch .
+  CGO_ENABLED=1 GOOS=darwin GOARCH=$arch go build -trimpath -ldflags "$LDFLAGS" -o dist/tmp/ravenpost-$arch .
 done
-APP=dist/tmp/WoWLocker.app
+APP=dist/tmp/Ravenpost.app
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-lipo -create -output "$APP/Contents/MacOS/wow-locker" dist/tmp/wow-locker-arm64 dist/tmp/wow-locker-amd64
+lipo -create -output "$APP/Contents/MacOS/ravenpost" dist/tmp/ravenpost-arm64 dist/tmp/ravenpost-amd64
 ICONSET=dist/tmp/AppIcon.iconset && mkdir -p "$ICONSET"
 for size in 16 32 128 256 512; do
-  sips -z $size $size "$ROOT/apps/web/public/pwa-512.png" --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
+  sips -z $size $size "$ICON" --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
   double=$((size * 2)); [ $double -le 512 ] &&
-    sips -z $double $double "$ROOT/apps/web/public/pwa-512.png" --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
+    sips -z $double $double "$ICON" --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
 done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 cat > "$APP/Contents/Info.plist" <<PLIST
@@ -36,10 +35,10 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>WoWLocker</string>
-  <key>CFBundleDisplayName</key><string>WoWLocker</string>
-  <key>CFBundleIdentifier</key><string>app.wow-locker.companion</string>
-  <key>CFBundleExecutable</key><string>wow-locker</string>
+  <key>CFBundleName</key><string>Ravenpost</string>
+  <key>CFBundleDisplayName</key><string>Ravenpost</string>
+  <key>CFBundleIdentifier</key><string>app.ravenpost</string>
+  <key>CFBundleExecutable</key><string>ravenpost</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
@@ -50,25 +49,22 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 codesign --force --deep --sign - "$APP" # ad hoc: not notarized
-(cd dist/tmp && ditto -c -k --keepParent WoWLocker.app ../wow-locker-companion-macos.zip)
+(cd dist/tmp && ditto -c -k --keepParent Ravenpost.app ../ravenpost-macos.zip)
 
 # ── Windows: no console window; plain .exe downloads (nothing to unzip) ──
 # Embedded resources: icon, version info (publisher, product, version) and a
 # GUI manifest. An unsigned .exe without them looks even less trustworthy to
 # SmartScreen / Smart App Control.
 go run github.com/tc-hib/go-winres@v0.3.3 simply --arch amd64,arm64 --manifest gui \
-  --icon "$ROOT/apps/web/public/pwa-512.png" \
-  --product-name WoWLocker --file-description "WoWLocker companion" \
+  --icon "$ICON" \
+  --product-name Ravenpost --file-description "Ravenpost: your addons' saved files to their sites" \
   --product-version "$VERSION" --file-version "$VERSION" \
-  --copyright "© salty-max, MIT License" --original-filename wow-locker-companion.exe
+  --copyright "© salty-max, MIT License" --original-filename ravenpost.exe
 trap 'rm -f rsrc_windows_*.syso' EXIT
 for arch in amd64 arm64; do
   name=$([ $arch = amd64 ] && echo x64 || echo arm64)
-  CGO_ENABLED=0 GOOS=windows GOARCH=$arch go build -trimpath -ldflags "$LDFLAGS -H=windowsgui" -o "dist/wow-locker-companion-windows-$name.exe" .
+  CGO_ENABLED=0 GOOS=windows GOARCH=$arch go build -trimpath -ldflags "$LDFLAGS -H=windowsgui" -o "dist/ravenpost-windows-$name.exe" .
 done
-
-# ── the addon ──
-(cd "$ROOT/addon" && zip -qr "$OLDPWD/dist/WowLocker-addon.zip" WowLocker -x '*.DS_Store')
 
 rm -rf dist/tmp
 ls -lh dist

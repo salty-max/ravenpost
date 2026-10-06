@@ -1,4 +1,4 @@
-module github.com/salty-max/wow-locker/companion
+module github.com/salty-max/ravenpost
 
 go 1.26.5
 
