@@ -27,8 +27,10 @@ Moved out of salty-max/wow-locker (`companion/`, history kept) and renamed on
 - `settings.go` + `settings.html`: the settings page on 127.0.0.1:47615 (also
   the single-instance lock); every API call needs the config's key in
   `X-Ravenpost-Key` and a matching Host header.
-- `tray.go`, `icon.go` (the tray icon, a sealed letter drawn in code),
-  `assets/icon.svg` → `assets/icon-512.png` (app icon) and `icon.png` (page).
+- `tray.go`, `icon.go` (the tray icon, a sealed letter drawn in code: menu-bar
+  icons are one-colour silhouettes); the app icon is the painted raven
+  (`assets/icon-painted-*`, made by the user with GPT), rounded into
+  `assets/icon-512.png` (app) and `icon.png` (settings page): see assets/README.md.
 - `luasv.go`: parses SavedVariables as data (never executes it).
   `testdata/sim.{lua,json}` come from WoWLocker's addon sim
   (`WL_SV=… WL_DUMP=… luajit addon/test/sim.lua` in wow-locker).
