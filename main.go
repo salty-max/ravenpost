@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-var version = "0.2.1"
+var version = "0.2.2"
 
 func main() {
 	headless := flag.Bool("headless", false, "no tray icon: sync until interrupted (settings page still served)")
