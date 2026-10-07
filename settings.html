@@ -176,17 +176,34 @@ function render() {
 
   // Characters
   const excluded = new Set(s.excludedCharacters || []);
-  const rows = s.characters.map((c) => {
-    const status = c.excluded ? `<span class="faint">${T.off}</span>`
-      : c.status === "synced" ? `<span class="ok">${T.synced(c.events)}</span>`
-      : c.status === "saved" ? `<span class="ok">${T.saved(c.chapters)}</span>`
-      : c.status === "unknown" ? `<span class="err">${T.unknown}</span>`
-      : c.status === "unlinked" ? `<span class="err">${T.unlinked}</span>`
-      : c.status === "invalid" ? `<span class="err">${T.invalid}</span>`
-      : `<span class="faint">${T.pending}</span>`;
+  // One row a character: the sites it's on as tags, a status for each
+  // (named when there are two). The list comes last played first.
+  const chars = [];
+  const byGuid = new Map();
+  for (const c of s.characters) {
+    let g = byGuid.get(c.guid);
+    if (!g) {
+      g = { ...c, sites: [] };
+      byGuid.set(c.guid, g);
+      chars.push(g);
+    }
+    if ((c.level || 0) > (g.level || 0)) g.level = c.level;
+    for (const k of ["name", "realm", "class"]) if (!g[k] && c[k]) g[k] = c[k];
+    g.sites.push(c);
+  }
+  const statusOf = (c) => c.excluded ? `<span class="faint">${T.off}</span>`
+    : c.status === "synced" ? `<span class="ok">${T.synced(c.events)}</span>`
+    : c.status === "saved" ? `<span class="ok">${T.saved(c.chapters)}</span>`
+    : c.status === "unknown" ? `<span class="err">${T.unknown}</span>`
+    : c.status === "unlinked" ? `<span class="err">${T.unlinked}</span>`
+    : c.status === "invalid" ? `<span class="err">${T.invalid}</span>`
+    : `<span class="faint">${T.pending}</span>`;
+  const rows = chars.map((c) => {
+    const status = c.sites.length === 1 ? statusOf(c.sites[0])
+      : c.sites.map((x) => `<div><span class="dim">${esc(siteName[x.service] || x.service)}:</span> ${statusOf(x)}</div>`).join("");
     return `<tr>
-      <td style="width:28px"><input type="checkbox" ${excluded.has(c.guid) ? "" : "checked"} onchange="toggleChar(${s.characters.indexOf(c)}, this.checked)"></td>
-      <td><span class="name" style="color:${CLASS[c.class] || "var(--ink)"}">${esc(c.name)}</span> <span class="dim">${c.level ? esc(c.level) : ""}</span><span class="tag">${esc(siteName[c.service] || c.service)}</span>
+      <td style="width:28px"><input type="checkbox" ${excluded.has(c.guid) ? "" : "checked"} data-guid="${esc(c.guid)}" onchange="toggleChar(this.dataset.guid, this.checked)"></td>
+      <td><span class="name" style="color:${CLASS[c.class] || "var(--ink)"}">${esc(c.name)}</span> <span class="dim">${c.level ? esc(c.level) : ""}</span>${c.sites.map((x) => `<span class="tag">${esc(siteName[x.service] || x.service)}</span>`).join("")}
         <div class="faint">${esc(c.realm)} · ${esc(c.install)} · ${esc(c.account)}</div></td>
       <td style="text-align:right">${status}</td></tr>`;
   }).join("");
@@ -228,8 +245,7 @@ function render() {
   }
 }
 
-function toggleChar(i, on) {
-  const guid = state.characters[i].guid;
+function toggleChar(guid, on) {
   const set = new Set(state.excludedCharacters || []);
   on ? set.delete(guid) : set.add(guid);
   act("/api/settings", { excludedCharacters: [...set] });
