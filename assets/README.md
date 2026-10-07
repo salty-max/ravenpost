@@ -6,9 +6,6 @@ wax and a gold star.
 
 - `icon-painted-master.png`: original full-resolution generated artwork.
 - `icon-painted-1024.png`: 1024px square export.
-- `icon-painted-512.png`: 512px square export for app packaging.
-- `icon-painted-128.png`: 128px export for the settings header.
-- `icon-painted-preview-64.png`: small-size readability preview.
 - `icon-painted-prompt.json`: prompt and style references; generated with the
   built-in image generation tool.
 
