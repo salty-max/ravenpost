@@ -27,15 +27,17 @@ const (
 
 // A character seen in a site's saved file.
 type Character struct {
-	Service  string `json:"service"`
-	GUID     string `json:"guid"`
-	Name     string `json:"name"`
-	Realm    string `json:"realm"`
-	Class    string `json:"class"`
-	Level    int    `json:"level"`
-	Account  string `json:"account"` // the account folder
-	Install  string `json:"install"` // the client folder's label
-	Excluded bool   `json:"excluded"`
+	Service string `json:"service"`
+	GUID    string `json:"guid"`
+	Name    string `json:"name"`
+	Realm   string `json:"realm"`
+	Class   string `json:"class"`
+	Level   int    `json:"level"`
+	Account string `json:"account"` // the account folder
+	Install string `json:"install"` // the client folder's label
+	// When it was last played, as its addon saved it (the list's order).
+	LastSeen time.Time `json:"lastSeen,omitzero"`
+	Excluded bool      `json:"excluded"`
 	// The site says the account no longer has it (deleted): not listed.
 	Gone bool `json:"-"`
 	// From the last upload. WoWLocker: synced | unknown | invalid | gone (+ events);
@@ -309,6 +311,9 @@ func (s *Syncer) processWoWLocker(ctx context.Context, path string, f *fileState
 			if lvl, ok := st["level"].(float64); ok {
 				ch.Level = int(lvl)
 			}
+			if at, ok := st["updatedAt"].(float64); ok && at > 0 {
+				ch.LastSeen = time.Unix(int64(at), 0)
+			}
 		}
 		ch.Account, ch.Install = f.account.Name, f.install.Label
 		ch.Excluded = accountOff || contains(cfg.ExcludedCharacters, guid)
@@ -400,6 +405,13 @@ func (s *Syncer) processHearthtale(ctx context.Context, path string, f *fileStat
 	ch.Excluded = contains(cfg.ExcludedAccounts, f.account.Dir) || contains(cfg.ExcludedCharacters, guid)
 	excluded := ch.Excluded
 	f.modTime = fileTime(path)
+	// last played: its logout, else the file's time
+	ch.LastSeen = f.modTime
+	if out, ok := rec["logout"].(map[string]any); ok {
+		if at, ok := out["at"].(float64); ok && at > 0 {
+			ch.LastSeen = time.Unix(int64(at), 0)
+		}
+	}
 	s.mu.Unlock()
 
 	if _, ok := rec["book"].(map[string]any); !ok {
@@ -489,8 +501,12 @@ func (s *Syncer) Snapshot() Snapshot {
 		}
 		out.Characters = append(out.Characters, *c)
 	}
+	// the last played first
 	sort.Slice(out.Characters, func(i, j int) bool {
 		a, b := out.Characters[i], out.Characters[j]
+		if !a.LastSeen.Equal(b.LastSeen) {
+			return a.LastSeen.After(b.LastSeen)
+		}
 		if a.Level != b.Level {
 			return a.Level > b.Level
 		}
