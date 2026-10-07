@@ -34,6 +34,9 @@ type Config struct {
 	Key string `json:"key"`
 	// Saved file → hash of what was last uploaded from it.
 	Uploaded map[string]string `json:"uploaded"`
+	// Character GUIDs a site said the account no longer has (deleted): left
+	// out of the lists, still uploaded (played again, the site says so).
+	Gone []string `json:"gone,omitempty"`
 }
 
 // LinkFor: the site's link (a copy), its server defaulted.

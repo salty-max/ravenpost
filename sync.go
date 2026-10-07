@@ -36,7 +36,9 @@ type Character struct {
 	Account  string `json:"account"` // the account folder
 	Install  string `json:"install"` // the client folder's label
 	Excluded bool   `json:"excluded"`
-	// From the last upload. WoWLocker: synced | unknown | invalid (+ events);
+	// The site says the account no longer has it (deleted): not listed.
+	Gone bool `json:"-"`
+	// From the last upload. WoWLocker: synced | unknown | invalid | gone (+ events);
 	// Hearthtale: saved | unlinked | invalid (+ chapters).
 	Status   string    `json:"status,omitempty"`
 	Events   int       `json:"events"`
@@ -310,6 +312,7 @@ func (s *Syncer) processWoWLocker(ctx context.Context, path string, f *fileState
 		}
 		ch.Account, ch.Install = f.account.Name, f.install.Label
 		ch.Excluded = accountOff || contains(cfg.ExcludedCharacters, guid)
+		ch.Gone = contains(cfg.Gone, guid)
 		if !ch.Excluded {
 			selected[guid] = c
 		}
@@ -341,9 +344,12 @@ func (s *Syncer) processWoWLocker(ctx context.Context, path string, f *fileState
 	s.mu.Lock()
 	var synced []string
 	var uploaded []UploadedCharacter
+	gone := map[string]bool{}
 	for _, r := range res.Characters {
+		gone[r.GUID] = r.Status == "gone"
 		if ch := s.characters[WoWLocker+"|"+r.GUID]; ch != nil {
 			ch.Status, ch.Events, ch.SyncedAt, ch.ID = r.Status, r.Events, now, r.CharacterID
+			ch.Gone = gone[r.GUID]
 		}
 		if r.Status == "synced" {
 			synced = append(synced, fmt.Sprintf("%s (+%d)", r.Name, r.Events))
@@ -353,7 +359,10 @@ func (s *Syncer) processWoWLocker(ctx context.Context, path string, f *fileState
 	s.mu.Unlock()
 	s.done(uploaded)
 	log.Printf("uploaded %s to WoWLocker: %s", path, strings.Join(synced, ", "))
-	return s.store.Update(func(c *Config) { c.Uploaded[path] = hash })
+	return s.store.Update(func(c *Config) {
+		c.Uploaded[path] = hash
+		c.Gone = updateGone(c.Gone, gone)
+	})
 }
 
 // ── Hearthtale: one file per character, its book as the addon wrote it at logout ──
@@ -442,10 +451,12 @@ func fileTime(path string) time.Time {
 type Snapshot struct {
 	Installs   []Install   `json:"installs"`
 	Characters []Character `json:"characters"`
-	LastSync   time.Time   `json:"lastSync,omitzero"`
-	LastError  string      `json:"lastError,omitempty"`
-	Errors     []string    `json:"errors"`
-	Uploading  []string    `json:"uploading"`
+	// Characters left out of the list: the site says they were deleted.
+	Gone      int       `json:"gone"`
+	LastSync  time.Time `json:"lastSync,omitzero"`
+	LastError string    `json:"lastError,omitempty"`
+	Errors    []string  `json:"errors"`
+	Uploading []string  `json:"uploading"`
 	// What the last upload brought (names and new events).
 	LastUploaded []UploadedCharacter `json:"lastUploaded"`
 }
@@ -472,6 +483,10 @@ func (s *Syncer) Snapshot() Snapshot {
 	defer s.mu.Unlock()
 	out := Snapshot{Installs: s.installsNow(), LastSync: s.lastSync, LastError: s.lastError, Errors: []string{}, Uploading: append([]string{}, s.uploading...), LastUploaded: append([]UploadedCharacter{}, s.lastUploaded...)}
 	for _, c := range s.characters {
+		if c.Gone {
+			out.Gone++
+			continue
+		}
 		out.Characters = append(out.Characters, *c)
 	}
 	sort.Slice(out.Characters, func(i, j int) bool {
@@ -505,4 +520,29 @@ func sortedKeys(m map[string]any) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+// updateGone: the GUIDs a site called gone, with an upload's answers (true:
+// gone, false: there after all, played again); the others unchanged. Sorted.
+func updateGone(prev []string, answers map[string]bool) []string {
+	set := map[string]bool{}
+	for _, g := range prev {
+		set[g] = true
+	}
+	for g, isGone := range answers {
+		if isGone {
+			set[g] = true
+		} else {
+			delete(set, g)
+		}
+	}
+	if len(set) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(set))
+	for g := range set {
+		out = append(out, g)
+	}
+	sort.Strings(out)
+	return out
 }

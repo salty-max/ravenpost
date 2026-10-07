@@ -22,6 +22,9 @@ Moved out of salty-max/wow-locker (`companion/`, history kept) and renamed on
   selection) changed. WoWLocker: the account's characters in one upload.
   Hearthtale: one character per request (Vercel takes 4.5 MB), only the fields
   the site reads (`hearthtaleFields`); statuses saved / unlinked / invalid.
+  WoWLocker's "gone" (the account no longer has the character: deleted) is
+  kept in the config (`Gone`): left out of the lists, still uploaded, back
+  when the site says otherwise (played again).
 - `app.go`: pairing per site (device code: `/api/companion/pair/start`, the
   page on the site, `/pair/poll` hands the token over once).
 - `settings.go` + `settings.html`: the settings page on 127.0.0.1:47615 (also

@@ -83,6 +83,7 @@ const T = FR ? {
   link: "Lier", unlink: "Délier", waiting: "En attente de vous dans votre navigateur…", reopen: "Rouvrir la page",
   expired: "Le code a expiré.", retry: "Réessayer", server: "Serveur",
   noChars: "Aucun personnage pour l'instant : les addons écrivent leurs données à la déconnexion ou au /reload.",
+  gone: (n) => n === 1 ? "1 personnage supprimé n'est pas affiché." : `${n} personnages supprimés ne sont pas affichés.`,
   synced: (n) => `envoyé${n ? ` · +${n} évènement${n > 1 ? "s" : ""}` : ""}`, unknown: "pas sur ce compte Battle.net", invalid: "illisible", pending: "pas encore envoyé", off: "non envoyé",
   saved: (n) => `livre envoyé${n ? ` · ${n} chapitre${n > 1 ? "s" : ""}` : ""}`, unlinked: "à lier : /ht link CODE (code sur hearthtale.app)",
   syncNow: "Synchroniser", lastSync: (t) => `Dernier envoi : ${t}`, never: "jamais",
@@ -100,6 +101,7 @@ const T = FR ? {
   link: "Link", unlink: "Unlink", waiting: "Waiting for you in your browser…", reopen: "Open the page again",
   expired: "The code expired.", retry: "Try again", server: "Server",
   noChars: "No characters yet: the addons write their data when you log out or /reload.",
+  gone: (n) => n === 1 ? "1 deleted character isn't shown." : `${n} deleted characters aren't shown.`,
   synced: (n) => `uploaded${n ? ` · +${n} event${n > 1 ? "s" : ""}` : ""}`, unknown: "not on this Battle.net account", invalid: "unreadable", pending: "not uploaded yet", off: "not uploaded",
   saved: (n) => `book sent${n ? ` · ${n} chapter${n > 1 ? "s" : ""}` : ""}`, unlinked: "to link: /ht link CODE (code from hearthtale.app)",
   syncNow: "Sync now", lastSync: (t) => `Last upload: ${t}`, never: "never",
@@ -190,6 +192,7 @@ function render() {
   }).join("");
   $("characters").innerHTML = `<div class="stack">
     ${s.characters.length ? `<table>${rows}</table>` : `<div class="empty">${T.noChars}</div>`}
+    ${s.gone ? `<div class="faint">${esc(T.gone(s.gone))}</div>` : ""}
     ${(s.errors || []).map((e) => `<div class="err">${esc(e)}</div>`).join("")}
     <div class="row"><span class="faint grow">${(s.uploading || []).length
       ? `<span class="ok">⟳ ${esc(T.uploading(s.uploading.join(", ")))}</span>`
