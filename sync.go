@@ -41,7 +41,7 @@ type Character struct {
 	// The site says the account no longer has it (deleted): not listed.
 	Gone bool `json:"-"`
 	// From the last upload. WoWLocker: synced | unknown | invalid | gone (+ events);
-	// Hearthtale: saved | unlinked | invalid (+ chapters).
+	// Hearthtale: saved | unlinked | invalid | removed (+ chapters).
 	Status   string    `json:"status,omitempty"`
 	Events   int       `json:"events"`
 	Chapters int       `json:"chapters"`

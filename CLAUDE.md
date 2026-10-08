@@ -21,7 +21,8 @@ Moved out of salty-max/wow-locker (`companion/`, history kept) and renamed on
 - `sync.go`: polls file times every 3 s, uploads when a file's hash (+
   selection) changed. WoWLocker: the account's characters in one upload.
   Hearthtale: one character per request (Vercel takes 4.5 MB), only the fields
-  the site reads (`hearthtaleFields`); statuses saved / unlinked / invalid.
+  the site reads (`hearthtaleFields`); statuses saved / unlinked / invalid /
+  removed (its owner took the book off the site: a new link code brings it back).
   WoWLocker's "gone" (the account no longer has the character: deleted) is
   kept in the config (`Gone`): left out of the lists, still uploaded, back
   when the site says otherwise (played again). A character deleted and made

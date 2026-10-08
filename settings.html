@@ -86,6 +86,7 @@ const T = FR ? {
   gone: (n) => n === 1 ? "1 personnage supprimé n'est pas affiché." : `${n} personnages supprimés ne sont pas affichés.`,
   synced: (n) => `envoyé${n ? ` · +${n} évènement${n > 1 ? "s" : ""}` : ""}`, unknown: "pas sur ce compte Battle.net", invalid: "illisible", pending: "pas encore envoyé", off: "non envoyé",
   saved: (n) => `livre envoyé${n ? ` · ${n} chapitre${n > 1 ? "s" : ""}` : ""}`, unlinked: "à lier : /ht link CODE (code sur hearthtale.app)",
+  removed: "livre retiré du site : /ht link CODE pour le remettre",
   syncNow: "Synchroniser", lastSync: (t) => `Dernier envoi : ${t}`, never: "jamais",
   noInstall: "Aucun dossier World of Warcraft trouvé. Ajoutez-le ci-dessous.", ran: (names) => `addons : ${names}`, noFile: "aucun addon n'a encore tourné",
   add: "Ajouter un dossier…", addPath: "ou collez un chemin", added: "Ajouté à la main", remove: "Retirer",
@@ -104,6 +105,7 @@ const T = FR ? {
   gone: (n) => n === 1 ? "1 deleted character isn't shown." : `${n} deleted characters aren't shown.`,
   synced: (n) => `uploaded${n ? ` · +${n} event${n > 1 ? "s" : ""}` : ""}`, unknown: "not on this Battle.net account", invalid: "unreadable", pending: "not uploaded yet", off: "not uploaded",
   saved: (n) => `book sent${n ? ` · ${n} chapter${n > 1 ? "s" : ""}` : ""}`, unlinked: "to link: /ht link CODE (code from hearthtale.app)",
+  removed: "book removed from the site: /ht link CODE to bring it back",
   syncNow: "Sync now", lastSync: (t) => `Last upload: ${t}`, never: "never",
   noInstall: "No World of Warcraft folder found. Add it below.", ran: (names) => `addons: ${names}`, noFile: "no addon has run yet",
   add: "Add a folder…", addPath: "or paste a path", added: "Added by hand", remove: "Remove",
@@ -196,6 +198,7 @@ function render() {
     : c.status === "saved" ? `<span class="ok">${T.saved(c.chapters)}</span>`
     : c.status === "unknown" ? `<span class="err">${T.unknown}</span>`
     : c.status === "unlinked" ? `<span class="err">${T.unlinked}</span>`
+    : c.status === "removed" ? `<span class="err">${T.removed}</span>`
     : c.status === "invalid" ? `<span class="err">${T.invalid}</span>`
     : `<span class="faint">${T.pending}</span>`;
   const rows = chars.map((c) => {
