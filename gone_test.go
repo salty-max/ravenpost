@@ -8,7 +8,9 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
+	"time"
 )
 
 const wowlockerFile = `WowLockerDB = {
@@ -63,5 +65,53 @@ func TestGoneCharactersLeaveTheList(t *testing.T) {
 	s.process(context.Background(), file)
 	if snap := s.Snapshot(); len(snap.Characters) != 2 || snap.Gone != 0 || len(s.store.Get().Gone) != 0 {
 		t.Fatalf("played again: listed %+v, %d gone, remembered %v", snap.Characters, snap.Gone, s.store.Get().Gone)
+	}
+}
+
+// A character deleted and made again with its name: of the two, only the one
+// played last is listed, whether the new one took over the old one's file
+// (its folder, its name) or has a file of its own.
+func TestANewCharacterOfAnOldNameReplacesIt(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"characters": []map[string]any{}})
+	}))
+	defer srv.Close()
+	root, character := fakeWoW(t)
+	s := syncerFor(t, srv.URL, root)
+	s.process(context.Background(), character)
+	if snap := s.Snapshot(); len(snap.Characters) != 1 {
+		t.Fatalf("first: listed %+v", snap.Characters)
+	}
+
+	// The same file, now the new character's (another GUID, played later).
+	remade := strings.Replace(hearthtaleFile, "Player-6113-0B4A2201", "Player-6113-0C000001", 1)
+	remade = strings.Replace(remade, `["book"] = {`, `["logout"] = { ["at"] = 1790999999 },
+	["book"] = {`, 1)
+	if err := os.WriteFile(character, []byte(remade), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s.process(context.Background(), character)
+	snap := s.Snapshot()
+	if len(snap.Characters) != 1 || snap.Characters[0].GUID != "Player-6113-0C000001" {
+		t.Fatalf("the file taken over: listed %+v", snap.Characters)
+	}
+
+	// The old one's file elsewhere, still there: the one played last is listed.
+	old := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(character))), "Brannok-Old", "SavedVariables", "Hearthtale.lua")
+	if err := os.MkdirAll(filepath.Dir(old), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(old, []byte(hearthtaleFile), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	past := time.Unix(1790900000, 0) // (last played long before the new one)
+	if err := os.Chtimes(old, past, past); err != nil {
+		t.Fatal(err)
+	}
+	s.files[old] = &fileState{service: Hearthtale, install: s.files[character].install, account: s.files[character].account}
+	s.process(context.Background(), old)
+	snap = s.Snapshot()
+	if len(snap.Characters) != 1 || snap.Characters[0].GUID != "Player-6113-0C000001" || snap.Gone != 1 {
+		t.Fatalf("two files: listed %+v, %d gone", snap.Characters, snap.Gone)
 	}
 }

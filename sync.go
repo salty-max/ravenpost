@@ -51,6 +51,7 @@ type Character struct {
 
 type fileState struct {
 	service   string
+	guid      string // Hearthtale: the character the file belongs to (a new one may take over a deleted one's file)
 	modTime   time.Time
 	nextTry   time.Time
 	err       string
@@ -392,6 +393,12 @@ func (s *Syncer) processHearthtale(ctx context.Context, path string, f *fileStat
 	cfg := s.store.Get()
 	link := cfg.LinkFor(Hearthtale)
 	s.mu.Lock()
+	// The file now another character's (one deleted, a new one of its name
+	// in its folder): the old one leaves the list.
+	if f.guid != "" && f.guid != guid {
+		delete(s.characters, Hearthtale+"|"+f.guid)
+	}
+	f.guid = guid
 	ch := s.character(Hearthtale, guid)
 	ch.Name, _ = rec["name"].(string)
 	ch.Realm, _ = rec["realm"].(string)
@@ -494,8 +501,9 @@ func (s *Syncer) Snapshot() Snapshot {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	out := Snapshot{Installs: s.installsNow(), LastSync: s.lastSync, LastError: s.lastError, Errors: []string{}, Uploading: append([]string{}, s.uploading...), LastUploaded: append([]UploadedCharacter{}, s.lastUploaded...)}
-	for _, c := range s.characters {
-		if c.Gone {
+	superseded := supersededCharacters(s.characters)
+	for key, c := range s.characters {
+		if c.Gone || superseded[key] {
 			out.Gone++
 			continue
 		}
@@ -560,5 +568,32 @@ func updateGone(prev []string, answers map[string]bool) []string {
 		out = append(out, g)
 	}
 	sort.Strings(out)
+	return out
+}
+
+// supersededCharacters: of the characters of one name on one realm of one
+// game (a deleted one, and the new one made with its name), all but the one
+// played last. Keys of the syncer's map.
+func supersededCharacters(chars map[string]*Character) map[string]bool {
+	latest := map[string]string{} // service|install|realm|name = key
+	for key, c := range chars {
+		if c.Name == "" {
+			continue
+		}
+		who := strings.ToLower(c.Service + "|" + c.Install + "|" + c.Realm + "|" + c.Name)
+		if prev, ok := latest[who]; !ok || c.LastSeen.After(chars[prev].LastSeen) {
+			latest[who] = key
+		}
+	}
+	out := map[string]bool{}
+	for key, c := range chars {
+		if c.Name == "" {
+			continue
+		}
+		who := strings.ToLower(c.Service + "|" + c.Install + "|" + c.Realm + "|" + c.Name)
+		if latest[who] != key {
+			out[key] = true
+		}
+	}
 	return out
 }
