@@ -16,9 +16,9 @@ link and settings carry over the first time Ravenpost starts.
 ## Download
 
 The [latest release](https://github.com/salty-max/ravenpost/releases/latest):
-`ravenpost-macos.zip` (macOS 11 or later, Apple silicon and Intel: move
-Ravenpost to Applications) or `ravenpost-windows-x64.exe` /
-`ravenpost-windows-arm64.exe` (Windows 10 or 11).
+`ravenpost-vX.Y.Z-macos.zip` (macOS 11 or later, Apple silicon and Intel: move
+Ravenpost to Applications) or `ravenpost-vX.Y.Z-windows-x64.exe` /
+`ravenpost-vX.Y.Z-windows-arm64.exe` (Windows 10 or 11).
 
 ## What it sends
 

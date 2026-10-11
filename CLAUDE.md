@@ -54,5 +54,6 @@ Moved out of salty-max/wow-locker (`companion/`, history kept) and renamed on
 - Conventional Commits, lowercase subjects. Before calling a change done:
   gofmt, `go vet ./...`, `GOOS=windows go vet ./...`, `go test ./...`.
 - Release: `scripts/release.sh [--version X.Y.Z] NOTES.md`; Actions build on
-  macOS and publish `ravenpost-macos.zip`, `ravenpost-windows-{x64,arm64}.exe`.
-  WoWLocker's and Hearthtale's download pages link to the latest release.
+  macOS and publish `ravenpost-vX.Y.Z-macos.zip`,
+  `ravenpost-vX.Y.Z-windows-{x64,arm64}.exe` (main.go's version). WoWLocker's
+  and Hearthtale's download pages find them in the latest release.

@@ -3,10 +3,10 @@
 #
 #   scripts/build.sh
 #
-# dist/
-#   ravenpost-macos.zip            Ravenpost.app (universal, menu bar only)
-#   ravenpost-windows-x64.exe      Windows (tray), no installer
-#   ravenpost-windows-arm64.exe
+# dist/ (each named by its version, main.go's: ravenpost-v0.2.5-macos.zip)
+#   ravenpost-vX.Y.Z-macos.zip           Ravenpost.app (universal, menu bar only)
+#   ravenpost-vX.Y.Z-windows-x64.exe     Windows (tray), no installer
+#   ravenpost-vX.Y.Z-windows-arm64.exe
 set -euo pipefail
 cd "$(dirname "$0")/.."
 VERSION=$(sed -n 's/^var version = "\(.*\)"/\1/p' main.go)
@@ -49,7 +49,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 codesign --force --deep --sign - "$APP" # ad hoc: not notarized
-(cd dist/tmp && ditto -c -k --keepParent Ravenpost.app ../ravenpost-macos.zip)
+(cd dist/tmp && ditto -c -k --keepParent Ravenpost.app "../ravenpost-v$VERSION-macos.zip")
 
 # ── Windows: no console window; plain .exe downloads (nothing to unzip) ──
 # Embedded resources: icon, version info (publisher, product, version) and a
@@ -63,7 +63,7 @@ go run github.com/tc-hib/go-winres@v0.3.3 simply --arch amd64,arm64 --manifest g
 trap 'rm -f rsrc_windows_*.syso' EXIT
 for arch in amd64 arm64; do
   name=$([ $arch = amd64 ] && echo x64 || echo arm64)
-  CGO_ENABLED=0 GOOS=windows GOARCH=$arch go build -trimpath -ldflags "$LDFLAGS -H=windowsgui" -o "dist/ravenpost-windows-$name.exe" .
+  CGO_ENABLED=0 GOOS=windows GOARCH=$arch go build -trimpath -ldflags "$LDFLAGS -H=windowsgui" -o "dist/ravenpost-v$VERSION-windows-$name.exe" .
 done
 
 rm -rf dist/tmp
