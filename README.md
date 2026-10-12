@@ -28,7 +28,9 @@ Ravenpost to Applications) or `ravenpost-vX.Y.Z-windows-x64.exe` /
   The addon's raw records stay on your computer.
 
 Nothing else: no other file, no other addon. A character or a whole game account
-can be left out in the settings.
+can be left out in the settings. A book you removed from hearthtale.app stays off it: Ravenpost
+shows it as removed, and sends it again only once you type a new link code in
+the game.
 
 ## Development
 
