@@ -35,7 +35,8 @@ func removeLegacyLaunch() bool {
 	return os.Remove(path) == nil
 }
 
-// A LaunchAgent: started by launchd at login, nothing to approve.
+// A LaunchAgent: started by launchd at login, nothing to approve; quietly
+// (-background: the window waits for a click on the menu-bar icon).
 func setLaunchAtLogin(on bool) error {
 	path, err := agentPath()
 	if err != nil {
@@ -61,7 +62,7 @@ func setLaunchAtLogin(on bool) error {
 <plist version="1.0">
 <dict>
 	<key>Label</key><string>%s</string>
-	<key>ProgramArguments</key><array><string>%s</string></array>
+	<key>ProgramArguments</key><array><string>%s</string><string>-background</string></array>
 	<key>RunAtLoad</key><true/>
 	<key>ProcessType</key><string>Interactive</string>
 </dict>
@@ -81,15 +82,6 @@ func openURL(url string) error {
 		return nil
 	}
 	return exec.Command("open", url).Start()
-}
-
-func pickFolder() (string, error) {
-	out, err := exec.Command("osascript", "-e",
-		`POSIX path of (choose folder with prompt "World of Warcraft folder")`).Output()
-	if err != nil {
-		return "", nil // cancelled
-	}
-	return strings.TrimRight(strings.TrimSpace(string(out)), "/"), nil
 }
 
 func systemLanguage() string {

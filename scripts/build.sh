@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Release build of Ravenpost (run on a Mac: the macOS app needs cgo).
+# Release build of Ravenpost (run on a Mac: the macOS app needs cgo; Bun builds
+# the window's pages, embedded in each binary).
 #
 #   scripts/build.sh
 #
-# dist/ (each named by its version, main.go's: ravenpost-v0.2.5-macos.zip)
-#   ravenpost-vX.Y.Z-macos.zip           Ravenpost.app (universal, menu bar only)
-#   ravenpost-vX.Y.Z-windows-x64.exe     Windows (tray), no installer
+# dist/ (each named by its version, main.go's: ravenpost-v0.3.0-macos.zip)
+#   ravenpost-vX.Y.Z-macos.zip           Ravenpost.app (universal: a window, and the menu bar)
+#   ravenpost-vX.Y.Z-windows-x64.exe     Windows (a window, and the tray), no installer
 #   ravenpost-vX.Y.Z-windows-arm64.exe
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -16,9 +17,14 @@ LDFLAGS="-s -w -X main.wowlockerServer=$WOWLOCKER -X main.hearthtaleServer=$HEAR
 ICON=assets/icon-512.png
 rm -rf dist && mkdir -p dist/tmp
 
-# ── macOS: universal binary in an .app bundle ──
+# ── The window's pages (frontend/ → frontend/dist, embedded by desktop.go) ──
+(cd frontend && bun install --frozen-lockfile && bun run build)
+
+# ── macOS: universal binary in an .app bundle (macOS 11 and later, as Info.plist says) ──
+export MACOSX_DEPLOYMENT_TARGET=11.0
 for arch in arm64 amd64; do
-  CGO_ENABLED=1 GOOS=darwin GOARCH=$arch go build -trimpath -ldflags "$LDFLAGS" -o dist/tmp/ravenpost-$arch .
+  CGO_ENABLED=1 GOOS=darwin GOARCH=$arch CGO_CFLAGS="-mmacosx-version-min=11.0" CGO_LDFLAGS="-mmacosx-version-min=11.0" \
+    go build -tags production -trimpath -ldflags "$LDFLAGS" -o dist/tmp/ravenpost-$arch .
 done
 APP=dist/tmp/Ravenpost.app
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
@@ -44,6 +50,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleVersion</key><string>$VERSION</string>
   <key>LSMinimumSystemVersion</key><string>11.0</string>
+  <key>NSHighResolutionCapable</key><true/>
+  <!-- a menu-bar app: in the Dock only while its window is open (dock_darwin.go) -->
   <key>LSUIElement</key><true/>
 </dict>
 </plist>
@@ -63,7 +71,7 @@ go run github.com/tc-hib/go-winres@v0.3.3 simply --arch amd64,arm64 --manifest g
 trap 'rm -f rsrc_windows_*.syso' EXIT
 for arch in amd64 arm64; do
   name=$([ $arch = amd64 ] && echo x64 || echo arm64)
-  CGO_ENABLED=0 GOOS=windows GOARCH=$arch go build -trimpath -ldflags "$LDFLAGS -H=windowsgui" -o "dist/ravenpost-v$VERSION-windows-$name.exe" .
+  CGO_ENABLED=0 GOOS=windows GOARCH=$arch go build -tags production -trimpath -ldflags "$LDFLAGS -H=windowsgui" -o "dist/ravenpost-v$VERSION-windows-$name.exe" .
 done
 
 rm -rf dist/tmp

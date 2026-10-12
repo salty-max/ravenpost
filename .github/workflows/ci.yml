@@ -1,5 +1,6 @@
-# Every push to main and every pull request: vet and tests (macOS, the menu-bar
-# build needs cgo), and vet for Windows.
+# Every push to main and every pull request: the window's pages (typecheck and
+# build), its bindings up to date, then vet and tests (macOS: the app needs cgo)
+# and vet for Windows.
 name: CI
 
 on:
@@ -18,6 +19,11 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
+      - uses: oven-sh/setup-bun@v2
+      - name: The window
+        run: cd frontend && bun install --frozen-lockfile && bun run build
+      - name: Its bindings are up to date
+        run: scripts/bindings.sh && git diff --exit-code -- frontend/bindings
       - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
       - run: go vet ./...
       - run: GOOS=windows go vet ./...

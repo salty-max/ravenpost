@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"syscall"
 	"unsafe"
@@ -46,61 +45,8 @@ func setLaunchAtLogin(on bool) error {
 	if err != nil {
 		return err
 	}
-	return k.SetStringValue(runValue, fmt.Sprintf(`"%s"`, exe))
-}
-
-// The folder picker and opening links are plain Win32 calls: no PowerShell,
-// rundll32 or other script host. Smart App Control judges unsigned programs by
-// what they do, and a hidden PowerShell running a script is what malware does
-// (0.1.2's system notifications went through it and got the companion blocked).
-
-var (
-	shell32 = windows.NewLazySystemDLL("shell32.dll")
-	ole32   = windows.NewLazySystemDLL("ole32.dll")
-
-	pSHBrowseForFolder   = shell32.NewProc("SHBrowseForFolderW")
-	pSHGetPathFromIDList = shell32.NewProc("SHGetPathFromIDListW")
-	pCoInitializeEx      = ole32.NewProc("CoInitializeEx")
-	pCoUninitialize      = ole32.NewProc("CoUninitialize")
-	pCoTaskMemFree       = ole32.NewProc("CoTaskMemFree")
-)
-
-// The native "choose a folder" dialog (SHBrowseForFolder, the new style).
-func pickFolder() (string, error) {
-	const (
-		coinitApartmentThreaded = 0x2
-		bifReturnOnlyFSDirs     = 0x1
-		bifNewDialogStyle       = 0x40
-	)
-	type browseInfo struct {
-		Owner       windows.Handle
-		Root        uintptr
-		DisplayName *uint16
-		Title       *uint16
-		Flags       uint32
-		Callback    uintptr
-		LParam      uintptr
-		Image       int32
-	}
-	// The dialog needs COM in a single-threaded apartment, on one OS thread.
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-	if r, _, _ := pCoInitializeEx.Call(0, coinitApartmentThreaded); int32(r) >= 0 {
-		defer pCoUninitialize.Call()
-	}
-	var display [windows.MAX_PATH]uint16
-	title, _ := windows.UTF16PtrFromString("World of Warcraft folder")
-	bi := browseInfo{DisplayName: &display[0], Title: title, Flags: bifReturnOnlyFSDirs | bifNewDialogStyle}
-	pidl, _, _ := pSHBrowseForFolder.Call(uintptr(unsafe.Pointer(&bi)))
-	if pidl == 0 {
-		return "", nil // cancelled
-	}
-	defer pCoTaskMemFree.Call(pidl)
-	var path [windows.MAX_PATH]uint16
-	if r, _, _ := pSHGetPathFromIDList.Call(pidl, uintptr(unsafe.Pointer(&path[0]))); r == 0 {
-		return "", fmt.Errorf("not a folder on disk")
-	}
-	return windows.UTF16ToString(path[:]), nil
+	// (-background: started at login, the window waits for a click on the tray icon)
+	return k.SetStringValue(runValue, fmt.Sprintf(`"%s" -background`, exe))
 }
 
 // Where the Battle.net launcher installed the game.
@@ -123,6 +69,11 @@ func registryRoots() []string {
 	return out
 }
 
+// Opening a link is a plain Win32 call: no PowerShell, rundll32 or other
+// script host (nor Wails' own opener, which runs rundll32). Smart App Control
+// judges unsigned programs by what they do, and a hidden PowerShell running a
+// script is what malware does (0.1.2's system notifications went through it
+// and got the companion blocked).
 func openURL(url string) error {
 	if os.Getenv("RAVENPOST_NO_BROWSER") != "" {
 		log.Printf("open %s", url)

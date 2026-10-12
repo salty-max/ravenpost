@@ -37,6 +37,7 @@ echo "release $TAG: $current → $VERSION"
 
 perl -pi -e "s/^var version = \".*\"/var version = \"$VERSION\"/" main.go
 test -z "$(gofmt -l .)" || die "gofmt: $(gofmt -l .)"
+(cd frontend && bun install --frozen-lockfile && bun run build)
 go vet ./... && GOOS=windows go vet ./... && go test ./...
 
 git add -A

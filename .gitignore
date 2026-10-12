@@ -1,4 +1,11 @@
-dist/
+# release builds (scripts/build.sh)
+/dist/
 # go-winres output (scripts/build.sh)
 *.syso
 /ravenpost
+# the window (frontend/): its packages and its build, embedded at compile time;
+# dist keeps a placeholder so a checkout compiles without a build (Vite copies
+# it back from public/ on each build)
+frontend/node_modules/
+frontend/dist/*
+!frontend/dist/.gitkeep

@@ -25,6 +25,7 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
+      - uses: oven-sh/setup-bun@v2
       - name: Build
         run: scripts/build.sh
       - name: Publish the release

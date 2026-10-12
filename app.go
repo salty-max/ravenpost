@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-// App ties the config, the syncer and pairing together; the tray and the
-// settings page both act through it.
+// App ties the config, the syncer and pairing together; the window (service.go)
+// and the menu-bar/tray icon both act through it.
 type App struct {
 	store  *Store
 	syncer *Syncer
@@ -105,6 +105,7 @@ func (a *App) StartPairing(service string) error {
 			case "paired":
 				_ = a.store.SetLink(service, Link{Server: link.Server, Token: poll.Token, BattleTag: poll.BattleTag})
 				log.Printf("linked to %s as %s", service, poll.BattleTag)
+				a.syncer.record(Activity{Kind: "linked", Service: service, Name: poll.BattleTag})
 				a.finishPairing(service, start.Code, "paired", "")
 				a.syncer.SyncNow(true)
 				return
@@ -128,12 +129,17 @@ func (a *App) finishPairing(service, code, status, msg string) {
 
 func (a *App) Unpair(service string) error {
 	link := a.store.Get().LinkFor(service)
-	err := a.store.SetLink(service, Link{Server: link.Server})
+	if err := a.store.SetLink(service, Link{Server: link.Server}); err != nil {
+		return err
+	}
+	if link.Token != "" {
+		a.syncer.record(Activity{Kind: "unlinked", Service: service, Name: link.BattleTag})
+	}
 	a.notify()
-	return err
+	return nil
 }
 
-// SettingsUpdate is what the settings page can change.
+// SettingsUpdate is what the window can change.
 type SettingsUpdate struct {
 	// A site's server, by site id (a new server unlinks that site).
 	Servers            map[string]string `json:"servers"`

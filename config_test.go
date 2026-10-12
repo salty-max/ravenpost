@@ -27,7 +27,7 @@ func TestMigratesTheWoWLockerCompanion(t *testing.T) {
 	if l := c.LinkFor(Hearthtale); l.Token != "" || l.Server != hearthtaleServer {
 		t.Fatalf("Hearthtale should start unlinked on its default server: %+v", l)
 	}
-	if len(c.Folders) != 1 || len(c.ExcludedCharacters) != 1 || c.Uploaded["/a/WowLocker.lua"] != "abc" || c.Key == "" {
+	if len(c.Folders) != 1 || len(c.ExcludedCharacters) != 1 || c.Uploaded["/a/WowLocker.lua"] != "abc" {
 		t.Fatalf("settings not carried over: %+v", c)
 	}
 	// Saved as Ravenpost's own: the next start reads it, not the old one.

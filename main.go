@@ -1,7 +1,8 @@
-// Ravenpost: a menu-bar (macOS) / tray (Windows) app that carries World of
-// Warcraft addons' saved files to their sites whenever the game writes them
-// (logout, /reload, disconnect): WoWLocker's to wow-locker.app, Hearthtale's
-// to hearthtale.app (services.go). Formerly the WoWLocker companion.
+// Ravenpost: a desktop app (a window, and an icon in the macOS menu bar or the
+// Windows tray) that carries World of Warcraft addons' saved files to their
+// sites whenever the game writes them (logout, /reload, disconnect):
+// WoWLocker's to wow-locker.app, Hearthtale's to hearthtale.app (services.go).
+// Formerly the WoWLocker companion.
 package main
 
 import (
@@ -20,7 +21,8 @@ import (
 var version = "0.2.5"
 
 func main() {
-	headless := flag.Bool("headless", false, "no tray icon: sync until interrupted (settings page still served)")
+	headless := flag.Bool("headless", false, "no window nor icon: sync until interrupted")
+	background := flag.Bool("background", false, "started at login: the window waits for a click on the icon")
 	once := flag.Bool("once", false, "upload what changed, then exit")
 	showVersion := flag.Bool("version", false, "print the version")
 	flag.Parse()
@@ -50,34 +52,28 @@ func main() {
 		return
 	}
 
-	l, err := listenSettings()
-	if err != nil {
-		// Already running: show that instance's settings instead.
-		_ = openURL(settingsURL(store.Get()))
-		return
-	}
-	go func() {
-		if err := app.serveSettings(l); err != nil {
-			log.Printf("settings server: %v", err)
-		}
-	}()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go app.syncer.Run(ctx)
-	log.Printf("Ravenpost %s started", version)
-
-	// Nothing linked yet (first run): open the settings page to get started.
-	if !app.linkedAny() {
-		_ = openURL(settingsURL(store.Get()))
-	}
 
 	if *headless {
+		go app.syncer.Run(ctx)
+		log.Printf("Ravenpost %s started (headless)", version)
 		sig := make(chan os.Signal, 1)
 		signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 		<-sig
 		return
 	}
-	app.runTray(cancel)
+
+	// The login item, written again at each start: it follows the app where it
+	// was moved, and asks a login start to stay quiet (-background).
+	if store.Get().LaunchAtLogin {
+		if err := setLaunchAtLogin(true); err != nil {
+			log.Printf("launch at login: %v", err)
+		}
+	}
+	if err := app.runDesktop(ctx, *background, cancel); err != nil {
+		log.Fatal(err)
+	}
 }
 
 // Logs go to <config dir>/ravenpost/ravenpost.log (and stderr), kept small.

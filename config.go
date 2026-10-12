@@ -1,8 +1,6 @@
 package main
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io/fs"
@@ -30,13 +28,13 @@ type Config struct {
 	ExcludedAccounts   []string `json:"excludedAccounts"`
 	ExcludedCharacters []string `json:"excludedCharacters"`
 	LaunchAtLogin      bool     `json:"launchAtLogin"`
-	// Secret of the local settings page (other web pages can't call it).
-	Key string `json:"key"`
 	// Saved file → hash of what was last uploaded from it.
 	Uploaded map[string]string `json:"uploaded"`
 	// Character GUIDs a site said the account no longer has (deleted): left
 	// out of the lists, still uploaded (played again, the site says so).
 	Gone []string `json:"gone,omitempty"`
+	// What Ravenpost did lately, the latest first (activity.go).
+	Activity []Activity `json:"activity,omitempty"`
 }
 
 // LinkFor: the site's link (a copy), its server defaulted.
@@ -144,13 +142,6 @@ func LoadStore() (*Store, error) {
 			s.cfg.Links[svc.ID] = &Link{Server: defaultServer(svc.ID)}
 		}
 	}
-	if s.cfg.Key == "" {
-		k := make([]byte, 24)
-		if _, err := rand.Read(k); err != nil {
-			return nil, err
-		}
-		s.cfg.Key = hex.EncodeToString(k)
-	}
 	if s.cfg.Uploaded == nil {
 		s.cfg.Uploaded = map[string]string{}
 	}
@@ -170,6 +161,7 @@ func (s *Store) Get() Config {
 	c.Folders = append([]string(nil), c.Folders...)
 	c.ExcludedAccounts = append([]string(nil), c.ExcludedAccounts...)
 	c.ExcludedCharacters = append([]string(nil), c.ExcludedCharacters...)
+	c.Activity = append([]Activity(nil), c.Activity...)
 	c.Uploaded = make(map[string]string, len(s.cfg.Uploaded))
 	for k, v := range s.cfg.Uploaded {
 		c.Uploaded[k] = v

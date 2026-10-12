@@ -10,7 +10,7 @@ wax and a gold star.
   built-in image generation tool.
 
 In use since 0.2.1: `icon-512.png` (the app icon: macOS .icns, Windows .exe) and
-the root `icon.png` (the settings page header) are the painted icon with rounded
+`frontend/public/icon.png` (the window's own) are the painted icon with rounded
 corners (22 % radius, transparent), made from `icon-painted-1024.png`:
 
     magick icon-painted-1024.png -resize 512x512 \( -size 512x512 xc:none -fill white \

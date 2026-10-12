@@ -73,9 +73,9 @@ type Syncer struct {
 
 	kick     chan struct{}
 	onChange func()
-	// Character names of the upload in progress (tray, settings page).
+	// Character names of the upload in progress (the window, the icon's menu).
 	uploading []string
-	// The characters of the last successful upload: shown in the tray and settings page.
+	// The characters of the last successful upload (the window, the icon's menu).
 	lastUploaded []UploadedCharacter
 }
 
@@ -201,7 +201,11 @@ func (s *Syncer) process(ctx context.Context, path string) {
 	} else {
 		f.err = ""
 	}
+	service, account := f.service, f.account.Name
 	s.mu.Unlock()
+	if err != nil {
+		s.record(Activity{Kind: "failed", Service: service, Name: account, Detail: err.Error()})
+	}
 	s.onChange()
 }
 
@@ -243,7 +247,7 @@ func uploadHash(raw []byte, selected []string) string {
 	return hex.EncodeToString(sum.Sum(nil))
 }
 
-// announce marks an upload in progress (tray, settings page); the returned func ends it.
+// announce marks an upload in progress (the window, the icon's menu); the returned func ends it.
 func (s *Syncer) announce(names []string) func() {
 	s.mu.Lock()
 	s.uploading = names
@@ -350,6 +354,7 @@ func (s *Syncer) processWoWLocker(ctx context.Context, path string, f *fileState
 	s.mu.Lock()
 	var synced []string
 	var uploaded []UploadedCharacter
+	var told []Activity
 	gone := map[string]bool{}
 	for _, r := range res.Characters {
 		gone[r.GUID] = r.Status == "gone"
@@ -361,9 +366,15 @@ func (s *Syncer) processWoWLocker(ctx context.Context, path string, f *fileState
 			synced = append(synced, fmt.Sprintf("%s (+%d)", r.Name, r.Events))
 			uploaded = append(uploaded, UploadedCharacter{Service: WoWLocker, Name: r.Name, Events: r.Events})
 		}
+		if r.Status != "gone" { // (a deleted character: nothing to tell)
+			told = append(told, sentOrRefused(WoWLocker, r.Name, r.Status, r.Events, 0))
+		}
 	}
 	s.mu.Unlock()
 	s.done(uploaded)
+	for _, a := range told {
+		s.record(a)
+	}
 	log.Printf("uploaded %s to WoWLocker: %s", path, strings.Join(synced, ", "))
 	return s.store.Update(func(c *Config) {
 		c.Uploaded[path] = hash
@@ -451,9 +462,10 @@ func (s *Syncer) processHearthtale(ctx context.Context, path string, f *fileStat
 			uploaded = append(uploaded, UploadedCharacter{Service: Hearthtale, Name: r.Name})
 		}
 	}
-	status := ch.Status
+	status, name, chapters := ch.Status, ch.Name, ch.Chapters
 	s.mu.Unlock()
 	s.done(uploaded)
+	s.record(sentOrRefused(Hearthtale, name, status, 0, chapters))
 	log.Printf("uploaded %s to Hearthtale: %s", path, status)
 	return s.store.Update(func(c *Config) { c.Uploaded[path] = hash })
 }
@@ -466,7 +478,7 @@ func fileTime(path string) time.Time {
 	return st.ModTime()
 }
 
-// Snapshot is what the settings page and the tray show.
+// Snapshot is what the window and the icon's menu show.
 type Snapshot struct {
 	Installs   []Install   `json:"installs"`
 	Characters []Character `json:"characters"`
@@ -478,6 +490,8 @@ type Snapshot struct {
 	Uploading []string  `json:"uploading"`
 	// What the last upload brought (names and new events).
 	LastUploaded []UploadedCharacter `json:"lastUploaded"`
+	// What Ravenpost did lately, the latest first.
+	Activity []Activity `json:"activity"`
 }
 
 // installsNow: the last scan (every 30 s), except that an account whose files
@@ -498,6 +512,7 @@ func (s *Syncer) installsNow() []Install {
 }
 
 func (s *Syncer) Snapshot() Snapshot {
+	activity := s.store.Get().Activity // (before the syncer's lock: the store's is never taken under it)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	out := Snapshot{Installs: s.installsNow(), LastSync: s.lastSync, LastError: s.lastError, Errors: []string{}, Uploading: append([]string{}, s.uploading...), LastUploaded: append([]UploadedCharacter{}, s.lastUploaded...)}
@@ -533,6 +548,10 @@ func (s *Syncer) Snapshot() Snapshot {
 	}
 	if out.Characters == nil {
 		out.Characters = []Character{}
+	}
+	out.Activity = activity
+	if out.Activity == nil {
+		out.Activity = []Activity{}
 	}
 	return out
 }
