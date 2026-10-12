@@ -1,44 +1,65 @@
 # Ravenpost
 
-A small desktop app for macOS and Windows that carries your World of Warcraft
-addons' saved files to their sites, a few seconds after you log out or
-`/reload`:
+Ravenpost is a small app for macOS and Windows. It carries your World of
+Warcraft addons' saved files to their websites a few seconds after you log
+out or use `/reload`.
 
-- **[WoWLocker](https://wow-locker.app)**: your characters, their gear and what
-  happens to them (the WowLocker addon).
-- **[Hearthtale](https://hearthtale.app)**: your characters' journals, to read on
-  your phone (the Hearthtale addon).
+It works with two sites:
 
-Ravenpost opens a window where you link each site (you sign in on the site and
-confirm the code Ravenpost shows) and then watch it work: what each logout sent,
-the characters it found, the game folders it watches. Close the window and it
-keeps working from the menu bar (macOS) or the tray (Windows); started at login,
-it stays there quietly until you open it. Formerly the WoWLocker companion: its
-link and settings carry over the first time Ravenpost starts.
+- **[Hearthtale](https://hearthtale.app)** for your characters' journals, to
+  read on your phone.
+- **[WoWLocker](https://wow-locker.app)** for your characters, their gear and
+  what happens to them.
 
-Built with Go and [Wails](https://v3.wails.io) (the window is React in the
-system's own webview: no bundled browser, a small download).
+## Using Ravenpost
+
+Open Ravenpost and link each site you use. Click **Link with Battle.net**,
+sign in on the site and check that the code matches the one Ravenpost shows.
+The window then shows what each logout sent, the characters Ravenpost found
+and the game folders it watches.
+
+Closing the window doesn't stop Ravenpost. It keeps working from the menu bar
+on macOS or the tray on Windows. With **Open Ravenpost at login** turned on in
+its settings, it starts there quietly and sends your files from your first
+logout.
+
+Ravenpost finds World of Warcraft by itself. If your game is somewhere else,
+add its folder in **Game folders**. The window is in English or French,
+following your system's language.
+
+Ravenpost replaces the WoWLocker companion. Your link and settings carry over
+the first time it starts.
 
 ## Download
 
-The [latest release](https://github.com/salty-max/ravenpost/releases/latest):
-`ravenpost-vX.Y.Z-macos.zip` (macOS 11 or later, Apple silicon and Intel: move
-Ravenpost to Applications) or `ravenpost-vX.Y.Z-windows-x64.exe` /
-`ravenpost-vX.Y.Z-windows-arm64.exe` (Windows 10 or 11; the window uses Microsoft Edge WebView2, part of Windows 11 and of an up-to-date Windows 10).
+Get the [latest release](https://github.com/salty-max/ravenpost/releases/latest):
+
+- **macOS 11 or later**, Apple silicon and Intel: `ravenpost-vX.Y.Z-macos.zip`.
+  Move Ravenpost to Applications.
+- **Windows 10 or 11**: `ravenpost-vX.Y.Z-windows-x64.exe`, or
+  `ravenpost-vX.Y.Z-windows-arm64.exe` on ARM. The window needs Microsoft Edge
+  WebView2, which comes with Windows 11 and an up-to-date Windows 10.
+
+Ravenpost isn't code-signed yet, so Windows and macOS warn you the first time
+you open it.
 
 ## What it sends
 
-- WoWLocker: the WowLocker addon's file, as it is.
-- Hearthtale: each character's name, realm, race and class, its book as the
-  addon wrote it at logout, and a link code if you typed one (`/ht link CODE`).
-  The addon's raw records stay on your computer.
+- **WoWLocker** gets the WowLocker addon's saved file as it is.
+- **Hearthtale** gets each character's name, realm, race and class, its
+  journal as the addon wrote it at logout, and a link code if you typed one
+  with `/ht link CODE`. The addon's raw records stay on your computer.
 
-Nothing else: no other file, no other addon. A character or a whole game account
-can be left out in the window. A book you removed from hearthtale.app stays off it: Ravenpost
-shows it as removed, and sends it again only once you type a new link code in
-the game.
+Ravenpost sends no other file and reads no other addon. You can leave out a
+character or a whole game account in the window. If you remove a book from
+hearthtale.app, Ravenpost shows it as removed and only sends it again after
+you type a new link code in the game.
 
 ## Development
+
+Ravenpost is written in Go with [Wails](https://v3.wails.io). The window is
+React in the system's own webview, so there is no bundled browser and the
+download stays small.
 
 ```bash
 cd frontend && bun install && bun run build && cd ..   # the window's pages (embedded)
@@ -49,12 +70,12 @@ scripts/build.sh                  # release build (macOS: needs cgo for the .app
 scripts/release.sh NOTES.md       # tag and push; Actions publish the release
 ```
 
-Working on the window: `cd frontend && bun run dev`, then either
-`FRONTEND_DEVSERVER_URL=http://127.0.0.1:9245 go run .` (the app, hot reloaded)
-or `http://127.0.0.1:9245/?mock` in a browser (a made-up state). `go run . -headless`
-syncs without a window or an icon.
+To work on the window, run `cd frontend && bun run dev`. Then start the app
+with `FRONTEND_DEVSERVER_URL=http://127.0.0.1:9245 go run .` to get hot
+reloading, or open `http://127.0.0.1:9245/?mock` in a browser to see it with
+made-up data. `go run . -headless` syncs without a window or an icon.
 
-Local sites: WoWLocker on `http://localhost:5174`, Hearthtale on
-`http://localhost:5175` (the defaults outside a release build).
+Outside a release build, Ravenpost talks to the local sites: WoWLocker on
+`http://localhost:5174` and Hearthtale on `http://localhost:5175`.
 
 MIT licensed. Not affiliated with Blizzard Entertainment.
