@@ -1,0 +1,8 @@
+## Interface: 16001
+## Title: Ravenpost spike
+## Notes: A test of Ravenpost's mailbox: says what it loaded at each login and /reload. Remove after the test.
+## Author: salty-max
+## Version: 0.0.1
+## OptionalDeps: RavenpostSpike_Mailbox
+## SavedVariables: RavenpostSpikeSeen
+Spike.lua

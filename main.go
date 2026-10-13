@@ -25,6 +25,8 @@ func main() {
 	background := flag.Bool("background", false, "started at login: the window waits for a click on the icon")
 	once := flag.Bool("once", false, "upload what changed, then exit")
 	showVersion := flag.Bool("version", false, "print the version")
+	mailboxSpike := flag.Bool("mailbox-spike", false, "a test: write RavenpostSpike_Mailbox in every game folder, again every 10 s, until interrupted (spike.go)")
+	spikeNotes := flag.Int("spike-notes", 0, "with -mailbox-spike: that many made-up notes in the mailbox")
 	flag.Parse()
 	if *showVersion {
 		fmt.Println(version)
@@ -54,6 +56,15 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	if *mailboxSpike {
+		log.Printf("Ravenpost %s: the mailbox spike (Ctrl-C to stop)", version)
+		go runMailboxSpike(ctx, store, *spikeNotes)
+		sig := make(chan os.Signal, 1)
+		signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+		<-sig
+		return
+	}
 
 	if *headless {
 		go app.syncer.Run(ctx)
