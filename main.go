@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-var version = "0.2.5"
+var version = "0.3.0"
 
 func main() {
 	headless := flag.Bool("headless", false, "no window nor icon: sync until interrupted")
