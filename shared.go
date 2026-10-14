@@ -19,7 +19,7 @@ import (
 // What the game told players of the world, shared: the addons' kit collector
 // (for a player who said yes on an addon's welcome page or its options) keeps
 // it account-wide in the addon's saved file, and Ravenpost sends it to the
-// addons' database (wow-data's facts inbox) once linked to it with Battle.net
+// addons' database (Ravenpost's inbox) once linked to it with Battle.net
 // (login.go): one account, one voice, when players' facts disagree.
 //
 //	WTF/Account/<account>/SavedVariables/{Hearthtale,LorekeepersCodex,Yonder,SecondWind}.lua

@@ -50,7 +50,7 @@ YonderCollect = {
 }
 `
 
-// The facts inbox, as the real one answers: a signed-in player's uploads.
+// The inbox, as the real one answers: a signed-in player's uploads.
 type factSite struct {
 	mu       sync.Mutex
 	bodies   []map[string]any

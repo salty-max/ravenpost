@@ -28,7 +28,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - name: Build
         env:
-          FACTS_SERVER: ${{ vars.FACTS_SERVER }} # the facts inbox's address (wow-data's server/)
+          INBOX_URL: ${{ vars.INBOX_URL }} # Ravenpost's inbox (inbox/README.md)
         run: scripts/build.sh
       - name: Publish the release
         run: |

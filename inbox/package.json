@@ -1,0 +1,21 @@
+{
+  "name": "ravenpost-inbox",
+  "private": true,
+  "description": "Ravenpost's inbox: its Battle.net sign-in, and what the game told the players who said yes to the addons' opt-in, held until wow-data takes it",
+  "type": "module",
+  "scripts": {
+    "dev": "INBOX_DEV=1 INBOX_TOKEN=local PORT=3003 bun --watch src/server.ts",
+    "start": "bun src/server.ts",
+    "check": "tsc --noEmit && bun test"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.3",
+    "@vercel/blob": "^2.8.2",
+    "hono": "^4.12.30"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "@types/node": "^26.6.4",
+    "typescript": "^5.9.3"
+  }
+}

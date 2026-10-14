@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-// Signing in to the addons' database (the facts inbox, wow-data's server/)
+// Signing in to the addons' database (the inbox, inbox/)
 // with Battle.net, the way desktop apps do: Ravenpost listens on this
 // computer, opens the browser on the inbox's /api/login, Battle.net signs the
 // player in, and the inbox sends the browser back here with a token

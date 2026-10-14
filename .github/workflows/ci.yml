@@ -1,6 +1,6 @@
 # Every push to main and every pull request: the window's pages (typecheck and
 # build), its bindings up to date, then vet and tests (macOS: the app needs cgo)
-# and vet for Windows.
+# and vet for Windows; the inbox's typecheck and tests.
 name: CI
 
 on:
@@ -28,3 +28,5 @@ jobs:
       - run: go vet ./...
       - run: GOOS=windows go vet ./...
       - run: go test ./...
+      - name: The inbox
+        run: cd inbox && bun install --frozen-lockfile && bun run check

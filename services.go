@@ -29,11 +29,11 @@ var services = []Service{
 
 // Set at build time for releases:
 // -ldflags "-X main.wowlockerServer=https://wow-locker.app -X main.hearthtaleServer=https://hearthtale.app
-// -X main.factsServer=…" (the addons' database: wow-data's facts inbox, shared.go)
+// -X main.inboxServer=…" (the addons' database: Ravenpost's inbox, shared.go)
 var (
 	wowlockerServer  = "http://localhost:5174"
 	hearthtaleServer = "http://localhost:5175"
-	factsServer      = "http://localhost:3003"
+	inboxServer      = "http://localhost:3003"
 )
 
 func defaultServer(id string) string {
@@ -41,7 +41,7 @@ func defaultServer(id string) string {
 	case Hearthtale:
 		return hearthtaleServer
 	case Shared:
-		return factsServer
+		return inboxServer
 	}
 	return wowlockerServer
 }

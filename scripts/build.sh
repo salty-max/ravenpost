@@ -13,13 +13,13 @@ cd "$(dirname "$0")/.."
 VERSION=$(sed -n 's/^var version = "\(.*\)"/\1/p' main.go)
 WOWLOCKER=${WOWLOCKER_SERVER:-https://wow-locker.app}
 HEARTHTALE=${HEARTHTALE_SERVER:-https://hearthtale.app}
-# The addons' database: wow-data's facts inbox (its server/README.md), its own address.
-FACTS=${FACTS_SERVER:-}
-if [ -z "$FACTS" ]; then
-  echo "FACTS_SERVER: the facts inbox's address (https://…), for sharing what players see" >&2
+# Ravenpost's inbox (inbox/README.md): its sign-in and the addons' database.
+INBOX=${INBOX_URL:-}
+if [ -z "$INBOX" ]; then
+  echo "INBOX_URL: Ravenpost's inbox's address (https://…), for sharing what players see" >&2
   exit 1
 fi
-LDFLAGS="-s -w -X main.wowlockerServer=$WOWLOCKER -X main.hearthtaleServer=$HEARTHTALE -X main.factsServer=$FACTS"
+LDFLAGS="-s -w -X main.wowlockerServer=$WOWLOCKER -X main.hearthtaleServer=$HEARTHTALE -X main.inboxServer=$INBOX"
 ICON=assets/icon-512.png
 rm -rf dist && mkdir -p dist/tmp
 

@@ -38,8 +38,8 @@ became an app with its own window.
   addon's account-wide file (`<account>/SavedVariables/{Hearthtale,
   LorekeepersCodex,Yonder,SecondWind}.lua`, its `<Addon>Collect` table), sent
   when the player said yes there (`share`) and linked the addons' database
-  (wow-data's facts inbox, `factsServer`: `-X main.factsServer`, the build's
-  `FACTS_SERVER`, required; `POST /api/facts` with the inbox's token). Only
+  (Ravenpost's inbox, `inboxServer`: `-X main.inboxServer`, the build's
+  `INBOX_URL`, required; `POST /api/facts` with the inbox's token). Only
   the entries new or changed since the last upload go (`shared.json` beside
   the config: a hash of each entry sent, per file), in requests of 1 MB at
   most; not linked, they wait; a test realm's (`ptr` in the folder's name)
@@ -48,6 +48,12 @@ became an app with its own window.
   addons share (`State.sharing`: entries seen, still to send, the last
   upload) and its Battle.net link (`State.facts`). Ravenpost is the addons'
   companion (README): a Yonder or Codex player has a reason to install it.
+- `inbox/`: Ravenpost's inbox (its README.md), a TypeScript server of its
+  own (Hono on Vercel, https://ravenpost-inbox.vercel.app, a private Blob
+  store, no database): the Battle.net sign-in, the facts players share
+  (`POST /api/facts`), held until wow-data's daily job merges and removes
+  them. Deployed with `vercel deploy --prod` from `inbox/`; `cd inbox && bun
+  run check` in CI.
 - `login.go`: linking the addons' database with Battle.net the way desktop
   apps sign in: a listener on 127.0.0.1, the browser on the inbox's
   `/api/login?port=&nonce=`, Battle.net, then back here on `/linked` with a

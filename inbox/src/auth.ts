@@ -1,0 +1,100 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+/**
+ * Who shares: a Battle.net account, signed in through the inbox (no
+ * database: what it hands Ravenpost is signed, and only checked after).
+ *   GET /api/login?port=&nonce=   Ravenpost opens the browser here; on to Battle.net
+ *   GET /api/login/callback       Battle.net's way back: the account, a token, and
+ *                                 back to Ravenpost on this computer
+ *                                 (http://127.0.0.1:<port>/linked?token=&nonce=)
+ * The token holds the account as `sub`, a keyed hash of its Battle.net id
+ * (INBOX_SECRET: the id can't be found from it), and its BattleTag for
+ * Ravenpost to show. An account that misbehaves is refused by its `sub`
+ * (INBOX_BLOCKED, comma-separated).
+ */
+const secret = () => {
+  const s = process.env.INBOX_SECRET;
+  if (s) return s;
+  if (process.env.VERCEL) throw new Error("INBOX_SECRET not set");
+  return "local-only-secret";
+};
+const b64 = (b: Buffer | string) => Buffer.from(b).toString("base64url");
+const mac = (data: string) => createHmac("sha256", secret()).update(data).digest();
+
+export function sign(payload: Record<string, unknown>): string {
+  const body = b64(JSON.stringify(payload));
+  return `${body}.${b64(mac(body))}`;
+}
+
+/** A signed payload, if the signature holds and it hasn't expired. */
+export function verify<T extends Record<string, unknown>>(token: string): T | null {
+  const [body, sig] = token.split(".");
+  if (!body || !sig) return null;
+  const want = mac(body);
+  const got = Buffer.from(sig, "base64url");
+  if (got.length !== want.length || !timingSafeEqual(got, want)) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(body, "base64url").toString()) as T & { exp?: number };
+    return payload.exp && payload.exp < Date.now() / 1000 ? null : payload;
+  } catch {
+    return null;
+  }
+}
+
+/** An account's name in the inbox: its Battle.net id, keyed. */
+export const subOf = (bnetId: number | string) => createHmac("sha256", secret()).update(`bnet:${bnetId}`).digest("hex").slice(0, 24);
+
+export type Sharer = { sub: string; tag: string };
+export const tokenFor = (s: Sharer) => sign({ sub: s.sub, tag: s.tag, iat: Math.floor(Date.now() / 1000) });
+
+/** The sharer a request's bearer token names, or null (none, forged, blocked). */
+export function sharer(authorization: string | undefined): Sharer | null {
+  const token = authorization?.match(/^Bearer (.+)$/)?.[1];
+  const s = token ? verify<Sharer>(token) : null;
+  if (!s || typeof s.sub !== "string") return null;
+  const blocked = (process.env.INBOX_BLOCKED ?? "").split(",").map((x) => x.trim());
+  return blocked.includes(s.sub) ? null : s;
+}
+
+// ── Battle.net ───────────────────────────────────────────────────────────────
+export const origin = () => (process.env.INBOX_ORIGIN ?? "http://localhost:3003").replace(/\/$/, "");
+/** Where Battle.net sends the player back: registered on develop.battle.net. */
+export const redirectUri = () => `${origin()}/api/login/callback`;
+
+function credentials() {
+  const id = process.env.BNET_CLIENT_ID;
+  const secret = process.env.BNET_CLIENT_SECRET;
+  if (!id || !secret) throw new Error("BNET_CLIENT_ID / BNET_CLIENT_SECRET not set");
+  return { id, secret };
+}
+
+export function authorizeUrl(state: string): string {
+  const q = new URLSearchParams({ client_id: credentials().id, redirect_uri: redirectUri(), response_type: "code", scope: "openid", state });
+  return `https://oauth.battle.net/authorize?${q}`;
+}
+
+type FetchFn = (input: string, init?: RequestInit) => Promise<Response>;
+let fetchImpl: FetchFn = (input, init) => fetch(input, init);
+export const setFetch = (f: FetchFn) => {
+  fetchImpl = f;
+};
+
+/** The account behind a one-time code: its id (stable) and BattleTag. The access token is dropped at once. */
+export async function account(code: string): Promise<{ id: number; battletag: string } | null> {
+  const c = credentials();
+  const res = await fetchImpl("https://oauth.battle.net/token", {
+    method: "POST",
+    headers: { Authorization: `Basic ${btoa(`${c.id}:${c.secret}`)}`, "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: redirectUri() }).toString(),
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) throw new Error(`oauth code exchange → ${res.status}`);
+  const { access_token } = (await res.json()) as { access_token: string };
+  const info = await fetchImpl("https://oauth.battle.net/userinfo", {
+    headers: { Authorization: `Bearer ${access_token}` },
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!info.ok) return null;
+  const { id, battletag } = (await info.json()) as { id?: number; battletag?: string };
+  return id ? { id, battletag: battletag ?? "" } : null;
+}

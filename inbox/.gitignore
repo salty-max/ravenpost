@@ -1,0 +1,5 @@
+.inbox/
+.vercel/
+node_modules/
+.vercel
+.env*
