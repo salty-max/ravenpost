@@ -8,13 +8,14 @@ import "time"
 // the window shows them after a restart.
 type Activity struct {
 	At      time.Time `json:"at"`
-	Kind    string    `json:"kind"` // sent | refused | failed | linked | unlinked
+	Kind    string    `json:"kind"` // sent | refused | failed | linked | unlinked | shared
 	Service string    `json:"service"`
 	// The character (sent, refused), the BattleTag (linked), or the account
 	// folder's name (failed).
 	Name string `json:"name,omitempty"`
 	// The site's answer for a character (saved, synced, unlinked, removed,
-	// unknown, invalid), or the error of a failed upload.
+	// unknown, invalid), or the error of a failed upload. A shared upload's
+	// facts are its Events.
 	Detail   string `json:"detail,omitempty"`
 	Events   int    `json:"events,omitempty"`
 	Chapters int    `json:"chapters,omitempty"`

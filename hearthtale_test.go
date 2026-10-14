@@ -140,10 +140,8 @@ func syncerFor(t *testing.T, server string, root string) *Syncer {
 	s.installs = Discover([]string{root})
 	for _, in := range s.installs {
 		for _, a := range in.Accounts {
-			for svc, paths := range a.Files {
-				for _, p := range paths {
-					s.files[p] = &fileState{service: svc, install: in, account: a}
-				}
+			for p, svc := range a.tracked() {
+				s.files[p] = &fileState{service: svc, install: in, account: a}
 			}
 		}
 	}

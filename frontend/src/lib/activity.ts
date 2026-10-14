@@ -12,6 +12,8 @@ export function describe(t: Strings, a: Activity, site: string): string {
       const f = a.detail === "unknown" ? r.unknown : a.detail === "unlinked" ? r.unlinked : a.detail === "removed" ? r.removed : a.detail === "invalid" ? r.invalid : null;
       return f ? f(name) : r.other(name, a.detail ?? "");
     }
+    case "shared":
+      return t.activity.shared(a.events ?? 0);
     case "failed":
       return `${t.activity.failed(name)}${a.detail ? `: ${a.detail}` : ""}`;
     case "linked":

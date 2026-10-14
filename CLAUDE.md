@@ -20,7 +20,8 @@ became an app with its own window.
   touch the machine's login items).
 - `wow.go`: finds client folders and, per account, each site's saved files
   (WowLocker.lua per account; Hearthtale.lua per character, under
-  `<account>/<realm>/<character>/SavedVariables/`).
+  `<account>/<realm>/<character>/SavedVariables/`) and the addons' account
+  files that may hold shared facts (`Account.Shared`, not shown in the window).
 - `sync.go`: polls file times every 3 s, uploads when a file's hash (+
   selection) changed. WoWLocker: the account's characters in one upload.
   Hearthtale: one character per request (Vercel takes 4.5 MB), only the fields
@@ -32,6 +33,17 @@ became an app with its own window.
   again with its name: of a name's characters on one realm of one game, only
   the one played last is listed (`supersededCharacters`), and a file taken
   over by another character (its folder reused) drops the old one.
+- `shared.go`: the facts the addons' opt-in collector kept of the world (the
+  kit's `K.collect`: quests' texts, creatures, NPCs' lines, loot), in each
+  addon's account-wide file (`<account>/SavedVariables/{Hearthtale,
+  LorekeepersCodex,Yonder,SecondWind}.lua`, its `<Addon>Collect` table), sent
+  when the player said yes there (`share`) to the Hearthtale server's
+  `POST /api/observations`: no link, no token, only `X-Contributor`, the
+  install's random id (`InstallID` in the config). Only the entries new or
+  changed since the last upload go (`shared.json` beside the config: a hash
+  of each entry sent, per file), in requests of 1 MB at most; a test realm's
+  (`ptr` in the folder's name) never; an account left out sends nothing. The
+  journal says how many facts went (`shared`).
 - `app.go`: pairing per site (device code: `/api/companion/pair/start`, the
   page on the site, `/pair/poll` hands the token over once) and the settings
   (`ApplySettings`).

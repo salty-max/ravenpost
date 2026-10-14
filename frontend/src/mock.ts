@@ -59,6 +59,7 @@ export function mockState(): State {
       : [
           { at: min(4), kind: "sent", service: "hearthtale", name: "Brannok", detail: "saved", chapters: 3 },
           { at: min(4), kind: "sent", service: "wowlocker", name: "Brannok", detail: "synced", events: 12 },
+          { at: min(4), kind: "shared", service: "shared", name: "MAXIME", events: 214 },
           { at: min(180), kind: "refused", service: "hearthtale", name: "Pippa", detail: "unlinked" },
           { at: min(60 * 26), kind: "failed", service: "wowlocker", name: "MAXIME", detail: "the site didn't answer" },
           { at: min(60 * 50), kind: "sent", service: "hearthtale", name: "Sylvaine", detail: "saved", chapters: 14 },

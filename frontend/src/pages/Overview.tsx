@@ -1,4 +1,4 @@
-import { AlertTriangle, Check, CheckCircle2, ExternalLink, FolderPlus, Link2, Loader2, RefreshCw, Unlink, XCircle } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, ExternalLink, FolderPlus, Link2, Loader2, RefreshCw, Share2, Unlink, XCircle } from "lucide-react";
 import type { SiteState } from "../../bindings/github.com/salty-max/ravenpost/models";
 import { useNow } from "@/components/ui";
 import { useApp } from "@/lib/app";
@@ -153,7 +153,7 @@ function ActivityPanel() {
   const { state, t, locale } = useApp();
   const now = useNow();
   const items = (state.activity ?? []).slice(0, 12);
-  const siteName = Object.fromEntries((state.sites ?? []).map((s) => [s.id, s.name]));
+  const siteName: Record<string, string> = { ...Object.fromEntries((state.sites ?? []).map((s) => [s.id, s.name])), shared: t.activity.sharedSite };
   return (
     <section className="panel p-5" aria-labelledby="activity">
       <h2 id="activity" className="title text-base">
@@ -182,6 +182,7 @@ function ActivityPanel() {
 function ActivityIcon({ kind }: { kind: string }) {
   const cls = "size-4 shrink-0";
   if (kind === "sent") return <CheckCircle2 className={`${cls} text-ok`} aria-hidden />;
+  if (kind === "shared") return <Share2 className={`${cls} text-ok`} aria-hidden />;
   if (kind === "refused") return <AlertTriangle className={`${cls} text-gold`} aria-hidden />;
   if (kind === "failed") return <XCircle className={`${cls} text-blood`} aria-hidden />;
   if (kind === "linked") return <Link2 className={`${cls} text-gold`} aria-hidden />;

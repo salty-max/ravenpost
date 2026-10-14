@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -71,6 +72,9 @@ type Syncer struct {
 	lastError  string
 	scannedAt  time.Time
 
+	// The shared facts' entries sent, per file (shared.go).
+	sent *sharedSent
+
 	kick     chan struct{}
 	onChange func()
 	// Character names of the upload in progress (the window, the icon's menu).
@@ -89,6 +93,7 @@ type UploadedCharacter struct {
 func NewSyncer(store *Store) *Syncer {
 	return &Syncer{
 		store:      store,
+		sent:       loadSharedSent(filepath.Dir(store.path)),
 		files:      map[string]*fileState{},
 		characters: map[string]*Character{},
 		kick:       make(chan struct{}, 1),
@@ -137,14 +142,12 @@ func (s *Syncer) tick(ctx context.Context) {
 		live := map[string]bool{}
 		for _, in := range s.installs {
 			for _, a := range in.Accounts {
-				for service, paths := range a.Files {
-					for _, p := range paths {
-						live[p] = true
-						if s.files[p] == nil {
-							s.files[p] = &fileState{}
-						}
-						s.files[p].service, s.files[p].install, s.files[p].account = service, in, a
+				for p, service := range a.tracked() {
+					live[p] = true
+					if s.files[p] == nil {
+						s.files[p] = &fileState{}
 					}
+					s.files[p].service, s.files[p].install, s.files[p].account = service, in, a
 				}
 			}
 		}
@@ -185,9 +188,12 @@ func (s *Syncer) process(ctx context.Context, path string) {
 	s.mu.Unlock()
 
 	var err error
-	if f.service == Hearthtale {
+	switch f.service {
+	case Hearthtale:
 		err = s.processHearthtale(ctx, path, f)
-	} else {
+	case Shared:
+		err = s.processShared(ctx, path, f)
+	default:
 		err = s.processWoWLocker(ctx, path, f)
 	}
 
@@ -210,12 +216,14 @@ func (s *Syncer) process(ctx context.Context, path string) {
 }
 
 // read: the file's raw content and its variables.
-func read(path string) ([]byte, map[string]any, error) {
+func read(path string) ([]byte, map[string]any, error) { return readLimit(path, maxUploadSize) }
+
+func readLimit(path string, limit int64) ([]byte, map[string]any, error) {
 	st, err := os.Stat(path)
 	if err != nil {
 		return nil, nil, err
 	}
-	if st.Size() > maxUploadSize {
+	if st.Size() > limit {
 		return nil, nil, fmt.Errorf("file too large (%d MB)", st.Size()>>20)
 	}
 	raw, err := os.ReadFile(path)
@@ -502,7 +510,11 @@ func (s *Syncer) installsNow() []Install {
 	for i, in := range s.installs {
 		in.Accounts = append([]Account(nil), in.Accounts...)
 		for j, a := range in.Accounts {
-			if len(a.Files) < len(services) {
+			missing := false
+			for _, svc := range services {
+				missing = missing || !a.HasFiles(svc.ID)
+			}
+			if missing {
 				in.Accounts[j].Files = savedFiles(a.Dir)
 			}
 		}

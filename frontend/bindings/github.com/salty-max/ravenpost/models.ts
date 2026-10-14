@@ -22,7 +22,7 @@ export interface Activity {
     "at": string;
 
     /**
-     * sent | refused | failed | linked | unlinked
+     * sent | refused | failed | linked | unlinked | shared
      */
     "kind": string;
     "service": string;
@@ -35,7 +35,8 @@ export interface Activity {
 
     /**
      * The site's answer for a character (saved, synced, unlinked, removed,
-     * unknown, invalid), or the error of a failed upload.
+     * unknown, invalid), or the error of a failed upload. A shared upload's
+     * facts are its Events.
      */
     "detail"?: string;
     "events"?: number;

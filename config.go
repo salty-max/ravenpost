@@ -35,6 +35,8 @@ type Config struct {
 	Gone []string `json:"gone,omitempty"`
 	// What Ravenpost did lately, the latest first (activity.go).
 	Activity []Activity `json:"activity,omitempty"`
+	// This install's random id, sent with the shared facts (shared.go).
+	InstallID string `json:"installId,omitempty"`
 }
 
 // LinkFor: the site's link (a copy), its server defaulted.

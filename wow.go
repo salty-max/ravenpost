@@ -22,6 +22,22 @@ type Account struct {
 	// Each site's saved files under it (none until its addon has run once):
 	// WoWLocker's one file, Hearthtale's one per character.
 	Files map[string][]string `json:"files"`
+	// The addons' account-wide files, which may hold shared facts (shared.go).
+	Shared []string `json:"-"`
+}
+
+// tracked: the files Ravenpost reads under the account, each with its kind.
+func (a Account) tracked() map[string]string {
+	out := map[string]string{}
+	for service, paths := range a.Files {
+		for _, p := range paths {
+			out[p] = service
+		}
+	}
+	for _, p := range a.Shared {
+		out[p] = Shared
+	}
+	return out
 }
 
 // HasFiles: has this site's addon run on this account yet?
@@ -111,7 +127,7 @@ func accounts(install string) []Account {
 			continue
 		}
 		dir := filepath.Join(base, e.Name())
-		out = append(out, Account{Name: e.Name(), Dir: dir, Files: savedFiles(dir)})
+		out = append(out, Account{Name: e.Name(), Dir: dir, Files: savedFiles(dir), Shared: sharedFiles(dir)})
 	}
 	return out
 }
