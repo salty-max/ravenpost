@@ -49,6 +49,13 @@ you open it.
 - **Hearthtale** gets each character's name, realm, race and class, its
   journal as the addon wrote it at logout, and a link code if you typed one
   with `/ht link CODE`. The addon's raw records stay on your computer.
+- **The addons' database** gets what the game told you of the world, only if
+  you ticked "Share what you see" in Hearthtale, Lorekeeper's Codex, Yonder or
+  Second Wind: quests' texts, creatures, what characters say, what a creature
+  dropped. It goes to hearthtale.app with no account, only a random number
+  this Ravenpost made, so the site can count how many players saw the same
+  thing. Your name, class and race are never in it, nor a line naming another
+  player, nor your chat.
 
 Ravenpost sends no other file and reads no other addon. You can leave out a
 character or a whole game account in the window. If you remove a book from

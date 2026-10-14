@@ -103,7 +103,7 @@ const en = {
     source: "Source code",
     privacy: "What it sends",
     privacyText:
-      "WoWLocker gets its addon's file as it is. Hearthtale gets each character's name, realm, race and class, its journal as the addon wrote it, and a link code if you typed one. Nothing else leaves this computer.",
+      "WoWLocker gets its addon's file as it is. Hearthtale gets each character's name, realm, race and class, its journal as the addon wrote it, and a link code if you typed one. If you ticked \"Share what you see\" in one of the addons, what the game told you of the world (quests, creatures, what characters say, loot) goes to the addons' database through hearthtale.app, with no account, never your name or chat. Nothing else leaves this computer.",
   },
   close: {
     hint: "Ravenpost keeps working from the menu bar when this window is closed.",
@@ -214,7 +214,7 @@ const fr: Strings = {
     source: "Code source",
     privacy: "Ce qu'il envoie",
     privacyText:
-      "WoWLocker reçoit le fichier de son addon tel quel. Hearthtale reçoit le nom, le royaume, la race et la classe de chaque personnage, son journal tel que l'addon l'a écrit, et un code de liaison si vous en avez tapé un. Rien d'autre ne quitte cet ordinateur.",
+      "WoWLocker reçoit le fichier de son addon tel quel. Hearthtale reçoit le nom, le royaume, la race et la classe de chaque personnage, son journal tel que l'addon l'a écrit, et un code de liaison si vous en avez tapé un. Si vous avez coché « Partager ce que vous voyez » dans un des addons, ce que le jeu vous a dit du monde (quêtes, créatures, paroles des personnages, butin) part vers la base des addons par hearthtale.app, sans compte, jamais votre nom ni votre chat. Rien d'autre ne quitte cet ordinateur.",
   },
   close: {
     hint: "Ravenpost continue de travailler depuis la barre des menus quand cette fenêtre est fermée.",
