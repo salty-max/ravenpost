@@ -59,6 +59,9 @@ func (a *App) Pairing(service string) *Pairing {
 // StartPairing asks the site for a code, opens the browser on the page where
 // the user signs in and confirms, and waits for the token.
 func (a *App) StartPairing(service string) error {
+	if service == Shared {
+		return a.startSharedLogin()
+	}
 	if _, ok := serviceByID(service); !ok {
 		return fmt.Errorf("unknown site %q", service)
 	}
@@ -194,9 +197,12 @@ func (a *App) ApplySettings(u SettingsUpdate) error {
 	return nil
 }
 
-// linkedAny: is at least one site linked?
+// linkedAny: is at least one site, or the addons' database, linked?
 func (a *App) linkedAny() bool {
 	cfg := a.store.Get()
+	if cfg.LinkFor(Shared).Token != "" {
+		return true
+	}
 	for _, svc := range services {
 		if cfg.LinkFor(svc.ID).Token != "" {
 			return true

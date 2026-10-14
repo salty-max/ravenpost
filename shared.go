@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -20,8 +19,8 @@ import (
 // What the game told players of the world, shared: the addons' kit collector
 // (for a player who said yes on an addon's welcome page or its options) keeps
 // it account-wide in the addon's saved file, and Ravenpost sends it to the
-// addons' database through hearthtale.app, with no link and no account: an
-// install's random id goes with it, so the site can count who agrees.
+// addons' database (wow-data's facts inbox) once linked to it with Battle.net
+// (login.go): one account, one voice, when players' facts disagree.
 //
 //	WTF/Account/<account>/SavedVariables/{Hearthtale,LorekeepersCodex,Yonder,SecondWind}.lua
 //	<Addon>Collect = { share = true, game = "classic" | "forever",
@@ -56,9 +55,9 @@ type Share struct {
 }
 
 const (
-	sharedChunk    = 1 << 20  // (the site takes 4 MB a request)
+	sharedChunk    = 1 << 20  // (the inbox takes 4 MB a request)
 	maxSharedSize  = 64 << 20 // (an addon's account file holds more than the facts)
-	sharedEndpoint = "/api/observations"
+	sharedEndpoint = "/api/facts"
 )
 
 // sharedFiles: the addons' account-wide files under an account folder.
@@ -184,23 +183,6 @@ func (s *sharedSent) mark(file string, sent []sharedEntry, live map[string]bool)
 	return os.Rename(tmp, s.path)
 }
 
-// installID: this install's random id, made once (the site keeps only its hash).
-func (s *Syncer) installID() string {
-	if id := s.store.Get().InstallID; id != "" {
-		return id
-	}
-	b := make([]byte, 16)
-	_, _ = rand.Read(b)
-	id := hex.EncodeToString(b)
-	_ = s.store.Update(func(c *Config) {
-		if c.InstallID == "" {
-			c.InstallID = id
-		}
-		id = c.InstallID
-	})
-	return id
-}
-
 // share: the window's line for this file (nil: it shares nothing).
 func (s *Syncer) share(path string, sh *Share) {
 	s.mu.Lock()
@@ -250,10 +232,12 @@ func (s *Syncer) processShared(ctx context.Context, path string, f *fileState) e
 	if len(due) == 0 {
 		return s.sent.mark(path, nil, live)
 	}
+	link := cfg.LinkFor(Shared)
+	if link.Token == "" {
+		return nil // (kept for when the player links the addons' database)
+	}
 	defer s.announce([]string{addon.addon})()
 
-	server := cfg.LinkFor(Hearthtale).Server
-	contributor := s.installID()
 	total := 0
 	for start := 0; start < len(due); {
 		end, size := start, 0
@@ -273,16 +257,12 @@ func (s *Syncer) processShared(ctx context.Context, path string, f *fileState) e
 		var res struct {
 			Facts int `json:"facts"`
 		}
-		err := callWith(ctx, "POST", server, sharedEndpoint, map[string]string{"X-Contributor": contributor},
-			map[string]any{"game": game, "facts": facts}, &res)
+		err := call(ctx, "POST", link.Server, sharedEndpoint, link.Token, map[string]any{"game": game, "facts": facts}, &res)
 		if err != nil {
 			if total > 0 {
 				s.record(Activity{Kind: "shared", Service: Shared, Name: f.account.Name, Events: total})
 			}
-			s.mu.Lock()
-			f.modTime = time.Time{}
-			s.mu.Unlock()
-			return fmt.Errorf("sharing: %w", err)
+			return s.failed(Shared, f, fmt.Errorf("sharing: %w", err))
 		}
 		if err := s.sent.mark(path, due[start:end], live); err != nil {
 			return err

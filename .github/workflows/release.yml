@@ -27,6 +27,8 @@ jobs:
           go-version-file: go.mod
       - uses: oven-sh/setup-bun@v2
       - name: Build
+        env:
+          FACTS_SERVER: ${{ vars.FACTS_SERVER }} # the facts inbox's address (wow-data's server/)
         run: scripts/build.sh
       - name: Publish the release
         run: |

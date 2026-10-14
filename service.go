@@ -47,6 +47,8 @@ type State struct {
 	LastUploaded []UploadedCharacter `json:"lastUploaded"`
 	Activity     []Activity          `json:"activity"`
 	Sharing      []Share             `json:"sharing"`
+	// The addons' database: linked with Battle.net or not, its sign-in under way.
+	Facts SiteState `json:"facts"`
 }
 
 // State: the app as it stands.
@@ -70,6 +72,8 @@ func (r *Ravenpost) State() State {
 		Activity:           snap.Activity,
 		Sharing:            snap.Sharing,
 	}
+	fl := cfg.LinkFor(Shared)
+	st.Facts = SiteState{ID: Shared, Name: "The addons' database", Server: fl.Server, Linked: fl.Token != "", BattleTag: fl.BattleTag, Pairing: r.app.Pairing(Shared)}
 	for _, svc := range services {
 		l := cfg.LinkFor(svc.ID)
 		st.Sites = append(st.Sites, SiteState{ID: svc.ID, Name: svc.Name, Addon: svc.Addon, Server: l.Server,

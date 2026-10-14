@@ -26,8 +26,8 @@ export function Overview() {
 function Status() {
   const { state, t, locale, api, run } = useApp();
   const now = useNow();
-  // (a site linked, or an addon sharing what the game tells: something to carry)
-  const linked = (state.sites ?? []).some((s) => s.linked) || (state.sharing ?? []).length > 0;
+  // (a site linked, or the addons' database: something to carry)
+  const linked = (state.sites ?? []).some((s) => s.linked) || !!state.facts?.linked;
   const uploading = (state.uploading ?? []).length > 0;
   const folders = (state.installs ?? []).length;
   // Linked, and no game found: the one thing left to do is show Ravenpost where it is.
@@ -82,40 +82,75 @@ function Status() {
  * they tick "Share what you see" in an addon.
  */
 function SharingCard() {
-  const { state, t, locale } = useApp();
+  const { state, t, locale, api, run } = useApp();
   const now = useNow();
   const shares = state.sharing ?? [];
+  const link = state.facts;
+  const waiting = link?.pairing?.status === "waiting";
+  const linked = !!link?.linked;
   return (
     <article className="panel col-span-2 flex flex-col gap-3 p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="title text-lg">{t.sharing.title}</h2>
-          <p className="mt-0.5 text-sm text-dim">{t.sharing.why}</p>
+          <p className="mt-0.5 max-w-2xl text-sm text-dim">{t.sharing.why}</p>
         </div>
-        {shares.length ? (
+        {linked && shares.length ? (
           <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-ok/30 bg-ok/10 px-2 py-0.5 text-xs font-medium text-ok">
             <Share2 className="size-3" strokeWidth={2.5} aria-hidden />
             {t.sharing.on}
           </span>
         ) : (
-          <span className="tag shrink-0">{t.sharing.off}</span>
+          <span className="tag shrink-0">{linked ? t.sites.linked : t.sharing.off}</span>
         )}
       </div>
-      {shares.length ? (
+      {shares.length > 0 && (
         <ul className="flex flex-col divide-y divide-white/[0.05]">
           {shares.map((s) => (
-            <ShareLine key={`${s.addon}|${s.install}|${s.account}`} share={s} now={now} locale={locale} />
+            <ShareLine key={`${s.addon}|${s.install}|${s.account}`} share={s} now={now} locale={locale} linked={linked} />
           ))}
         </ul>
-      ) : (
-        <p className="max-w-2xl text-sm text-parchment">{t.sharing.how}</p>
       )}
-      <p className="text-xs text-faint">{t.sharing.never}</p>
+      {linked ? (
+        <p className="text-sm text-parchment">{shares.length ? t.sharing.thanks : t.sharing.how}</p>
+      ) : waiting ? (
+        <div className="fade-in flex items-center gap-3 rounded-lg border border-gold/25 bg-black/30 p-3.5">
+          <Loader2 className="size-4 animate-spin text-gold" aria-hidden />
+          <p className="flex-1 text-sm text-dim">{t.sharing.waiting}</p>
+          <button type="button" className="text-sm text-gold-soft underline-offset-2 hover:underline" onClick={() => run(() => api.Open(link!.pairing!.url))}>
+            {t.sites.reopen}
+          </button>
+        </div>
+      ) : (
+        <p className="max-w-2xl text-sm text-parchment">{shares.length ? t.sharing.linkToSend : t.sharing.how}</p>
+      )}
+      {link?.pairing && ["failed", "expired"].includes(link.pairing.status) && !linked && <p className="text-sm text-blood">{t.sharing.failed}</p>}
+      <div className="mt-auto flex flex-wrap items-center gap-3 pt-1">
+        {linked ? (
+          <>
+            <span className="text-parchment">
+              {t.sites.linked} <span className="font-semibold">{t.sites.as(link?.battletag || "Battle.net")}</span>
+            </span>
+            <button type="button" className="btn btn-ghost" onClick={() => run(() => api.Unlink("shared"))}>
+              <Unlink className="size-4" aria-hidden />
+              {t.sites.unlink}
+            </button>
+          </>
+        ) : (
+          !waiting && (
+            <button type="button" className="btn btn-bnet" onClick={() => run(() => api.Link("shared"))}>
+              <Link2 className="size-4" aria-hidden />
+              {t.sites.link}
+            </button>
+          )
+        )}
+        <span className="ml-auto text-xs text-faint">{t.sharing.never}</span>
+      </div>
     </article>
   );
 }
 
-function ShareLine({ share: s, now, locale }: { share: Share; now: number; locale: string }) {
+function ShareLine({ share: s, now, locale, linked }: { share: Share; now: number; locale: string; linked: boolean }) {
   const { t } = useApp();
   return (
     <li className="flex items-center gap-3 py-2">
@@ -123,7 +158,7 @@ function ShareLine({ share: s, now, locale }: { share: Share; now: number; local
       <span className="min-w-0 flex-1 truncate text-sm text-faint">
         {s.account} · {s.install}
       </span>
-      <span className="shrink-0 text-sm text-dim">{s.waiting ? t.sharing.waiting(s.seen, s.waiting) : t.sharing.sent(s.seen)}</span>
+      <span className="shrink-0 text-sm text-dim">{s.waiting ? t.sharing.toSend(s.seen, s.waiting, linked) : t.sharing.sent(s.seen)}</span>
       <span className="w-24 shrink-0 text-right text-xs text-faint">{s.at ? ago(s.at, locale, t.ago.never, now) : ""}</span>
     </li>
   );

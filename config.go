@@ -9,7 +9,8 @@ import (
 	"sync"
 )
 
-// Link: Ravenpost linked to one site. Empty Token: not linked.
+// Link: Ravenpost linked to one site, or to the addons' database (Shared).
+// Empty Token: not linked.
 type Link struct {
 	// The site (the web app's origin; the API lives under /api).
 	Server    string `json:"server"`
@@ -35,8 +36,6 @@ type Config struct {
 	Gone []string `json:"gone,omitempty"`
 	// What Ravenpost did lately, the latest first (activity.go).
 	Activity []Activity `json:"activity,omitempty"`
-	// This install's random id, sent with the shared facts (shared.go).
-	InstallID string `json:"installId,omitempty"`
 }
 
 // LinkFor: the site's link (a copy), its server defaulted.

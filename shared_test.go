@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -51,18 +50,21 @@ YonderCollect = {
 }
 `
 
-// The site's observations route, as the real one answers.
+// The facts inbox, as the real one answers: a signed-in player's uploads.
 type factSite struct {
 	mu       sync.Mutex
 	bodies   []map[string]any
-	who      []string
 	httpCode int
 }
 
 func (f *factSite) server(t *testing.T) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/observations" || r.Header.Get("Authorization") != "" {
+		if r.URL.Path != "/api/facts" {
 			http.Error(w, `{"error":"no"}`, http.StatusNotFound)
+			return
+		}
+		if r.Header.Get("Authorization") != "Bearer "+sharedToken {
+			http.Error(w, `{"error":"sign in with Battle.net"}`, http.StatusUnauthorized)
 			return
 		}
 		var body map[string]any
@@ -76,7 +78,6 @@ func (f *factSite) server(t *testing.T) *httptest.Server {
 			return
 		}
 		f.bodies = append(f.bodies, body)
-		f.who = append(f.who, r.Header.Get("X-Contributor"))
 		n := 0
 		for _, shelves := range body["facts"].(map[string]any) {
 			for _, ids := range shelves.(map[string]any) {
@@ -85,6 +86,17 @@ func (f *factSite) server(t *testing.T) *httptest.Server {
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"facts": n})
 	}))
+}
+
+// A token as the inbox hands it: its payload ({sub, tag}) and a signature.
+const sharedToken = "eyJzdWIiOiJhYmMxMjMiLCJ0YWciOiJNYXgjMTIzNCJ9.c2lnbmVk"
+
+// sharerFor: a syncer whose Ravenpost is linked to the inbox at server.
+func sharerFor(t *testing.T, server, root string) *Syncer {
+	t.Helper()
+	s := syncerFor(t, server, root)
+	_ = s.store.SetLink(Shared, Link{Server: server, Token: sharedToken, BattleTag: "Max#1234"})
+	return s
 }
 
 // A WoW folder whose account has Yonder's account file.
@@ -112,7 +124,7 @@ func TestSharesTheFactsOnceAnonymously(t *testing.T) {
 	site := &factSite{}
 	srv := site.server(t)
 	defer srv.Close()
-	s := syncerFor(t, srv.URL, root)
+	s := sharerFor(t, srv.URL, root)
 	if s.files[file] == nil || s.files[file].service != Shared {
 		t.Fatalf("the account file isn't tracked: %+v", s.files)
 	}
@@ -123,9 +135,6 @@ func TestSharesTheFactsOnceAnonymously(t *testing.T) {
 	s.process(context.Background(), file)
 	if len(site.bodies) != 1 {
 		t.Fatalf("requests: %d", len(site.bodies))
-	}
-	if !regexp.MustCompile(`^[0-9a-f]{32}$`).MatchString(site.who[0]) || site.who[0] != s.store.Get().InstallID {
-		t.Fatalf("contributor %q, install %q", site.who[0], s.store.Get().InstallID)
 	}
 	b := site.bodies[0]
 	enUS := b["facts"].(map[string]any)["enUS"].(map[string]any)
@@ -164,7 +173,7 @@ func TestSharesTheFactsOnceAnonymously(t *testing.T) {
 	}
 
 	// Ravenpost started again: what was sent is still known.
-	s2 := syncerFor(t, srv.URL, root)
+	s2 := sharerFor(t, srv.URL, root)
 	s2.store = s.store
 	s2.sent = loadSharedSent(filepath.Dir(s.store.path))
 	s2.process(context.Background(), file)
@@ -184,7 +193,7 @@ func TestSharesNothingUnasked(t *testing.T) {
 		"no known world": {"_classic_era_", strings.Replace(yonderFile, `["game"] = "classic"`, `["game"] = "tbc"`, 1)},
 	} {
 		root, file := fakeShared(t, c.flavour, c.content)
-		s := syncerFor(t, srv.URL, root)
+		s := sharerFor(t, srv.URL, root)
 		s.process(context.Background(), file)
 		if len(site.bodies) != 0 || len(s.Snapshot().Sharing) != 0 {
 			t.Fatalf("%s: sent %+v, sharing %+v", name, site.bodies, s.Snapshot().Sharing)
@@ -193,7 +202,7 @@ func TestSharesNothingUnasked(t *testing.T) {
 
 	// An account left out sends nothing either.
 	root, file := fakeShared(t, "_classic_era_", yonderFile)
-	s := syncerFor(t, srv.URL, root)
+	s := sharerFor(t, srv.URL, root)
 	_ = s.store.Update(func(c *Config) { c.ExcludedAccounts = []string{s.files[file].account.Dir} })
 	s.process(context.Background(), file)
 	if len(site.bodies) != 0 {
@@ -213,7 +222,7 @@ func TestSharesInPiecesAndRetries(t *testing.T) {
 	site := &factSite{httpCode: http.StatusBadGateway}
 	srv := site.server(t)
 	defer srv.Close()
-	s := syncerFor(t, srv.URL, root)
+	s := sharerFor(t, srv.URL, root)
 
 	s.process(context.Background(), file)
 	if s.files[file].err == "" || len(s.sent.of(file)) != 0 {
@@ -239,6 +248,39 @@ func TestSharesInPiecesAndRetries(t *testing.T) {
 	}
 	if n != 1000 || len(s.sent.of(file)) != 1000 {
 		t.Fatalf("sent %d quests, %d marked", n, len(s.sent.of(file)))
+	}
+}
+
+func TestSharesOnlyOnceLinked(t *testing.T) {
+	root, file := fakeShared(t, "_classic_era_", yonderFile)
+	site := &factSite{}
+	srv := site.server(t)
+	defer srv.Close()
+
+	// Not linked: kept for later, the window says how much waits.
+	s := syncerFor(t, srv.URL, root)
+	_ = s.store.SetLink(Shared, Link{Server: srv.URL})
+	s.process(context.Background(), file)
+	if len(site.bodies) != 0 {
+		t.Fatal("sent before the player linked the addons' database")
+	}
+	if sh := s.Snapshot().Sharing; len(sh) != 1 || sh[0].Waiting != 2 {
+		t.Fatalf("sharing: %+v", sh)
+	}
+
+	// A token the inbox no longer takes: the link is dropped, nothing marked sent.
+	_ = s.store.SetLink(Shared, Link{Server: srv.URL, Token: "revoked.sig", BattleTag: "Max#1234"})
+	again(s, file)
+	if l := s.store.Get().LinkFor(Shared); l.Token != "" || len(s.sent.of(file)) != 0 {
+		t.Fatalf("link %+v, %d marked sent", l, len(s.sent.of(file)))
+	}
+
+	// Linked: sent.
+	_ = s.store.SetLink(Shared, Link{Server: srv.URL, Token: sharedToken, BattleTag: "Max#1234"})
+	s.files[file].nextTry = s.files[file].nextTry.AddDate(-1, 0, 0)
+	again(s, file)
+	if len(site.bodies) != 1 {
+		t.Fatalf("requests: %d", len(site.bodies))
 	}
 }
 

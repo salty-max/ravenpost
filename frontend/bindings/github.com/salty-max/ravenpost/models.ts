@@ -161,6 +161,11 @@ export interface State {
     "lastUploaded": UploadedCharacter[] | null;
     "activity": Activity[] | null;
     "sharing": Share[] | null;
+
+    /**
+     * The addons' database: linked with Battle.net or not, its sign-in under way.
+     */
+    "facts": SiteState;
 }
 
 /**

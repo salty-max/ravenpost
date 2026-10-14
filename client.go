@@ -71,15 +71,6 @@ func normalizeServer(raw string) (string, error) {
 }
 
 func call(ctx context.Context, method, server, path, token string, body any, out any) error {
-	var headers map[string]string
-	if token != "" {
-		headers = map[string]string{"Authorization": "Bearer " + token}
-	}
-	return callWith(ctx, method, server, path, headers, body, out)
-}
-
-// callWith: a request with headers of its own (call's token is one).
-func callWith(ctx context.Context, method, server, path string, headers map[string]string, body any, out any) error {
 	var r io.Reader
 	if body != nil {
 		b, err := json.Marshal(body)
@@ -94,8 +85,8 @@ func callWith(ctx context.Context, method, server, path string, headers map[stri
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "ravenpost/"+version)
-	for k, v := range headers {
-		req.Header.Set(k, v)
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
 	}
 	res, err := httpClient.Do(req)
 	if err != nil {

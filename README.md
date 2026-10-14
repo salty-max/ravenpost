@@ -4,11 +4,12 @@ Ravenpost is a small app for macOS and Windows, the companion of the
 addons Hearthtale, Lorekeeper's Codex, Yonder, Second Wind and WoWLocker. A
 few seconds after you log out or use `/reload`, it carries what they saved:
 
-- **What you see, for every player.** Tick **Share what you see** in
-  Hearthtale, Lorekeeper's Codex, Yonder or Second Wind, and the quests,
-  creatures and lines the game shows you go to the addons' database. New
-  quests and creatures reach the addons sooner, in every language players
-  share. No account and no link: install Ravenpost and it sends them.
+- **Help the addons keep up with Forever.** Tick **Share what you see** in
+  Hearthtale, Lorekeeper's Codex, Yonder or Second Wind, link the addons'
+  database here with Battle.net, and the quests, creatures and lines the game
+  shows you go to the addons' database. Forever's new content reaches the
+  addons weeks before the usual databases catch up, in every language players
+  share. Every player who does is a real help, and it's truly appreciated.
 - **[Hearthtale](https://hearthtale.app)**: your characters' journals, to
   read on your phone.
 - **[WoWLocker](https://wow-locker.app)**: your characters, their gear and
@@ -19,10 +20,11 @@ few seconds after you log out or use `/reload`, it carries what they saved:
 
 ## Using Ravenpost
 
-Sharing what you see needs nothing more: keep Ravenpost running, and the
-window shows which addons share and how much went. To use a site, link it:
-click **Link with Battle.net**, sign in on the site and check that the code
-matches the one Ravenpost shows. The window then shows what each logout
+To share what you see, click **Link with Battle.net** on the addons'
+database card and sign in in your browser: the window then shows which
+addons share and how much went. To use a site, link it the same way on its
+card, sign in on the site and check that the code matches the one Ravenpost
+shows. The window then shows what each logout
 sent, the characters Ravenpost found and the game folders it watches.
 
 Closing the window doesn't stop Ravenpost. It keeps working from the menu bar
@@ -58,11 +60,11 @@ you open it.
   with `/ht link CODE`. The addon's raw records stay on your computer.
 - **The addons' database** gets what the game told you of the world, only if
   you ticked "Share what you see" in Hearthtale, Lorekeeper's Codex, Yonder or
-  Second Wind: quests' texts, creatures, what characters say, what a creature
-  dropped. It goes to hearthtale.app with no account, only a random number
-  this Ravenpost made, so the site can count how many players saw the same
-  thing. Your name, class and race are never in it, nor a line naming another
-  player, nor your chat.
+  Second Wind and linked it here with Battle.net: quests' texts, creatures,
+  what characters say, what a creature dropped. The link counts you as one
+  voice when players' games disagree. It keeps a hash of your account, never
+  the account itself. Your name, class and race are never in what's sent, nor
+  a line naming another player, nor your chat.
 
 Ravenpost sends no other file and reads no other addon. You can leave out a
 character or a whole game account in the window. If you remove a book from

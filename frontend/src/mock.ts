@@ -54,6 +54,7 @@ export function mockState(): State {
     errors: [],
     uploading: [],
     lastUploaded: [],
+    facts: { id: "shared", name: "The addons' database", addon: "", server: "http://localhost:3003", linked: !fresh, battletag: fresh ? "" : "Max#1234", pairing: null },
     sharing: fresh
       ? []
       : [
@@ -88,8 +89,16 @@ export function mockApi(set: (fn: (s: State | null) => State | null) => void) {
   const toggle = (list: string[] | null, v: string, on: boolean) => [...(list ?? []).filter((x) => x !== v), ...(on ? [v] : [])];
   return {
     State: () => Promise.resolve(mockState()),
-    Link: (site: string) => change((s) => (s.sites ?? []).filter((x) => x.id === site).forEach((x) => (x.pairing = { code: "R4V-3NP", url: x.server, status: "waiting" }))),
-    Unlink: (site: string) => change((s) => (s.sites ?? []).filter((x) => x.id === site).forEach((x) => ((x.linked = false), (x.battletag = "")))),
+    Link: (site: string) =>
+      change((s) =>
+        [...(s.sites ?? []), ...(s.facts ? [s.facts] : [])]
+          .filter((x) => x.id === site)
+          .forEach((x) => (x.pairing = { code: "R4V-3NP", url: x.server, status: "waiting" })),
+      ),
+    Unlink: (site: string) =>
+      change((s) =>
+        [...(s.sites ?? []), ...(s.facts ? [s.facts] : [])].filter((x) => x.id === site).forEach((x) => ((x.linked = false), (x.battletag = ""))),
+      ),
     SyncNow: () => change((s) => (s.uploading = ["Brannok"])).then(() => setTimeout(() => change((s) => ((s.uploading = []), (s.lastSync = new Date().toISOString()), (s.lastUploaded = [{ service: "hearthtale", name: "Brannok", events: 0 }]))), 1500)),
     SetCharacterSent: (guid: string, sent: boolean) => change((s) => (s.excludedCharacters = toggle(s.excludedCharacters, guid, !sent))),
     SetAccountSent: (dir: string, sent: boolean) => change((s) => (s.excludedAccounts = toggle(s.excludedAccounts, dir, !sent))),

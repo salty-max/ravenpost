@@ -37,18 +37,22 @@ became an app with its own window.
   kit's `K.collect`: quests' texts, creatures, NPCs' lines, loot), in each
   addon's account-wide file (`<account>/SavedVariables/{Hearthtale,
   LorekeepersCodex,Yonder,SecondWind}.lua`, its `<Addon>Collect` table), sent
-  when the player said yes there (`share`) to the Hearthtale server's
-  `POST /api/observations`: no link, no token, only `X-Contributor`, the
-  install's random id (`InstallID` in the config). Only the entries new or
-  changed since the last upload go (`shared.json` beside the config: a hash
-  of each entry sent, per file), in requests of 1 MB at most; a test realm's
-  (`ptr` in the folder's name) never; an account left out sends nothing. The
-  journal says how many facts went (`shared`), the Overview's third card ("The
-  addons' database") which addons share (`State.sharing`: entries seen, still
-  to send, the last upload), and an addon sharing counts as something to
-  carry (the status, Sync now) as a linked site does. Ravenpost is the
-  addons' companion (README): sharing needs no link, so a Yonder or Codex
-  player has a reason to install it.
+  when the player said yes there (`share`) and linked the addons' database
+  (wow-data's facts inbox, `factsServer`: `-X main.factsServer`, the build's
+  `FACTS_SERVER`, required; `POST /api/facts` with the inbox's token). Only
+  the entries new or changed since the last upload go (`shared.json` beside
+  the config: a hash of each entry sent, per file), in requests of 1 MB at
+  most; not linked, they wait; a test realm's (`ptr` in the folder's name)
+  never; an account left out sends nothing. The journal says how many facts
+  went (`shared`), the Overview's third card ("The addons' database") which
+  addons share (`State.sharing`: entries seen, still to send, the last
+  upload) and its Battle.net link (`State.facts`). Ravenpost is the addons'
+  companion (README): a Yonder or Codex player has a reason to install it.
+- `login.go`: linking the addons' database with Battle.net the way desktop
+  apps sign in: a listener on 127.0.0.1, the browser on the inbox's
+  `/api/login?port=&nonce=`, Battle.net, then back here on `/linked` with a
+  signed token (the inbox keeps nothing). The window's Link and Unlink with
+  the site id `shared`.
 - `app.go`: pairing per site (device code: `/api/companion/pair/start`, the
   page on the site, `/pair/poll` hands the token over once) and the settings
   (`ApplySettings`).

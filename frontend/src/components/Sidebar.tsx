@@ -15,8 +15,8 @@ export function Sidebar({ page, go }: { page: Page; go: (p: Page) => void }) {
     { id: "folders", label: t.nav.folders, icon: FolderOpen },
     { id: "settings", label: t.nav.settings, icon: Settings },
   ] as const;
-  // (a site linked, or an addon sharing: something to watch for)
-  const linked = (state.sites ?? []).some((s) => s.linked) || (state.sharing ?? []).length > 0;
+  // (a site linked, or the addons' database: something to watch for)
+  const linked = (state.sites ?? []).some((s) => s.linked) || !!state.facts?.linked;
   const uploading = (state.uploading ?? []).length > 0;
   return (
     <aside className="drag flex w-56 shrink-0 flex-col border-r border-edge bg-stone/80 pt-12">
