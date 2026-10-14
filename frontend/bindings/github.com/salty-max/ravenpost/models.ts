@@ -107,6 +107,28 @@ export interface Pairing {
 }
 
 /**
+ * Share: one addon of one game account sharing what the game told its
+ * player, as the window shows it.
+ */
+export interface Share {
+    "addon": string;
+    "account": string;
+    "install": string;
+
+    /**
+     * The entries the addon kept (a quest, a creature, an NPC's lines…), and
+     * how many of them are still to send.
+     */
+    "seen": number;
+    "waiting": number;
+
+    /**
+     * The last upload.
+     */
+    "at"?: string;
+}
+
+/**
  * SiteState: one site, as the window shows it.
  */
 export interface SiteState {
@@ -138,6 +160,7 @@ export interface State {
     "uploading": string[] | null;
     "lastUploaded": UploadedCharacter[] | null;
     "activity": Activity[] | null;
+    "sharing": Share[] | null;
 }
 
 /**

@@ -46,6 +46,7 @@ type State struct {
 	Uploading    []string            `json:"uploading"`
 	LastUploaded []UploadedCharacter `json:"lastUploaded"`
 	Activity     []Activity          `json:"activity"`
+	Sharing      []Share             `json:"sharing"`
 }
 
 // State: the app as it stands.
@@ -67,6 +68,7 @@ func (r *Ravenpost) State() State {
 		Uploading:          snap.Uploading,
 		LastUploaded:       snap.LastUploaded,
 		Activity:           snap.Activity,
+		Sharing:            snap.Sharing,
 	}
 	for _, svc := range services {
 		l := cfg.LinkFor(svc.ID)

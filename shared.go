@@ -32,12 +32,27 @@ import (
 
 const Shared = "shared"
 
-// The addons' account-wide files and the table each keeps the facts in.
-var sharedTables = map[string]string{
-	"Hearthtale.lua":       "HearthtaleCollect",
-	"LorekeepersCodex.lua": "LorekeepersCodexCollect",
-	"Yonder.lua":           "YonderCollect",
-	"SecondWind.lua":       "SecondWindCollect",
+// The addons' account-wide files: the table each keeps the facts in, and the
+// addon's name as the window says it.
+var sharedTables = map[string]struct{ table, addon string }{
+	"Hearthtale.lua":       {"HearthtaleCollect", "Hearthtale"},
+	"LorekeepersCodex.lua": {"LorekeepersCodexCollect", "Lorekeeper's Codex"},
+	"Yonder.lua":           {"YonderCollect", "Yonder"},
+	"SecondWind.lua":       {"SecondWindCollect", "Second Wind"},
+}
+
+// Share: one addon of one game account sharing what the game told its
+// player, as the window shows it.
+type Share struct {
+	Addon   string `json:"addon"`
+	Account string `json:"account"`
+	Install string `json:"install"`
+	// The entries the addon kept (a quest, a creature, an NPC's lines…), and
+	// how many of them are still to send.
+	Seen    int `json:"seen"`
+	Waiting int `json:"waiting"`
+	// The last upload.
+	At time.Time `json:"at,omitzero"`
 }
 
 const (
@@ -186,24 +201,38 @@ func (s *Syncer) installID() string {
 	return id
 }
 
+// share: the window's line for this file (nil: it shares nothing).
+func (s *Syncer) share(path string, sh *Share) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if sh == nil {
+		delete(s.shares, path)
+		return
+	}
+	if old := s.shares[path]; old != nil && sh.At.IsZero() {
+		sh.At = old.At
+	}
+	s.shares[path] = sh
+}
+
 func (s *Syncer) processShared(ctx context.Context, path string, f *fileState) error {
 	cfg := s.store.Get()
 	s.mu.Lock()
 	f.modTime = fileTime(path)
 	s.mu.Unlock()
 	if contains(cfg.ExcludedAccounts, f.account.Dir) {
+		s.share(path, nil)
 		return nil
 	}
 	_, vars, err := readLimit(path, maxSharedSize)
 	if err != nil {
 		return err
 	}
-	collect := asMap(vars[sharedTables[filepath.Base(path)]])
-	if collect == nil || collect["share"] != true {
-		return nil // (the player hasn't said yes in this addon)
-	}
+	addon := sharedTables[filepath.Base(path)]
+	collect := asMap(vars[addon.table])
 	game := sharedGame(f.install.Flavour, collect)
-	if game == "" {
+	if collect == nil || collect["share"] != true || game == "" {
+		s.share(path, nil) // (the player hasn't said yes in this addon)
 		return nil
 	}
 	entries := sharedEntries(asMap(collect["facts"]))
@@ -216,9 +245,12 @@ func (s *Syncer) processShared(ctx context.Context, path string, f *fileState) e
 			due = append(due, e)
 		}
 	}
+	line := &Share{Addon: addon.addon, Account: f.account.Name, Install: f.install.Label, Seen: len(entries), Waiting: len(due)}
+	s.share(path, line)
 	if len(due) == 0 {
 		return s.sent.mark(path, nil, live)
 	}
+	defer s.announce([]string{addon.addon})()
 
 	server := cfg.LinkFor(Hearthtale).Server
 	contributor := s.installID()
@@ -257,7 +289,9 @@ func (s *Syncer) processShared(ctx context.Context, path string, f *fileState) e
 		}
 		total += res.Facts
 		start = end
+		s.share(path, &Share{Addon: line.Addon, Account: line.Account, Install: line.Install, Seen: line.Seen, Waiting: len(due) - end, At: time.Now()})
 	}
+	s.done(nil)
 	log.Printf("shared %d facts from %s (%s)", total, path, game)
 	s.record(Activity{Kind: "shared", Service: Shared, Name: f.account.Name, Events: total})
 	return nil

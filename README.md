@@ -1,22 +1,29 @@
 # Ravenpost
 
-Ravenpost is a small app for macOS and Windows. It carries your World of
-Warcraft addons' saved files to their websites a few seconds after you log
-out or use `/reload`.
+Ravenpost is a small app for macOS and Windows, the companion of the
+addons Hearthtale, Lorekeeper's Codex, Yonder, Second Wind and WoWLocker. A
+few seconds after you log out or use `/reload`, it carries what they saved:
 
-It works with two sites:
-
-- **[Hearthtale](https://hearthtale.app)** for your characters' journals, to
+- **What you see, for every player.** Tick **Share what you see** in
+  Hearthtale, Lorekeeper's Codex, Yonder or Second Wind, and the quests,
+  creatures and lines the game shows you go to the addons' database. New
+  quests and creatures reach the addons sooner, in every language players
+  share. No account and no link: install Ravenpost and it sends them.
+- **[Hearthtale](https://hearthtale.app)**: your characters' journals, to
   read on your phone.
-- **[WoWLocker](https://wow-locker.app)** for your characters, their gear and
+- **[WoWLocker](https://wow-locker.app)**: your characters, their gear and
   what happens to them.
+
+**[Download the latest release](https://github.com/salty-max/ravenpost/releases/latest)**
+(macOS and Windows, see [Download](#download)).
 
 ## Using Ravenpost
 
-Open Ravenpost and link each site you use. Click **Link with Battle.net**,
-sign in on the site and check that the code matches the one Ravenpost shows.
-The window then shows what each logout sent, the characters Ravenpost found
-and the game folders it watches.
+Sharing what you see needs nothing more: keep Ravenpost running, and the
+window shows which addons share and how much went. To use a site, link it:
+click **Link with Battle.net**, sign in on the site and check that the code
+matches the one Ravenpost shows. The window then shows what each logout
+sent, the characters Ravenpost found and the game folders it watches.
 
 Closing the window doesn't stop Ravenpost. It keeps working from the menu bar
 on macOS or the tray on Windows. With **Open Ravenpost at login** turned on in

@@ -43,7 +43,12 @@ became an app with its own window.
   changed since the last upload go (`shared.json` beside the config: a hash
   of each entry sent, per file), in requests of 1 MB at most; a test realm's
   (`ptr` in the folder's name) never; an account left out sends nothing. The
-  journal says how many facts went (`shared`).
+  journal says how many facts went (`shared`), the Overview's third card ("The
+  addons' database") which addons share (`State.sharing`: entries seen, still
+  to send, the last upload), and an addon sharing counts as something to
+  carry (the status, Sync now) as a linked site does. Ravenpost is the
+  addons' companion (README): sharing needs no link, so a Yonder or Codex
+  player has a reason to install it.
 - `app.go`: pairing per site (device code: `/api/companion/pair/start`, the
   page on the site, `/pair/poll` hands the token over once) and the settings
   (`ApplySettings`).

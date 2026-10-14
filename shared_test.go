@@ -141,6 +141,9 @@ func TestSharesTheFactsOnceAnonymously(t *testing.T) {
 	if a := s.store.Get().Activity; len(a) != 1 || a[0].Kind != "shared" || a[0].Events != 2 || a[0].Name != "MAX" {
 		t.Fatalf("activity: %+v", a)
 	}
+	if sh := s.Snapshot().Sharing; len(sh) != 1 || sh[0].Addon != "Yonder" || sh[0].Seen != 2 || sh[0].Waiting != 0 || sh[0].At.IsZero() || s.lastSync.IsZero() {
+		t.Fatalf("the window's sharing: %+v", sh)
+	}
 
 	// The same file again: nothing. A quest's reward seen since: that quest alone.
 	again(s, file)
@@ -183,8 +186,8 @@ func TestSharesNothingUnasked(t *testing.T) {
 		root, file := fakeShared(t, c.flavour, c.content)
 		s := syncerFor(t, srv.URL, root)
 		s.process(context.Background(), file)
-		if len(site.bodies) != 0 {
-			t.Fatalf("%s: sent %+v", name, site.bodies)
+		if len(site.bodies) != 0 || len(s.Snapshot().Sharing) != 0 {
+			t.Fatalf("%s: sent %+v, sharing %+v", name, site.bodies, s.Snapshot().Sharing)
 		}
 	}
 
@@ -215,6 +218,9 @@ func TestSharesInPiecesAndRetries(t *testing.T) {
 	s.process(context.Background(), file)
 	if s.files[file].err == "" || len(s.sent.of(file)) != 0 {
 		t.Fatalf("a failed upload: err %q, %d marked sent", s.files[file].err, len(s.sent.of(file)))
+	}
+	if sh := s.Snapshot().Sharing; len(sh) != 1 || sh[0].Waiting != 1000 || !sh[0].At.IsZero() {
+		t.Fatalf("the window's sharing after a failure: %+v", sh)
 	}
 
 	site.httpCode = 0

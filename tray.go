@@ -59,7 +59,7 @@ func (a *App) trayMenu(app *application.App, show func()) (*application.Menu, fu
 			status.SetLabel("Ravenpost")
 		}
 		last.SetLabel(fmt.Sprintf(t.lastUpload, lastUploadWhen(t, snap.LastSync)))
-		syncNow.SetEnabled(a.linkedAny())
+		syncNow.SetEnabled(a.linkedAny() || len(snap.Sharing) > 0)
 		menu.Update()
 	}
 	refresh()

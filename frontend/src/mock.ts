@@ -54,6 +54,12 @@ export function mockState(): State {
     errors: [],
     uploading: [],
     lastUploaded: [],
+    sharing: fresh
+      ? []
+      : [
+          { addon: "Yonder", account: "MAXIME", install: "World of Warcraft: Forever (beta)", seen: 1874, waiting: 0, at: min(4) },
+          { addon: "Lorekeeper's Codex", account: "MAXIME", install: "Classic Era · Hardcore · Season", seen: 312, waiting: 26, at: min(60 * 26) },
+        ],
     activity: fresh
       ? []
       : [

@@ -12,6 +12,7 @@ export type {
     Character,
     Install,
     Pairing,
+    Share,
     SiteState,
     State,
     UploadedCharacter

@@ -1,11 +1,11 @@
 import { AlertTriangle, Check, CheckCircle2, ExternalLink, FolderPlus, Link2, Loader2, RefreshCw, Share2, Unlink, XCircle } from "lucide-react";
-import type { SiteState } from "../../bindings/github.com/salty-max/ravenpost/models";
+import type { Share, SiteState } from "../../bindings/github.com/salty-max/ravenpost/models";
 import { useNow } from "@/components/ui";
 import { useApp } from "@/lib/app";
 import { describe } from "@/lib/activity";
 import { ago } from "@/lib/format";
 
-/** The first page: how things stand, the two sites, what was sent lately. */
+/** The first page: how things stand, the two sites and the addons' database, what was sent lately. */
 export function Overview() {
   return (
     <div className="flex flex-col gap-6">
@@ -15,6 +15,7 @@ export function Overview() {
           Sites
         </h2>
         <SiteCards />
+        <SharingCard />
       </section>
       <ActivityPanel />
     </div>
@@ -25,7 +26,8 @@ export function Overview() {
 function Status() {
   const { state, t, locale, api, run } = useApp();
   const now = useNow();
-  const linked = (state.sites ?? []).some((s) => s.linked);
+  // (a site linked, or an addon sharing what the game tells: something to carry)
+  const linked = (state.sites ?? []).some((s) => s.linked) || (state.sharing ?? []).length > 0;
   const uploading = (state.uploading ?? []).length > 0;
   const folders = (state.installs ?? []).length;
   // Linked, and no game found: the one thing left to do is show Ravenpost where it is.
@@ -71,6 +73,59 @@ function Status() {
         </button>
       )}
     </section>
+  );
+}
+
+/**
+ * The addons' database: what the game told this computer's players of the
+ * world, for every player of the addons, sent with no account or link once
+ * they tick "Share what you see" in an addon.
+ */
+function SharingCard() {
+  const { state, t, locale } = useApp();
+  const now = useNow();
+  const shares = state.sharing ?? [];
+  return (
+    <article className="panel col-span-2 flex flex-col gap-3 p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="title text-lg">{t.sharing.title}</h2>
+          <p className="mt-0.5 text-sm text-dim">{t.sharing.why}</p>
+        </div>
+        {shares.length ? (
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-ok/30 bg-ok/10 px-2 py-0.5 text-xs font-medium text-ok">
+            <Share2 className="size-3" strokeWidth={2.5} aria-hidden />
+            {t.sharing.on}
+          </span>
+        ) : (
+          <span className="tag shrink-0">{t.sharing.off}</span>
+        )}
+      </div>
+      {shares.length ? (
+        <ul className="flex flex-col divide-y divide-white/[0.05]">
+          {shares.map((s) => (
+            <ShareLine key={`${s.addon}|${s.install}|${s.account}`} share={s} now={now} locale={locale} />
+          ))}
+        </ul>
+      ) : (
+        <p className="max-w-2xl text-sm text-parchment">{t.sharing.how}</p>
+      )}
+      <p className="text-xs text-faint">{t.sharing.never}</p>
+    </article>
+  );
+}
+
+function ShareLine({ share: s, now, locale }: { share: Share; now: number; locale: string }) {
+  const { t } = useApp();
+  return (
+    <li className="flex items-center gap-3 py-2">
+      <span className="font-semibold text-parchment">{s.addon}</span>
+      <span className="min-w-0 flex-1 truncate text-sm text-faint">
+        {s.account} · {s.install}
+      </span>
+      <span className="shrink-0 text-sm text-dim">{s.waiting ? t.sharing.waiting(s.seen, s.waiting) : t.sharing.sent(s.seen)}</span>
+      <span className="w-24 shrink-0 text-right text-xs text-faint">{s.at ? ago(s.at, locale, t.ago.never, now) : ""}</span>
+    </li>
   );
 }
 

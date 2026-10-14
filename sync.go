@@ -72,8 +72,9 @@ type Syncer struct {
 	lastError  string
 	scannedAt  time.Time
 
-	// The shared facts' entries sent, per file (shared.go).
-	sent *sharedSent
+	// The shared facts' entries sent, per file, and what each addon shares (shared.go).
+	sent   *sharedSent
+	shares map[string]*Share
 
 	kick     chan struct{}
 	onChange func()
@@ -94,6 +95,7 @@ func NewSyncer(store *Store) *Syncer {
 	return &Syncer{
 		store:      store,
 		sent:       loadSharedSent(filepath.Dir(store.path)),
+		shares:     map[string]*Share{},
 		files:      map[string]*fileState{},
 		characters: map[string]*Character{},
 		kick:       make(chan struct{}, 1),
@@ -154,6 +156,7 @@ func (s *Syncer) tick(ctx context.Context) {
 		for p := range s.files {
 			if !live[p] {
 				delete(s.files, p)
+				delete(s.shares, p)
 			}
 		}
 	}
@@ -500,6 +503,8 @@ type Snapshot struct {
 	LastUploaded []UploadedCharacter `json:"lastUploaded"`
 	// What Ravenpost did lately, the latest first.
 	Activity []Activity `json:"activity"`
+	// The addons sharing what the game tells their player (shared.go).
+	Sharing []Share `json:"sharing"`
 }
 
 // installsNow: the last scan (every 30 s), except that an account whose files
@@ -565,6 +570,20 @@ func (s *Syncer) Snapshot() Snapshot {
 	if out.Activity == nil {
 		out.Activity = []Activity{}
 	}
+	out.Sharing = []Share{}
+	for _, sh := range s.shares {
+		out.Sharing = append(out.Sharing, *sh)
+	}
+	sort.Slice(out.Sharing, func(i, j int) bool {
+		a, b := out.Sharing[i], out.Sharing[j]
+		if a.Addon != b.Addon {
+			return a.Addon < b.Addon
+		}
+		if a.Install != b.Install {
+			return a.Install < b.Install
+		}
+		return a.Account < b.Account
+	})
 	return out
 }
 
