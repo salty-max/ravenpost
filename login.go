@@ -15,12 +15,15 @@ import (
 	"time"
 )
 
-// Signing in to the addons' database (the inbox, inbox/)
-// with Battle.net, the way desktop apps do: Ravenpost listens on this
-// computer, opens the browser on the inbox's /api/login, Battle.net signs the
-// player in, and the inbox sends the browser back here with a token
-// (http://127.0.0.1:<port>/linked?token=&nonce=). The inbox keeps nothing:
-// the token is signed, and names the account by a hash and its BattleTag.
+// Signing in with Battle.net, once for everything, through Ravenpost's inbox
+// (inbox/), the way desktop apps do: Ravenpost listens on this computer, opens
+// the browser on the inbox's /api/login, Battle.net signs the player in, and
+// the inbox sends the browser back here
+// (http://127.0.0.1:<port>/linked?token=&passport=&nonce=) with the sharing
+// token (the addons' database: signed, the account as a hash and its
+// BattleTag) and a passport, handed at once to each site that takes one
+// (Hearthtale's /api/companion/signin) for its own upload token. The inbox
+// keeps nothing.
 
 const loginWait = 10 * time.Minute
 
@@ -61,8 +64,11 @@ func (a *App) startSharedLogin() error {
 			a.finishPairing(Shared, nonce, "failed", q.Get("error"))
 		} else {
 			_ = a.store.SetLink(Shared, Link{Server: link.Server, Token: token, BattleTag: tag})
-			log.Printf("sharing with the addons' database as %s", tag)
+			log.Printf("signed in as %s", tag)
 			a.syncer.record(Activity{Kind: "linked", Service: Shared, Name: tag})
+			if passport := q.Get("passport"); passport != "" {
+				a.signInSites(passport)
+			}
 			writePage(w, t.linkedTitle, t.linkedText)
 			a.finishPairing(Shared, nonce, "paired", "")
 			a.syncer.SyncNow(false)
@@ -86,6 +92,33 @@ func (a *App) startSharedLogin() error {
 		_ = srv.Close()
 	}()
 	return openURL(page)
+}
+
+// The sites that take the inbox's passport for their own upload token.
+var passportSites = []string{Hearthtale}
+
+// signInSites: the passport to each site that takes one, its upload token kept.
+func (a *App) signInSites(passport string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	for _, site := range passportSites {
+		link := a.store.Get().LinkFor(site)
+		var res struct {
+			Token     string `json:"token"`
+			BattleTag string `json:"battletag"`
+		}
+		err := call(ctx, "POST", link.Server, "/api/companion/signin", "", map[string]string{"passport": passport}, &res)
+		if err == nil && res.Token == "" {
+			err = fmt.Errorf("no token")
+		}
+		if err != nil {
+			log.Printf("sign-in (%s): %v", site, err)
+			a.syncer.record(Activity{Kind: "failed", Service: site, Name: link.BattleTag, Detail: err.Error()})
+			continue
+		}
+		_ = a.store.SetLink(site, Link{Server: link.Server, Token: res.Token, BattleTag: res.BattleTag})
+		a.syncer.record(Activity{Kind: "linked", Service: site, Name: res.BattleTag})
+	}
 }
 
 // tokenTag: the BattleTag a token names (its signature is the inbox's to check).
@@ -124,13 +157,13 @@ type loginText struct{ linkedTitle, linkedText, failedTitle, failedText string }
 func loginStrings() loginText {
 	if strings.HasPrefix(systemLanguage(), "fr") {
 		return loginText{
-			"Lié à Ravenpost", "Merci ! Ce que vous voyez aidera les addons à suivre Forever. Vous pouvez fermer cet onglet.",
-			"La connexion n'a pas abouti", "Retournez dans Ravenpost et cliquez à nouveau sur « Lier avec Battle.net ».",
+			"Connecté à Ravenpost", "C'est fait : Ravenpost porte vos journaux et ce que vous partagez. Vous pouvez fermer cet onglet.",
+			"La connexion n'a pas abouti", "Retournez dans Ravenpost et cliquez à nouveau sur « Se connecter avec Battle.net ».",
 		}
 	}
 	return loginText{
-		"Linked to Ravenpost", "Thank you! What you see will help the addons keep up with Forever. You can close this tab.",
-		"The sign-in didn't go through", "Go back to Ravenpost and click Link with Battle.net again.",
+		"Signed in to Ravenpost", "All set: Ravenpost carries your journals and what you share. You can close this tab.",
+		"The sign-in didn't go through", "Go back to Ravenpost and click Sign in with Battle.net again.",
 	}
 }
 

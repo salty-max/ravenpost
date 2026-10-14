@@ -7,10 +7,19 @@ wow-data's daily job merges it into its `data/players` (its `bin/players.ts`
 and `players.yml`). No database: each upload is a file in a private Vercel
 Blob store, and goes once merged.
 
-- `GET /api/login?port=&nonce=` and `/api/login/callback`: Ravenpost's sign-in
-  (`src/auth.ts`). Battle.net signs the player in, the inbox hands Ravenpost a
-  signed token (the account's id keyed with `INBOX_SECRET`, its BattleTag) on
-  `http://127.0.0.1:<port>/linked`. Nothing is kept: the token is only checked.
+- `GET /api/login?port=&nonce=` and `/api/login/callback`: Ravenpost's one
+  sign-in (`src/auth.ts`, scopes `openid wow.profile`). Battle.net signs the
+  player in, and the inbox hands Ravenpost, on `http://127.0.0.1:<port>/linked`:
+  - the sharing token (the account's id keyed with `INBOX_SECRET`, its
+    BattleTag), checked on each upload;
+  - a passport (`src/passport.ts`): the Battle.net id, BattleTag and the
+    characters the account owns in each region (Classic Era's profile), signed
+    with the Ed25519 key `INBOX_SIGNING_KEY`, ten minutes, once. Ravenpost
+    hands it to Hearthtale (`/api/companion/signin`), which checks it with the
+    public key in its own code and gives Ravenpost its upload token. WoWLocker
+    will take it the same way.
+  Nothing is kept. `src/devkey.ts`: a key pair for this computer (INBOX_DEV,
+  tests), trusted by a Hearthtale running locally only.
 - `POST /api/facts`: an addon's collect table, from a signed-in player
   (`Authorization: Bearer <token>`), flattened and checked (`src/facts.ts`),
   dropped in the inbox (`src/inbox.ts`).
@@ -34,7 +43,9 @@ https://ravenpost-inbox.vercel.app: the Vercel project `ravenpost-inbox`
 from this folder with `vercel deploy --prod` (not from git). Its
 environment: `BLOB_READ_WRITE_TOKEN` (the store's), `INBOX_ORIGIN`,
 `INBOX_SECRET` (keys the accounts and signs the tokens: changing it signs
-every player out), `INBOX_TOKEN` (wow-data's), `INBOX_BLOCKED` (optional:
+every player out), `INBOX_SIGNING_KEY` (the passports' Ed25519 private key;
+its public half is in Hearthtale's `lib/ravenpost.ts`), `INBOX_TOKEN`
+(wow-data's), `INBOX_BLOCKED` (optional:
 accounts refused, a token's `sub`, comma-separated), and `BNET_CLIENT_ID` /
 `BNET_CLIENT_SECRET`: the Battle.net app "Ravenpost" on develop.battle.net,
 its redirect URL `https://ravenpost-inbox.vercel.app/api/login/callback`.

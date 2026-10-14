@@ -1,15 +1,17 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 )
 
-// The inbox's sign-in, as the browser goes through it: the inbox sends it
-// back to Ravenpost on this computer with a token (Battle.net skipped).
-func TestLinksTheAddonsDatabaseThroughTheBrowser(t *testing.T) {
+// The one sign-in, as the browser goes through it: the inbox sends it back to
+// Ravenpost on this computer with the sharing token and a passport (Battle.net
+// skipped), which Hearthtale takes for its own upload token.
+func TestOneSignInLinksEverything(t *testing.T) {
 	r := testApp(t)
 	inbox := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		q := req.URL.Query()
@@ -17,10 +19,21 @@ func TestLinksTheAddonsDatabaseThroughTheBrowser(t *testing.T) {
 			http.Error(w, "no", http.StatusBadRequest)
 			return
 		}
-		http.Redirect(w, req, "http://127.0.0.1:"+q.Get("port")+"/linked?token="+sharedToken+"&nonce="+q.Get("nonce"), http.StatusFound)
+		http.Redirect(w, req, "http://127.0.0.1:"+q.Get("port")+"/linked?token="+sharedToken+"&passport=signed.passport&nonce="+q.Get("nonce"), http.StatusFound)
 	}))
 	defer inbox.Close()
+	site := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		var body map[string]string
+		_ = json.NewDecoder(req.Body).Decode(&body)
+		if req.URL.Path != "/api/companion/signin" || body["passport"] != "signed.passport" {
+			http.Error(w, `{"error":"not a passport"}`, http.StatusUnauthorized)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]string{"token": "ht-token", "battletag": "Max#1234"})
+	}))
+	defer site.Close()
 	_ = r.app.store.SetLink(Shared, Link{Server: inbox.URL})
+	_ = r.app.store.SetLink(Hearthtale, Link{Server: site.URL})
 
 	if err := r.Link(Shared); err != nil {
 		t.Fatal(err)
@@ -43,11 +56,14 @@ func TestLinksTheAddonsDatabaseThroughTheBrowser(t *testing.T) {
 	if l.Token != sharedToken || l.BattleTag != "Max#1234" || r.app.Pairing(Shared).Status != "paired" {
 		t.Fatalf("link %+v, pairing %+v", l, r.app.Pairing(Shared))
 	}
-	if a := r.app.store.Get().Activity; len(a) == 0 || a[0].Kind != "linked" || a[0].Service != Shared {
+	if a := r.app.store.Get().Activity; len(a) != 2 || a[0].Service != Hearthtale || a[1].Kind != "linked" || a[1].Service != Shared {
 		t.Fatalf("activity: %+v", a)
 	}
 	if st := r.State(); !st.Facts.Linked || st.Facts.BattleTag != "Max#1234" {
 		t.Fatalf("the window: %+v", st.Facts)
+	}
+	if h := r.app.store.Get().LinkFor(Hearthtale); h.Token != "ht-token" || h.BattleTag != "Max#1234" {
+		t.Fatalf("Hearthtale not linked by the same sign-in: %+v", h)
 	}
 	_ = r.Unlink(Shared)
 	if r.app.store.Get().LinkFor(Shared).Token != "" {

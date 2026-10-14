@@ -54,11 +54,14 @@ became an app with its own window.
   (`POST /api/facts`), held until wow-data's daily job merges and removes
   them. Deployed with `vercel deploy --prod` from `inbox/`; `cd inbox && bun
   run check` in CI.
-- `login.go`: linking the addons' database with Battle.net the way desktop
-  apps sign in: a listener on 127.0.0.1, the browser on the inbox's
-  `/api/login?port=&nonce=`, Battle.net, then back here on `/linked` with a
-  signed token (the inbox keeps nothing). The window's Link and Unlink with
-  the site id `shared`.
+- `login.go`: the one Battle.net sign-in, the way desktop apps sign in: a
+  listener on 127.0.0.1, the browser on the inbox's `/api/login?port=&nonce=`,
+  Battle.net, then back here on `/linked` with the sharing token (the addons'
+  database, `Links["shared"]`) and a passport, handed at once to each site in
+  `passportSites` (Hearthtale's `/api/companion/signin`) for its own upload
+  token. The inbox keeps nothing. The window's sign-in is Link("shared"); its
+  Sign out unlinks the database and Hearthtale. WoWLocker keeps its own
+  device-code link until it takes the passport too.
 - `app.go`: pairing per site (device code: `/api/companion/pair/start`, the
   page on the site, `/pair/poll` hands the token over once) and the settings
   (`ApplySettings`).

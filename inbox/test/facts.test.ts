@@ -3,7 +3,9 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { app } from "../src/app";
-import { sharer, sign, subOf, tokenFor, verify } from "../src/auth";
+import { createPublicKey, verify as edVerify } from "node:crypto";
+import { setFetch, sharer, sign, subOf, tokenFor, verify } from "../src/auth";
+import { DEV_PUBLIC_KEY } from "../src/devkey";
 import { flatten } from "../src/facts";
 import type { Item } from "../src/inbox";
 
@@ -85,6 +87,38 @@ describe("facts", () => {
     const state = sign({ port: 51234, nonce: "abcdefghijklmnop", exp: Math.floor(Date.now() / 1000) + 60 });
     const denied = await app.request(`/api/login/callback?state=${state}&error=access_denied`);
     expect(denied.headers.get("location")).toBe("http://127.0.0.1:51234/linked?error=denied&nonce=abcdefghijklmnop");
+  });
+
+  test("signing in with Battle.net: a sharing token and a passport for the sites, the characters of every region", async () => {
+    process.env.BNET_CLIENT_ID = "id";
+    process.env.BNET_CLIENT_SECRET = "secret";
+    setFetch(async (url) => {
+      if (url.endsWith("/token")) return Response.json({ access_token: "user-token" });
+      if (url.endsWith("/userinfo")) return Response.json({ id: 4242, battletag: "Namzar#21586" });
+      if (url.startsWith("https://eu.api.blizzard.com")) return Response.json({ wow_accounts: [{ characters: [{ id: 11 }, { id: 12 }] }] });
+      if (url.startsWith("https://us.api.blizzard.com")) return Response.json({ wow_accounts: [{ characters: [{ id: 99 }] }] });
+      return new Response("", { status: 404 });
+    });
+    try {
+      const state = sign({ port: 51234, nonce: "abcdefghijklmnop", exp: Math.floor(Date.now() / 1000) + 60 });
+      const res = await app.request(`/api/login/callback?state=${state}&code=c0de`);
+      const to = new URL(res.headers.get("location")!);
+      expect(to.origin).toBe("http://127.0.0.1:51234");
+      expect(sharer(`Bearer ${to.searchParams.get("token")}`)).toMatchObject({ sub: subOf(4242), tag: "Namzar#21586" });
+      const [body, sig] = to.searchParams.get("passport")!.split(".");
+      expect(edVerify(null, Buffer.from(body), createPublicKey(DEV_PUBLIC_KEY), Buffer.from(sig, "base64url"))).toBe(true);
+      const p = JSON.parse(Buffer.from(body, "base64url").toString());
+      expect(p).toMatchObject({ aud: "sites", bnetId: 4242, battletag: "Namzar#21586" });
+      expect(p.owned).toEqual([
+        { region: "us", ids: [99] },
+        { region: "eu", ids: [11, 12] },
+      ]);
+      expect(p.exp - p.iat).toBe(600);
+    } finally {
+      setFetch((input, init) => fetch(input, init));
+      delete process.env.BNET_CLIENT_ID;
+      delete process.env.BNET_CLIENT_SECRET;
+    }
   });
 
   test("an upload: signed in, into the inbox, and out again for wow-data", async () => {

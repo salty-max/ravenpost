@@ -69,7 +69,7 @@ function credentials() {
 }
 
 export function authorizeUrl(state: string): string {
-  const q = new URLSearchParams({ client_id: credentials().id, redirect_uri: redirectUri(), response_type: "code", scope: "openid", state });
+  const q = new URLSearchParams({ client_id: credentials().id, redirect_uri: redirectUri(), response_type: "code", scope: "openid wow.profile", state });
   return `https://oauth.battle.net/authorize?${q}`;
 }
 
@@ -79,8 +79,14 @@ export const setFetch = (f: FetchFn) => {
   fetchImpl = f;
 };
 
-/** The account behind a one-time code: its id (stable) and BattleTag. The access token is dropped at once. */
-export async function account(code: string): Promise<{ id: number; battletag: string } | null> {
+export const REGIONS = ["us", "eu", "kr", "tw"] as const;
+
+/**
+ * The account behind a one-time code: its id (stable), BattleTag and the
+ * characters it owns in each region (Classic Era's profile, as Hearthtale's
+ * own sign-in reads it). The access token is dropped at once.
+ */
+export async function account(code: string): Promise<{ id: number; battletag: string; owned: { region: string; ids: number[] }[] } | null> {
   const c = credentials();
   const res = await fetchImpl("https://oauth.battle.net/token", {
     method: "POST",
@@ -90,11 +96,24 @@ export async function account(code: string): Promise<{ id: number; battletag: st
   });
   if (!res.ok) throw new Error(`oauth code exchange → ${res.status}`);
   const { access_token } = (await res.json()) as { access_token: string };
-  const info = await fetchImpl("https://oauth.battle.net/userinfo", {
-    headers: { Authorization: `Bearer ${access_token}` },
-    signal: AbortSignal.timeout(15_000),
-  });
+  const auth = { headers: { Authorization: `Bearer ${access_token}` }, signal: AbortSignal.timeout(15_000) };
+  const info = await fetchImpl("https://oauth.battle.net/userinfo", auth);
   if (!info.ok) return null;
   const { id, battletag } = (await info.json()) as { id?: number; battletag?: string };
-  return id ? { id, battletag: battletag ?? "" } : null;
+  if (!id) return null;
+  // (every region at once: a region the account never played answers 404)
+  const owned = (
+    await Promise.all(
+      REGIONS.map(async (region) => {
+        const r = await fetchImpl(`https://${region}.api.blizzard.com/profile/user/wow?namespace=profile-classic1x-${region}&locale=en_GB`, {
+          headers: auth.headers,
+          signal: AbortSignal.timeout(20_000),
+        }).catch(() => null);
+        if (!r?.ok) return { region, ids: [] as number[] };
+        const p = (await r.json()) as { wow_accounts?: { characters?: { id: number }[] }[] };
+        return { region, ids: (p.wow_accounts ?? []).flatMap((a) => (a.characters ?? []).map((ch) => ch.id)) };
+      }),
+    )
+  ).filter((o) => o.ids.length);
+  return { id, battletag: battletag ?? "", owned };
 }

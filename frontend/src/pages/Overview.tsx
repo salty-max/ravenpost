@@ -14,6 +14,7 @@ export function Overview() {
         <h2 id="sites" className="sr-only">
           Sites
         </h2>
+        <AccountCard />
         <SiteCards />
         <SharingCard />
       </section>
@@ -82,12 +83,10 @@ function Status() {
  * they tick "Share what you see" in an addon.
  */
 function SharingCard() {
-  const { state, t, locale, api, run } = useApp();
+  const { state, t, locale } = useApp();
   const now = useNow();
   const shares = state.sharing ?? [];
-  const link = state.facts;
-  const waiting = link?.pairing?.status === "waiting";
-  const linked = !!link?.linked;
+  const linked = !!state.facts?.linked;
   return (
     <article className="panel col-span-2 flex flex-col gap-3 p-5">
       <div className="flex items-start justify-between gap-3">
@@ -101,7 +100,7 @@ function SharingCard() {
             {t.sharing.on}
           </span>
         ) : (
-          <span className="tag shrink-0">{linked ? t.sites.linked : t.sharing.off}</span>
+          <span className="tag shrink-0">{linked ? t.sharing.ready : t.sharing.off}</span>
         )}
       </div>
       {shares.length > 0 && (
@@ -111,41 +110,8 @@ function SharingCard() {
           ))}
         </ul>
       )}
-      {linked ? (
-        <p className="text-sm text-parchment">{shares.length ? t.sharing.thanks : t.sharing.how}</p>
-      ) : waiting ? (
-        <div className="fade-in flex items-center gap-3 rounded-lg border border-gold/25 bg-black/30 p-3.5">
-          <Loader2 className="size-4 animate-spin text-gold" aria-hidden />
-          <p className="flex-1 text-sm text-dim">{t.sharing.waiting}</p>
-          <button type="button" className="text-sm text-gold-soft underline-offset-2 hover:underline" onClick={() => run(() => api.Open(link!.pairing!.url))}>
-            {t.sites.reopen}
-          </button>
-        </div>
-      ) : (
-        <p className="max-w-2xl text-sm text-parchment">{shares.length ? t.sharing.linkToSend : t.sharing.how}</p>
-      )}
-      {link?.pairing && ["failed", "expired"].includes(link.pairing.status) && !linked && <p className="text-sm text-blood">{t.sharing.failed}</p>}
-      <div className="mt-auto flex flex-wrap items-center gap-3 pt-1">
-        {linked ? (
-          <>
-            <span className="text-parchment">
-              {t.sites.linked} <span className="font-semibold">{t.sites.as(link?.battletag || "Battle.net")}</span>
-            </span>
-            <button type="button" className="btn btn-ghost" onClick={() => run(() => api.Unlink("shared"))}>
-              <Unlink className="size-4" aria-hidden />
-              {t.sites.unlink}
-            </button>
-          </>
-        ) : (
-          !waiting && (
-            <button type="button" className="btn btn-bnet" onClick={() => run(() => api.Link("shared"))}>
-              <Link2 className="size-4" aria-hidden />
-              {t.sites.link}
-            </button>
-          )
-        )}
-        <span className="ml-auto text-xs text-faint">{t.sharing.never}</span>
-      </div>
+      <p className="max-w-2xl text-sm text-parchment">{linked ? (shares.length ? t.sharing.thanks : t.sharing.how) : shares.length ? t.sharing.signInToSend : t.sharing.how}</p>
+      <p className="text-xs text-faint">{t.sharing.never}</p>
     </article>
   );
 }
@@ -164,6 +130,47 @@ function ShareLine({ share: s, now, locale, linked }: { share: Share; now: numbe
   );
 }
 
+/** The one Battle.net sign-in: the addons' database and Hearthtale at once (WoWLocker keeps its own link). */
+function AccountCard() {
+  const { state, t, api, run } = useApp();
+  const link = state.facts;
+  const p = link?.pairing;
+  const waiting = p?.status === "waiting";
+  const signedIn = !!link?.linked;
+  const signOut = () => run(async () => {
+    await api.Unlink("shared");
+    await api.Unlink("hearthtale");
+  });
+  return (
+    <article className="panel col-span-2 flex flex-wrap items-center gap-x-5 gap-y-3 p-5">
+      <div className="min-w-0 flex-1">
+        <h2 className="title text-lg">{t.account.title}</h2>
+        <p className="mt-0.5 max-w-2xl text-sm text-dim">{signedIn ? t.account.signedIn(link?.battletag || "Battle.net") : t.account.why}</p>
+        {!signedIn && p && ["failed", "expired"].includes(p.status) && <p className="mt-1 text-sm text-blood">{t.account.failed}</p>}
+      </div>
+      {signedIn ? (
+        <button type="button" className="btn btn-ghost" onClick={signOut}>
+          <Unlink className="size-4" aria-hidden />
+          {t.account.signOut}
+        </button>
+      ) : waiting ? (
+        <div className="fade-in flex items-center gap-3 rounded-lg border border-gold/25 bg-black/30 px-3.5 py-2.5">
+          <Loader2 className="size-4 animate-spin text-gold" aria-hidden />
+          <span className="text-sm text-dim">{t.account.waiting}</span>
+          <button type="button" className="text-sm text-gold-soft underline-offset-2 hover:underline" onClick={() => run(() => api.Open(p!.url))}>
+            {t.sites.reopen}
+          </button>
+        </div>
+      ) : (
+        <button type="button" className="btn btn-bnet" onClick={() => run(() => api.Link("shared"))}>
+          <Link2 className="size-4" aria-hidden />
+          {t.account.signIn}
+        </button>
+      )}
+    </article>
+  );
+}
+
 function SiteCards() {
   const { state } = useApp();
   return (state.sites ?? []).map((site) => <SiteCard key={site.id} site={site} />);
@@ -171,7 +178,7 @@ function SiteCards() {
 
 /** One site: linked as whom, linking now (the code to confirm), or a button to link it. */
 function SiteCard({ site }: { site: SiteState }) {
-  const { t, api, run } = useApp();
+  const { state, t, api, run } = useApp();
   const p = site.pairing;
   const waiting = p?.status === "waiting";
   return (
@@ -222,6 +229,15 @@ function SiteCard({ site }: { site: SiteState }) {
               {t.sites.unlink}
             </button>
           </>
+        ) : site.id === "hearthtale" ? (
+          state.facts?.linked ? (
+            <button type="button" className="btn btn-bnet" onClick={() => run(() => api.Link("shared"))}>
+              <Link2 className="size-4" aria-hidden />
+              {t.account.again}
+            </button>
+          ) : (
+            <span className="text-sm text-faint">{t.account.viaSignIn}</span>
+          )
         ) : (
           !waiting && (
             <>

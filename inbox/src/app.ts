@@ -2,10 +2,12 @@ import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { account, authorizeUrl, sharer, sign, subOf, tokenFor, verify } from "./auth";
 import { flatten } from "./facts";
+import { passportFor } from "./passport";
 import { drop, names, read, remove } from "./inbox";
 
-// Ravenpost's inbox: players sign in with Battle.net from Ravenpost, the
-// facts they share come in, wow-data's daily job takes them out.
+// Ravenpost's inbox: players sign in with Battle.net from Ravenpost once (a
+// sharing token, and a passport the sites take: src/passport.ts), the facts
+// they share come in, wow-data's daily job takes them out.
 export const app = new Hono();
 
 app.onError((err, c) => {
@@ -29,7 +31,13 @@ app.get("/api/login", (c) => {
   const state = sign({ port: Number(port), nonce, exp: Math.floor(Date.now() / 1000) + 600 });
   // (on this computer only, INBOX_DEV=1: a test account, no Battle.net)
   if (process.env.INBOX_DEV === "1" && !process.env.VERCEL)
-    return c.redirect(back(port!, { token: tokenFor({ sub: subOf("dev"), tag: "Tester#1234" }), nonce: nonce! }));
+    return c.redirect(
+      back(port!, {
+        token: tokenFor({ sub: subOf("dev"), tag: "Tester#1234" }),
+        passport: passportFor({ bnetId: 0, battletag: "Tester#1234", owned: [] }), // (Hearthtale's local test account)
+        nonce: nonce!,
+      }),
+    );
   if (!process.env.BNET_CLIENT_ID || !process.env.BNET_CLIENT_SECRET)
     return c.html(page("Ravenpost", "Signing in with Battle.net isn't open yet. Try again in a little while."), 503);
   return c.redirect(authorizeUrl(state));
@@ -42,7 +50,14 @@ app.get("/api/login/callback", async (c) => {
   if (!code) return c.redirect(back(s.port, { error: "denied", nonce: s.nonce }));
   const who = await account(code).catch(() => null);
   if (!who) return c.redirect(back(s.port, { error: "failed", nonce: s.nonce }));
-  return c.redirect(back(s.port, { token: tokenFor({ sub: subOf(who.id), tag: who.battletag }), nonce: s.nonce }));
+  // (the sharing token, and the passport that links the sites in the same go)
+  return c.redirect(
+    back(s.port, {
+      token: tokenFor({ sub: subOf(who.id), tag: who.battletag }),
+      passport: passportFor({ bnetId: who.id, battletag: who.battletag, owned: who.owned }),
+      nonce: s.nonce,
+    }),
+  );
 });
 
 // ── an addon's collect table, from Ravenpost ─────────────────────────────────
