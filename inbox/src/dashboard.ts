@@ -115,9 +115,11 @@ export function hourlyOf(readings: Reading[], now = Date.now()) {
 // ── the look: Ravenpost's window's theme ─────────────────────────────────────
 const STYLE = `
 :root{color-scheme:dark;--night:#0b0c10;--stone:#121319;--stone-2:#181a21;--stone-3:#21242d;--edge:#2b2f3a;--edge-gold:#5a4a2a;--parchment:#ece3cf;--dim:#a39b88;--faint:#6f6a5e;--gold:#f2c14e;--gold-soft:#c9a227;--ok:#6fd08c;--blood:#e0634f;--bnet:#148eff;--display:"Cinzel","Trajan Pro",Georgia,serif;--sans:"Inter",ui-sans-serif,system-ui,sans-serif}
-*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:16px}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:calc(16px + env(safe-area-inset-top))}
 body{margin:0;overflow-x:clip;background:radial-gradient(1200px 600px at 70% -10%,rgb(242 193 78/.06),transparent 60%),var(--night);color:var(--parchment);font:14px/1.5 var(--sans);-webkit-font-smoothing:antialiased;min-height:100vh}
 a{color:inherit;text-decoration:none}
+/* (on a phone, the status bar's own strip: the page scrolls under the night, never under the clock) */
+body::before{content:"";position:fixed;inset:0 0 auto 0;height:env(safe-area-inset-top);background:rgb(11 12 16/.92);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);z-index:40;pointer-events:none}
 .title{font-family:var(--display);font-weight:700;letter-spacing:.03em;color:var(--gold);margin:0}
 .panel{position:relative;border:1px solid var(--edge);border-radius:12px;background:linear-gradient(180deg,color-mix(in srgb,var(--stone-2) 98%,white 2%),var(--stone));box-shadow:inset 0 1px 0 rgb(255 255 255/.03),inset 0 0 0 1px rgb(242 193 78/.05),0 10px 30px rgb(0 0 0/.35)}
 .ic{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -203,7 +205,7 @@ section{margin-bottom:22px}.sh{display:flex;align-items:baseline;justify-content
 
 @media (max-width:1000px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:760px){
-  .side{display:none}main{margin:0;padding:14px 12px calc(84px + env(safe-area-inset-bottom));padding-top:max(14px,env(safe-area-inset-top))}
+  .side{display:none}main{margin:0;padding:14px 12px calc(84px + env(safe-area-inset-bottom));padding-top:calc(14px + env(safe-area-inset-top))}
   .top h1{font-size:21px}.top .brandm{display:flex;align-items:center;gap:10px}.top .brandm img{width:32px;height:32px;border-radius:8px}
   .hero{padding:14px}.hero .raven,.hero .raven img{width:46px;height:46px}.hero h2{font-size:17px}
   .kpis{gap:10px}.kpi{padding:12px 12px 8px}.kpi .v{font-size:22px}
