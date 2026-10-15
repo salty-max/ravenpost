@@ -52,6 +52,7 @@ describe("the numbers", () => {
     });
     expect(h.days["2026-10-15"].sharing).toEqual({ sharers: 2, uploads: 3, facts: 21, games: { forever: 17, classic: 4 }, locales: { enUS: 12, deDE: 5, frFR: 4 } });
     expect(h.days["2026-10-16"].downloads!.Yonder).toEqual({ curseforge: 100, wago: 42, github: 10 });
+    expect(h.days["2026-10-16"].downloadsAt).toBe(next.toISOString());
     expect(h.days["2026-10-16"].downloads!.Hearthtale).toEqual({ curseforge: 100, github: 10 });
     expect(h.days["2026-10-16"].downloads!.Ravenpost).toEqual({ github: 10 });
     // (no CurseForge key, no standing; with it, each addon's rank, favorites, thumbs up)

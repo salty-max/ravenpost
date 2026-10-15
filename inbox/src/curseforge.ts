@@ -29,13 +29,18 @@ export const setCurseForgeFetch = (f: FetchFn) => {
 
 /** A project's public releases, the newest first. */
 export async function releasesOf(project: number): Promise<Release[]> {
-  const res = await fetchImpl(`https://www.curseforge.com/api/v1/mods/${project}/files?pageIndex=0&pageSize=50&sort=dateCreated&sortDescending=true`, {
-    headers: { "User-Agent": "Mozilla/5.0 (ravenpost-inbox; download counter)", Accept: "application/json" },
-    signal: AbortSignal.timeout(20_000),
-  });
-  if (!res.ok) throw new Error(`curseforge ${project}: ${res.status}`);
-  const data = ((await res.json()) as { data?: { id: number; displayName: string; dateCreated: string; totalDownloads: number; releaseType: number }[] }).data ?? [];
-  return data.map((f) => ({ id: f.id, version: f.displayName, at: f.dateCreated, downloads: f.totalDownloads ?? 0, type: f.releaseType ?? 1 }));
+  const out: Release[] = [];
+  for (let page = 0; ; page++) {
+    const res = await fetchImpl(`https://www.curseforge.com/api/v1/mods/${project}/files?pageIndex=${page}&pageSize=50&sort=dateCreated&sortDescending=true`, {
+      headers: { "User-Agent": "Mozilla/5.0 (ravenpost-inbox; download counter)", Accept: "application/json" },
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!res.ok) throw new Error(`curseforge ${project}: ${res.status}`);
+    const body = (await res.json()) as { data?: { id: number; displayName: string; dateCreated: string; totalDownloads: number; releaseType: number }[]; pagination?: { totalCount?: number } };
+    if (!Array.isArray(body.data)) throw new Error(`curseforge ${project}: missing files`);
+    out.push(...body.data.map((f) => ({ id: f.id, version: f.displayName, at: f.dateCreated, downloads: f.totalDownloads ?? 0, type: f.releaseType ?? 1 })));
+    if (body.data.length < 50 || (body.pagination?.totalCount !== undefined && out.length >= body.pagination.totalCount)) return out;
+  }
 }
 
 const LATEST = "releases/latest.json";

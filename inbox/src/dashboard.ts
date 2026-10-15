@@ -21,6 +21,30 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 const short = (d: string) => `${Number(d.slice(8))} ${MONTHS[Number(d.slice(5, 7)) - 1]}`;
 const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
+/** A view of the history with the latest CurseForge counts, retaining the
+ * other stores' most recent counts. The daily history stays untouched. */
+export function withDownloadReadings(h: History, readings: Reading[]): History {
+  const days = { ...h.days };
+  const known: Record<string, { day: string; at?: string; channels: NonNullable<Day["downloads"]>[string] }> = {};
+  for (const day of Object.keys(h.days).sort()) {
+    for (const [addon, channels] of Object.entries(h.days[day].downloads ?? {})) {
+      known[addon] = { day, at: h.days[day].downloadsAt, channels: { ...known[addon]?.channels, ...channels } };
+    }
+  }
+  for (const [at, totals] of [...readings].sort((a, b) => a[0].localeCompare(b[0]))) {
+    if (!Number.isFinite(Date.parse(at))) continue;
+    const day = at.slice(0, 10);
+    for (const [addon, count] of Object.entries(totals)) {
+      if (!Number.isFinite(count) || count < 0 || (known[addon] && day < known[addon].day)) continue;
+      if (known[addon]?.at && Date.parse(at) <= Date.parse(known[addon].at!)) continue;
+      const channels = { ...known[addon]?.channels, curseforge: count };
+      known[addon] = { day, at, channels };
+      days[day] = { ...days[day], downloads: { ...days[day]?.downloads, [addon]: channels } };
+    }
+  }
+  return { ...h, days };
+}
+
 // ── the numbers, as the page draws them ──────────────────────────────────────
 type N = number | null;
 export type Series = {
@@ -51,13 +75,17 @@ export function seriesOf(h: History): Series {
   const week: Record<string, number | null> = {};
   for (const a of addons) {
     let prev: { day: string; total: number; i: number } | null = null;
+    let carried: Series["downloads"]["channels"][string] = {};
+    const countedTotals = new Map<string, number>();
     const out: N[] = days.map(() => null);
     days.forEach((d, i) => {
       const c = at(d)?.downloads?.[a];
       if (!c) return;
-      const total = sum(c);
+      carried = { ...carried, ...c };
+      const total = sum(carried);
+      countedTotals.set(d, total);
       totals[a] = total;
-      channels[a] = c;
+      channels[a] = carried;
       if (prev) {
         // (a gap: the difference covers the days since the last count, shared over them)
         const span = i - prev.i;
@@ -74,7 +102,7 @@ export function seriesOf(h: History): Series {
     const last = counted[counted.length - 1];
     const cut = last ? new Date(Date.parse(last) - 7 * DAY).toISOString().slice(0, 10) : "";
     const base = [...counted].reverse().find((d) => d <= cut) ?? (counted.length > 1 ? counted[0] : undefined);
-    week[a] = base && last && base !== last ? totals[a] - sum(at(base)!.downloads![a]) : null;
+    week[a] = base && last && base !== last ? totals[a] - countedTotals.get(base)! : null;
   }
   addons.sort((a, b) => (totals[b] ?? 0) - (totals[a] ?? 0));
   const siteNames = [...new Set(days.flatMap((d) => Object.keys(at(d)?.traffic ?? {})))];
@@ -91,24 +119,26 @@ export function seriesOf(h: History): Series {
   };
 }
 
-/** The last 48 hours from the half-hourly readings (curseforge.ts): new downloads an hour by addon, an hour's the rise since the reading before; and today's (UTC) so far. */
+/** The last 48 hours from the ten-minute readings (curseforge.ts): new downloads an hour by addon, an hour's the rise since the reading before; and today's (UTC) so far. */
 export function hourlyOf(readings: Reading[], now = Date.now()) {
   const start = Math.floor(now / 3600_000) * 3600_000 - 47 * 3600_000;
   const hours = Array.from({ length: 48 }, (_, i) => new Date(start + i * 3600_000).toISOString());
   const sorted = [...readings].sort((a, b) => a[0].localeCompare(b[0]));
   const addons = [...new Set(sorted.flatMap(([, t]) => Object.keys(t)))];
   const series: Record<string, N[]> = Object.fromEntries(addons.map((a) => [a, hours.map(() => null)]));
-  for (let i = 1; i < sorted.length; i++) {
-    const [at, t] = sorted[i];
-    const prev = sorted[i - 1][1];
-    const h = Math.floor((Date.parse(at) - start) / 3600_000);
-    if (h < 0 || h >= 48) continue;
-    for (const a of addons) if (t[a] !== undefined && prev[a] !== undefined) series[a][h] = (series[a][h] ?? 0) + Math.max(0, t[a] - prev[a]);
-  }
   const day = new Date(now).toISOString().slice(0, 10);
-  const base = [...sorted].reverse().find(([at]) => at.slice(0, 10) < day) ?? sorted.find(([at]) => at.slice(0, 10) === day);
-  const last = sorted[sorted.length - 1];
-  const today = base && last && last[0].slice(0, 10) === day ? addons.reduce((t, a) => t + Math.max(0, (last[1][a] ?? 0) - (base[1][a] ?? last[1][a] ?? 0)), 0) : null;
+  let today: number | null = null;
+  for (const a of addons) {
+    const counted = sorted.filter(([, t]) => Number.isFinite(t[a]));
+    for (let i = 1; i < counted.length; i++) {
+      const [at, t] = counted[i];
+      const h = Math.floor((Date.parse(at) - start) / 3600_000);
+      if (h >= 0 && h < 48) series[a][h] = (series[a][h] ?? 0) + Math.max(0, t[a] - counted[i - 1][1][a]);
+    }
+    const base = [...counted].reverse().find(([at]) => at.slice(0, 10) < day) ?? counted.find(([at]) => at.slice(0, 10) === day);
+    const last = counted[counted.length - 1];
+    if (base && last && last[0].slice(0, 10) === day) today = (today ?? 0) + Math.max(0, last[1][a] - base[1][a]);
+  }
   return { hours, series, today, readings: sorted.length };
 }
 
@@ -371,7 +401,7 @@ export function dashboard(
   h: History,
   opts: { viewer?: string; events?: Event[]; pushKey?: string | null; devices?: number; readings?: Reading[]; releases?: Record<string, Release[]>; threads?: Thread[] } = {},
 ): string {
-  const s = seriesOf(h);
+  const s = seriesOf(withDownloadReadings(h, opts.readings ?? []));
   const events = opts.events ?? [];
   const st = standing(events);
   const total = Object.values(s.downloads.totals).reduce((a, b) => a + b, 0);
@@ -381,7 +411,7 @@ export function dashboard(
     const vs = Object.values(s.sites).map((x) => x.visitors[i]).filter((v): v is number => v !== null);
     return vs.length ? vs.reduce((a, b) => a + b, 0) : null;
   });
-  const lastDay = [...Object.keys(h.days)].sort().pop();
+  const lastDay = s.days.at(-1);
   const latest = <K extends keyof Day>(k: K): Day[K] | undefined => {
     const all = Object.keys(h.days).sort();
     for (let i = all.length - 1; i >= 0; i--) if (h.days[all[i]]?.[k]) return h.days[all[i]][k];
@@ -413,13 +443,14 @@ export function dashboard(
   const NAV = [
     ["overview", "house", "Overview"],
     ["activity", "activity", "Activity"],
-    ["comments", "comment", "Comments"],
     ["downloads", "download", "Downloads"],
     ["players", "users", "Players"],
     ["sites", "globe", "Sites"],
     ["notifications", "bell", "Notifications"],
+    ["comments", "comment", "Comments"],
   ];
   const hourly = hourlyOf(opts.readings ?? []);
+  const downloadsChecked = [...(opts.readings ?? [])].map(([at]) => at).sort().at(-1);
   const threads = opts.threads ?? [];
   const toAnswer = threads.filter((t) => !t.answered).length;
   const data = {
@@ -432,8 +463,8 @@ export function dashboard(
   return `${head("Ravenpost")}<body>
 <aside class="side"><div class="brand"><img src="/icon-192.png" alt=""><div><p class="title">Ravenpost</p><small>The inbox</small></div></div>
 <nav class="nav">${NAV.map(([id, ic, label]) => `<a href="#${id}" data-nav="${id}">${icon(ic)}<span style="flex:1">${label}</span>${id === "comments" && toAnswer ? `<span class="tag gold" style="height:18px">${toAnswer}</span>` : ""}</a>`).join("")}</nav>
-<div class="side-foot"><p style="display:flex;align-items:center;gap:8px;color:var(--dim)"><span class="dot ${st.tone} pulse"></span>${esc(st.title)}</p><p>${h.updated ? `Numbers of ${esc(h.updated.slice(0, 10))}, ${esc(h.updated.slice(11, 16))} UTC` : "No numbers yet"}</p>${opts.viewer ? `<p>${esc(opts.viewer)}</p>` : ""}</div></aside>
-<nav class="tabs">${NAV.slice(0, 5).map(([id, ic, label]) => `<a href="#${id}" data-nav="${id}">${icon(ic)}${label}</a>`).join("")}</nav>
+<div class="side-foot"><p style="display:flex;align-items:center;gap:8px;color:var(--dim)"><span class="dot ${st.tone} pulse"></span>${esc(st.title)}</p><p id="daily-snapshot">${h.updated ? `Daily snapshot of ${esc(h.updated.slice(0, 10))}, ${esc(h.updated.slice(11, 16))} UTC` : "No daily snapshot yet"}</p>${opts.viewer ? `<p>${esc(opts.viewer)}</p>` : ""}</div></aside>
+<nav class="tabs">${[...NAV.slice(0, 4), NAV[NAV.length - 1]].map(([id, ic, label]) => `<a href="#${id}" data-nav="${id}">${icon(ic)}${label}</a>`).join("")}</nav>
 <main>
 <div class="top" id="overview"><div class="brandm"><img src="/icon-192.png" alt=""><div><h1 class="title">Overview</h1><p>${lastDay ? `To ${short(lastDay)}` : "No numbers yet"}</p></div></div>
 <div class="tools"><div class="seg" role="group" aria-label="Range"><button data-range="30" class="on">30 d</button><button data-range="90">90 d</button><button data-range="0">All</button></div><button class="btn btn-ghost refresh" id="refresh" aria-label="Refresh" title="Refresh">${icon("refresh")}</button></div></div>
@@ -459,24 +490,16 @@ ${kpi("k-vi", "globe", "Site visitors", fmt(lastOf(visitors)), Object.keys(s.sit
     .join("")}</div></div>
 <div class="panel" id="feed">${feed(events)}</div></section>
 
-<section id="comments"><div class="sh"><h2 class="title">Comments</h2><div class="chips" role="group" aria-label="Show">${[
-    ["open", `To answer${toAnswer ? ` (${toAnswer})` : ""}`],
-    ["all", "All"],
-  ]
-    .map(([k, l], i) => `<button class="chip${(toAnswer ? i === 0 : i === 1) ? " on" : ""}" data-threads="${k}">${l}</button>`)
-    .join("")}</div></div>
-<div class="panel" id="threads">${threadsList(threads)}<p class="empty" id="no-open" hidden>Nothing to answer: every comment has your reply.</p></div></section>
-
 <section id="downloads"><div class="sh"><h2 class="title">Downloads</h2><p>New downloads a day, by addon</p></div>
 <div class="panel card"><div class="chart" id="c-dl"></div><div class="legend" id="l-dl"></div>
-<div class="rows" style="margin-top:14px">${rows || `<p class="empty">Nothing yet.</p>`}</div>
-<p class="sub" style="margin-top:10px">Download events, not players. CurseForge from its own pages, Wago from its pages, GitHub from the releases.</p></div>
+<div class="rows" id="download-rows" style="margin-top:14px">${rows || `<p class="empty">Nothing yet.</p>`}</div>
+<p class="sub" id="downloads-checked" style="margin-top:10px">Download events, not players. CurseForge counts update every ten minutes${downloadsChecked ? `, last checked ${esc(downloadsChecked.slice(0, 10))} at ${esc(downloadsChecked.slice(11, 16))} UTC` : ""}. Wago and GitHub counts update daily.</p></div>
 <div class="grid2" style="margin-top:12px;align-items:start">
 <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
 <div class="panel card"><h3>The last 48 hours</h3><p class="sub">New CurseForge downloads an hour, read every ten minutes</p><div class="chart" id="c-hr" style="height:170px"></div></div>
-<div class="panel card"><h3>Popularity on CurseForge</h3><p class="sub">Each addon's rank among every WoW addon, its favorites and thumbs up</p>${popularity(h)}</div>
+<div class="panel card" id="download-popularity"><h3>Popularity on CurseForge</h3><p class="sub">Each addon's rank among every WoW addon, its favorites and thumbs up</p>${popularity(h)}</div>
 </div>
-<div class="panel card"><h3>By release</h3><p class="sub">Each version's CurseForge downloads, the newest first</p>${releasesCard(opts.releases ?? {})}</div>
+<div class="panel card" id="download-releases"><h3>By release</h3><p class="sub">Each version's CurseForge downloads, the newest first</p>${releasesCard(opts.releases ?? {})}</div>
 </div></section>
 
 <section id="players"><div class="sh"><h2 class="title">Players</h2><p>Ravenpost and the shared facts</p></div>
@@ -494,6 +517,14 @@ ${kpi("k-vi", "globe", "Site visitors", fmt(lastOf(visitors)), Object.keys(s.sit
 <section id="notifications"><div class="sh"><h2 class="title">Notifications</h2><p>${opts.devices ? `${fmt(opts.devices)} device${opts.devices === 1 ? "" : "s"} told` : "No device told yet"}</p></div>
 <div class="panel notif"><div class="grow"><b>This device</b><p id="push-state">…</p></div><button class="btn btn-ghost" id="push-test" hidden>Send a test</button><button class="switch" id="push-switch" role="switch" aria-checked="false" aria-label="Notifications on this device" disabled></button></div>
 <p class="sub" style="margin:10px 4px 0">The data jobs as they finish, and a digest each morning. On a phone: add this page to the Home Screen, open Ravenpost from there, sign in, then turn them on.</p></section>
+
+<section id="comments"><div class="sh"><h2 class="title">Comments</h2><div class="chips" role="group" aria-label="Show">${[
+    ["open", `To answer${toAnswer ? ` (${toAnswer})` : ""}`],
+    ["all", "All"],
+  ]
+    .map(([k, l], i) => `<button class="chip${(toAnswer ? i === 0 : i === 1) ? " on" : ""}" data-threads="${k}">${l}</button>`)
+    .join("")}</div></div>
+<div class="panel" id="threads">${threadsList(threads)}<p class="empty" id="no-open" hidden>Nothing to answer: every comment has your reply.</p></div></section>
 </main>
 <script type="application/json" id="data">${JSON.stringify(data).replace(/</g, "\\u003c")}</script>
 ${SW}${SCRIPT(opts.pushKey ?? null)}</body></html>`;
@@ -502,7 +533,7 @@ ${SW}${SCRIPT(opts.pushKey ?? null)}</body></html>`;
 // ── the page's script: the charts, the activity's filters, the nav, the notifications ──
 const SCRIPT = (key: string | null) => `<script>
 (()=>{
-const D=JSON.parse(document.getElementById("data").textContent);
+let D=JSON.parse(document.getElementById("data").textContent);
 const C=["#f2c14e","#6cb4ee","#6fd08c","#e0634f","#b58cf0","#ece3cf","#5fd3c4"];
 C.forEach((c,i)=>document.documentElement.style.setProperty("--c"+i,c));
 const $=(id)=>document.getElementById(id);
@@ -510,7 +541,12 @@ const nf=(v)=>v==null?"–":Math.round(v).toLocaleString("en-GB");
 const NS="http://www.w3.org/2000/svg";
 const el=(tag,a={},p)=>{const e=document.createElementNS(NS,tag);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e};
 const nice=(v)=>{if(v<=0)return 1;const p=Math.pow(10,Math.floor(Math.log10(v)));const n=v/p;return ([1,1.2,1.5,2,2.5,3,4,5,6,8,10].find(s=>n<=s))*p};
-let range=30;
+// Stable across releases, with browser storage optional (private browsing).
+const PREFS="ravenpost.dashboard.preferences";
+let prefs={};try{const saved=JSON.parse(localStorage.getItem(PREFS)||"{}");if(saved&&typeof saved==="object"&&!Array.isArray(saved))prefs=saved}catch{}
+const remember=(key,value)=>{prefs[key]=value;try{localStorage.setItem(PREFS,JSON.stringify(prefs))}catch{}};
+const hidden=(key)=>Array.isArray(prefs[key])?prefs[key].filter(x=>typeof x==="string"):[];
+let range=[0,30,90].includes(prefs.range)?prefs.range:30;
 const cut=(xs)=>range&&xs.length>range?xs.slice(-range):xs;
 // (a smooth line through the points: monotone, it never overshoots)
 function smooth(p){if(p.length<2)return "";const n=p.length,d=[],m=[];for(let i=0;i<n-1;i++)d.push((p[i+1][1]-p[i][1])/(p[i+1][0]-p[i][0]||1));m.push(d[0]);for(let i=1;i<n-1;i++)m.push(d[i-1]*d[i]<=0?0:(d[i-1]+d[i])/2);m.push(d[n-2]);
@@ -557,27 +593,31 @@ function spark(box,values,color){if(!box)return;box.innerHTML="";const v=cut(val
   const svg=el("svg",{viewBox:"0 0 "+W+" "+H},box),gid="s"+box.id,lg=el("linearGradient",{id:gid,x1:0,y1:0,x2:0,y2:1},el("defs",{},svg));el("stop",{offset:"0","stop-color":color,"stop-opacity":.3},lg);el("stop",{offset:"1","stop-color":color,"stop-opacity":0},lg);
   const p=pts.map(([i,y])=>[X(i),Y(y)]),d=smooth(p);el("path",{d:d+"L"+p[p.length-1][0]+","+H+"L"+p[0][0]+","+H+"Z",fill:"url(#"+gid+")"},svg);el("path",{d,fill:"none",stroke:color,"stroke-width":1.6},svg);el("circle",{cx:p[p.length-1][0],cy:p[p.length-1][1],r:2.6,fill:color},svg)}
 const legend=(box,series,onToggle)=>{if(!box)return;box.innerHTML=series.map((s,k)=>"<span data-k=\\""+k+"\\" style=\\"cursor:pointer;opacity:"+(s.off?.35:1)+"\\"><i style=\\"background:"+s.color+"\\"></i>"+s.name+"</span>").join("");box.querySelectorAll("span").forEach(sp=>sp.onclick=()=>onToggle(+sp.dataset.k))};
-const addons=D.downloads.addons.map((a,k)=>({name:a,color:C[k%7],values:D.downloads.daily[a]}));
-const dlTotal=D.days.map((_,i)=>{let t=null;for(const a of addons){const v=a.values[i];if(v!=null)t=(t||0)+v}return t});
-const sites=Object.entries(D.sites).map(([s,v],k)=>({name:s,color:C[(k+1)%7],values:v.visitors}));
+let addons,dlTotal,sites;
+function readSeries(){
+  addons=D.downloads.addons.map((a,k)=>({name:a,color:C[k%7],values:D.downloads.daily[a],off:hidden("hiddenAddons").includes(a)}));
+  dlTotal=D.days.map((_,i)=>{let t=null;for(const a of addons){const v=a.values[i];if(v!=null)t=(t||0)+v}return t});
+  sites=Object.entries(D.sites).map(([s,v],k)=>({name:s,color:C[(k+1)%7],values:v.visitors,off:hidden("hiddenSites").includes(s)}));
+}
+readSeries();
 function draw(){
   spark($("k-dl"),dlTotal,C[0]);spark($("k-in"),D.installs,C[1]);spark($("k-fa"),D.facts,C[2]);spark($("k-vi"),D.visitors,C[4]);
   const on=addons.filter(a=>!a.off);
-  chart($("c-dl"),{type:"bars",series:on,labels:D.labels,since:D.since});legend($("l-dl"),addons,(k)=>{addons[k].off=!addons[k].off;draw()});
+  chart($("c-dl"),{type:"bars",series:on,labels:D.labels,since:D.since});legend($("l-dl"),addons,(k)=>{addons[k].off=!addons[k].off;remember("hiddenAddons",addons.filter(a=>a.off).map(a=>a.name));draw()});
   chart($("c-in"),{type:"bars",series:[{name:"Installs",color:C[1],values:D.installs}],labels:D.labels});
   const fa=[{name:"Facts",color:C[2],values:D.facts},{name:"New to the database",color:C[0],values:D.newFacts}];
   chart($("c-fa"),{type:"area",series:fa,labels:D.labels});legend($("l-fa"),fa,()=>{});
-  if($("c-vi")){chart($("c-vi"),{type:"area",series:sites.filter(s=>!s.off),labels:D.labels});legend($("l-vi"),sites,(k)=>{sites[k].off=!sites[k].off;draw()})}
+  if($("c-vi")){chart($("c-vi"),{type:"area",series:sites.filter(s=>!s.off),labels:D.labels});legend($("l-vi"),sites,(k)=>{sites[k].off=!sites[k].off;remember("hiddenSites",sites.filter(s=>s.off).map(s=>s.name));draw()})}
   const hl=D.hourly.hours.map(h=>new Date(h).toLocaleString("en-GB",{weekday:"short",hour:"2-digit",minute:"2-digit",hour12:false}));
   chart($("c-hr"),{type:"bars",whole:true,series:addons.filter(a=>!a.off&&D.hourly.series[a.name]).map(a=>({...a,values:D.hourly.series[a.name]})),labels:hl});
 }
-document.querySelectorAll("[data-range]").forEach(b=>b.onclick=()=>{range=+b.dataset.range;document.querySelectorAll("[data-range]").forEach(x=>x.classList.toggle("on",x===b));draw()});
+document.querySelectorAll("[data-range]").forEach(b=>{b.classList.toggle("on",+b.dataset.range===range);b.onclick=()=>{range=+b.dataset.range;remember("range",range);document.querySelectorAll("[data-range]").forEach(x=>x.classList.toggle("on",x===b));draw()}});
 let t;new ResizeObserver(()=>{clearTimeout(t);t=setTimeout(draw,60)}).observe(document.querySelector("main"));draw();
 
 // The activity: its filters, more of it, a long word opened.
-let filter="all";const items=[...document.querySelectorAll(".feed li")];let all=false;
-const apply=()=>{let shown=0;for(const li of items){const ok=filter==="all"||li.dataset.group===filter;const show=ok&&(all||shown<8);li.hidden=!show;if(ok)shown++}const m=$("feed-more");if(m)m.hidden=all||items.filter(li=>filter==="all"||li.dataset.group===filter).length<=8};
-document.querySelectorAll("[data-filter]").forEach(b=>b.onclick=()=>{filter=b.dataset.filter;document.querySelectorAll("[data-filter]").forEach(x=>x.classList.toggle("on",x===b));apply()});
+let filter=["all","data","problems","comments","digests"].includes(prefs.activity)?prefs.activity:"all";const items=[...document.querySelectorAll(".feed li")];let all=false;
+const apply=()=>{document.querySelectorAll("[data-filter]").forEach(b=>b.classList.toggle("on",b.dataset.filter===filter));let shown=0;for(const li of items){const ok=filter==="all"||li.dataset.group===filter;const show=ok&&(all||shown<8);li.hidden=!show;if(ok)shown++}const m=$("feed-more");if(m)m.hidden=all||items.filter(li=>filter==="all"||li.dataset.group===filter).length<=8};
+document.querySelectorAll("[data-filter]").forEach(b=>b.onclick=()=>{filter=b.dataset.filter;remember("activity",filter);apply()});
 if($("feed-more"))$("feed-more").onclick=()=>{all=true;apply()};
 document.querySelectorAll(".feed .b").forEach(b=>b.onclick=()=>b.classList.toggle("open"));apply();
 
@@ -585,8 +625,25 @@ document.querySelectorAll(".feed .b").forEach(b=>b.onclick=()=>b.classList.toggl
 const showThreads=(k)=>{let shown=0;document.querySelectorAll(".thread").forEach(t=>{t.hidden=k==="open"&&t.dataset.open!=="1";if(!t.hidden)shown++});
   document.querySelectorAll("[data-threads]").forEach(b=>b.classList.toggle("on",b.dataset.threads===k));
   if($("no-open"))$("no-open").hidden=!(k==="open"&&!shown&&document.querySelector(".thread"))};
-document.querySelectorAll("[data-threads]").forEach(b=>b.onclick=()=>showThreads(b.dataset.threads));
-const firstOn=document.querySelector("[data-threads].on");if(firstOn)showThreads(firstOn.dataset.threads);
+document.querySelectorAll("[data-threads]").forEach(b=>b.onclick=()=>{remember("threads",b.dataset.threads);showThreads(b.dataset.threads)});
+const firstOn=document.querySelector("[data-threads].on");if(firstOn)showThreads(["open","all"].includes(prefs.threads)?prefs.threads:firstOn.dataset.threads);
+
+// Keep the visible numbers current without interrupting a comment or a filter.
+let refreshing=false;
+async function refreshNumbers(){
+  if(refreshing||document.visibilityState!=="visible")return;
+  refreshing=true;const abort=new AbortController();const timeout=setTimeout(()=>abort.abort(),15000);
+  try{
+    const res=await fetch(location.pathname+location.search,{cache:"no-store",signal:abort.signal});if(!res.ok)return;
+    const page=new DOMParser().parseFromString(await res.text(),"text/html");const data=page.getElementById("data");if(!data)return;
+    const next=JSON.parse(data.textContent);
+    for(const selector of [".kpis","#overview .brandm p","#daily-snapshot","#download-rows","#downloads-checked","#download-popularity","#download-releases","#players","#sites"]){
+      const before=document.querySelector(selector),after=page.querySelector(selector);if(before&&after)before.innerHTML=after.innerHTML;
+    }
+    D=next;readSeries();draw();
+  }catch{}finally{clearTimeout(timeout);refreshing=false}
+}
+setInterval(refreshNumbers,60000);
 
 // The app on a phone comes back as it was left (iOS keeps it, never reloads
 // it, and has no pull to refresh): the page is fetched again when it's shown
@@ -604,7 +661,7 @@ if($("refresh"))$("refresh").onclick=reload;
 // The nav: where the page is (the last part whose top has passed a third of
 // the screen, the last part once at the bottom); a part clicked stays marked
 // while the page scrolls to it, until the reader scrolls on their own.
-const ids=["overview","activity","comments","downloads","players","sites","notifications"].filter(id=>$(id));
+const ids=["overview",...[...document.querySelectorAll("main > section[id]")].map(s=>s.id)];
 const links=[...document.querySelectorAll("[data-nav]")];const mark=(id)=>links.forEach(a=>a.classList.toggle("on",a.dataset.nav===id));
 let pinned=null,frame=0;
 const where=()=>{if(pinned)return mark(pinned);const line=innerHeight/3;let cur=ids[0];for(const id of ids)if($(id).getBoundingClientRect().top<=line)cur=id;

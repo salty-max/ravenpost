@@ -20,6 +20,7 @@ import * as store from "./store";
  */
 export type Day = {
   downloads?: Record<string, { curseforge?: number; wago?: number; github?: number }>;
+  downloadsAt?: string;
   ravenpost?: { installs: number; versions: Record<string, number>; os: Record<string, number>; linked: Record<string, number>; sharing: number };
   sharing?: { sharers: number; uploads: number; facts: number; games: Record<string, number>; locales: Record<string, number> };
   merged?: Record<string, { uploads: number; newFacts: number }>;
@@ -251,7 +252,7 @@ export async function collect(now = new Date()): Promise<History> {
     ravenpost: pings.length || !had?.ravenpost ? ravenpost : had.ravenpost,
     sharing: counts.length || !had?.sharing ? sharing : had.sharing,
   };
-  const h = await record({ [day]: { ...kept, ...(tr && { traffic: tr }) }, [dayOf(now)]: { downloads: dl, ...(cf && { curseforge: cf }) } });
+  const h = await record({ [day]: { ...kept, ...(tr && { traffic: tr }) }, [dayOf(now)]: { downloads: dl, downloadsAt: now.toISOString(), ...(cf && { curseforge: cf }) } });
   await store.remove([...pings, ...counts]);
   return h;
 }

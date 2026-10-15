@@ -48,6 +48,22 @@ with Battle.net in the browser (a signed cookie, 30 days). Its history,
   from Vercel Web Analytics' API (`STATS_SITES`, `VERCEL_TEAM_ID`, and
   `VERCEL_ANALYTICS_TOKEN`: a Vercel token; without it, a link to Vercel).
 
+The dashboard combines the daily history with the latest ten-minute
+CurseForge readings for its download total, per-addon counts and charts.
+Wago and GitHub keep their latest daily counts when a fresh CurseForge
+reading arrives. A failed source keeps its last available count. Every
+public release page contributes to the CurseForge total, even though the
+dashboard shows only the twenty newest releases.
+
+While visible, the page checks for new numbers once a minute without
+reloading the comments or resetting filters. Comments are the last section,
+with a shortcut kept in the phone's navigation. Date range, activity and
+comment filters, and hidden addon/site chart series save automatically in
+the browser's local storage (`ravenpost.dashboard.preferences`). The key
+stays the same across releases. These choices belong to that browser or
+installed app on that device. When storage is unavailable, the controls
+still work for the current page.
+
 The daily job (`/api/cron/stats`, Vercel Cron at 05:17 UTC with
 `CRON_SECRET`; by hand with `INBOX_TOKEN`) counts yesterday's pings and
 uploads, then drops their files: only the sums stay.

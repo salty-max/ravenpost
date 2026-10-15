@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { latest, look, readings, setCurseForgeFetch } from "../src/curseforge";
+import { latest, look, readings, releasesOf, setCurseForgeFetch } from "../src/curseforge";
 import { hourlyOf } from "../src/dashboard";
 import { digestOf } from "../src/digest";
 import * as events from "../src/events";
@@ -58,5 +58,32 @@ describe("CurseForge's releases and downloads", () => {
     expect(h.series.Yonder[47 - 1]).toBe(6); // (11:00 to 11:59: 41 to 45, then 47)
     expect(h.series.Keyring[47 - 1]).toBe(1);
     expect(h.today).toBe(8); // (Yonder 40 to 47, Keyring 5 to 6)
+  });
+
+  test("all release pages contribute to the total, even though only twenty are displayed", async () => {
+    files[1728396] = Array.from({ length: 57 }, (_, i) => ({ id: 1000 + i, displayName: `v0.0.${57 - i}`, dateCreated: "2026-10-14T00:00:00Z", totalDownloads: i + 1, releaseType: 1 }));
+    const pages: number[] = [];
+    setCurseForgeFetch(async (input) => {
+      const u = new URL(input);
+      const id = Number(u.pathname.match(/mods\/(\d+)\//)![1]);
+      const index = Number(u.searchParams.get("pageIndex"));
+      if (id === 1728396) pages.push(index);
+      const all = files[id] ?? [];
+      return Response.json({ data: all.slice(index * 50, (index + 1) * 50), pagination: { totalCount: all.length } });
+    });
+    await look(new Date("2026-10-15T10:00:00Z"));
+    expect(pages).toEqual([0, 1]);
+    expect((await readings("2026-10-15"))[0][1].Yonder).toBe(57 * 58 / 2);
+    expect((await latest()).Yonder).toHaveLength(20);
+    expect((await look()).live).toEqual([]);
+  });
+
+  test("a failed page or malformed response is not accepted as a smaller complete total", async () => {
+    setCurseForgeFetch(async (input) => new URL(input).searchParams.get("pageIndex") === "0"
+      ? Response.json({ data: Array.from({ length: 50 }, (_, i) => ({ id: i, displayName: "v1", dateCreated: "2026-10-15", totalDownloads: 1 })), pagination: { totalCount: 51 } })
+      : new Response("Unavailable", { status: 503 }));
+    await expect(releasesOf(1728396)).rejects.toThrow("503");
+    setCurseForgeFetch(async () => Response.json({ error: "Unavailable" }));
+    await expect(releasesOf(1728396)).rejects.toThrow("missing files");
   });
 });
