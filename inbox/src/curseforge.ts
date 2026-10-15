@@ -12,6 +12,8 @@ import * as store from "./store";
  *   downloads/<day>.json   the day's readings: each addon's total, each look
  *                          (14 days kept: the dashboard's last 48 hours)
  *   releases/latest.json   each addon's releases (version, date, downloads)
+ *   releases/seen.json     every release id ever seen, by addon (an addon
+ *                          can have more releases than the dashboard keeps)
  * A release not seen before is live (the public list holds only what passed
  * CurseForge's review): an event, the owner's phone told. The first look
  * learns what is there.
@@ -37,6 +39,9 @@ export async function releasesOf(project: number): Promise<Release[]> {
 }
 
 const LATEST = "releases/latest.json";
+const SEEN = "releases/seen.json";
+// (a release's name without its addon's: "Lorekeeper's Codex 0.6.0 (Classic)" is 0.6.0 (Classic))
+const versionOf = (name: string, display: string) => display.replace(new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*`, "i"), "") || display;
 const dayFile = (iso: string) => `downloads/${iso.slice(0, 10)}.json`;
 const KEEP_DAYS = 14;
 const TYPES: Record<number, string> = { 2: "beta ", 3: "alpha " };
@@ -51,6 +56,10 @@ export async function latest(): Promise<Record<string, Release[]>> {
 export async function look(now = new Date()): Promise<{ addons: number; live: string[]; failed: string[] }> {
   const was = JSON.parse((await store.read(LATEST)) ?? "null") as Record<string, Release[]> | null;
   const kept: Record<string, Release[]> = { ...was };
+  // (every id seen: a release past the dashboard's twenty is no new one; the
+  // first look with this file learns the ids of every release there is)
+  const seenWas = JSON.parse((await store.read(SEEN)) ?? "null") as Record<string, number[]> | null;
+  const seen: Record<string, number[]> = { ...seenWas };
   const totals: Record<string, number> = {};
   const live: string[] = [];
   const failed: string[] = [];
@@ -63,10 +72,12 @@ export async function look(now = new Date()): Promise<{ addons: number; live: st
       failed.push(String(err));
       continue;
     }
+    for (const r of list) r.version = versionOf(name, r.version);
     totals[name] = list.reduce((t, r) => t + r.downloads, 0);
     kept[name] = list.slice(0, 20);
-    if (!was) continue;
-    const known = new Set((was[name] ?? []).map((r) => r.id));
+    const known = new Set(seen[name] ?? []);
+    seen[name] = [...new Set([...(seen[name] ?? []), ...list.map((r) => r.id)])];
+    if (!was || !seenWas) continue;
     for (const r of list.filter((r) => !known.has(r.id)).reverse()) {
       const title = `${name} ${TYPES[r.type] ?? ""}${r.version} is live on CurseForge`;
       live.push(title);
@@ -75,6 +86,14 @@ export async function look(now = new Date()): Promise<{ addons: number; live: st
     }
   }
   await store.write(LATEST, JSON.stringify(kept));
+  await store.write(SEEN, JSON.stringify(seen));
+  // (15 October: the releases past the twentieth were told live every look;
+  // their words go from the activity, once)
+  if (!seenWas) {
+    const all = await events.recent();
+    const kept_ = all.filter((e) => e.kind !== "release");
+    if (kept_.length !== all.length) await events.replace(kept_);
+  }
   // (the day's readings, one each look; the oldest days dropped)
   if (Object.keys(totals).length) {
     const iso = now.toISOString();

@@ -42,6 +42,11 @@ export async function add(e: Event): Promise<void> {
   await store.write(FILE, JSON.stringify([e, ...kept].slice(0, KEEP)));
 }
 
+/** The list itself replaced (a repair: events told by mistake taken out). */
+export async function replace(list: Event[]): Promise<void> {
+  await store.write(FILE, JSON.stringify(list.slice(0, KEEP)));
+}
+
 /** The events since a moment, oldest first. */
 export async function since(iso: string): Promise<Event[]> {
   return (await recent()).filter((e) => e.at > iso).reverse();

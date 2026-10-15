@@ -116,7 +116,7 @@ export function hourlyOf(readings: Reading[], now = Date.now()) {
 const STYLE = `
 :root{color-scheme:dark;--night:#0b0c10;--stone:#121319;--stone-2:#181a21;--stone-3:#21242d;--edge:#2b2f3a;--edge-gold:#5a4a2a;--parchment:#ece3cf;--dim:#a39b88;--faint:#6f6a5e;--gold:#f2c14e;--gold-soft:#c9a227;--ok:#6fd08c;--blood:#e0634f;--bnet:#148eff;--display:"Cinzel","Trajan Pro",Georgia,serif;--sans:"Inter",ui-sans-serif,system-ui,sans-serif}
 *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:16px}
-body{margin:0;background:radial-gradient(1200px 600px at 70% -10%,rgb(242 193 78/.06),transparent 60%),var(--night);color:var(--parchment);font:14px/1.5 var(--sans);-webkit-font-smoothing:antialiased;min-height:100vh}
+body{margin:0;overflow-x:clip;background:radial-gradient(1200px 600px at 70% -10%,rgb(242 193 78/.06),transparent 60%),var(--night);color:var(--parchment);font:14px/1.5 var(--sans);-webkit-font-smoothing:antialiased;min-height:100vh}
 a{color:inherit;text-decoration:none}
 .title{font-family:var(--display);font-weight:700;letter-spacing:.03em;color:var(--gold);margin:0}
 .panel{position:relative;border:1px solid var(--edge);border-radius:12px;background:linear-gradient(180deg,color-mix(in srgb,var(--stone-2) 98%,white 2%),var(--stone));box-shadow:inset 0 1px 0 rgb(255 255 255/.03),inset 0 0 0 1px rgb(242 193 78/.05),0 10px 30px rgb(0 0 0/.35)}
@@ -186,7 +186,7 @@ section{margin-bottom:22px}.sh{display:flex;align-items:baseline;justify-content
 .tip.on{opacity:1}.tip b{display:block;color:var(--gold);font-weight:600;margin-bottom:3px}.tip div{display:flex;justify-content:space-between;gap:14px;color:var(--dim)}.tip div span:last-child{color:var(--parchment);font-variant-numeric:tabular-nums}.tip i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:12px;color:var(--dim)}.legend span{display:inline-flex;align-items:center;gap:6px}.legend i{width:9px;height:9px;border-radius:2px}
 .wait{display:grid;place-items:center;text-align:center;color:var(--faint);font-size:13px;height:100%;border:1px dashed var(--edge);border-radius:10px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.grid2>*{min-width:0}
 .rows{margin-top:6px}.row{display:grid;grid-template-columns:minmax(0,1.4fr) 90px minmax(0,1.6fr) 72px;align-items:center;gap:14px;padding:11px 0;border-top:1px solid rgb(255 255 255/.045)}.row:first-child{border-top:0}
 .row .n{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.row .tot{font-variant-numeric:tabular-nums;font-weight:600;text-align:right}.row .wk{text-align:right;font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums}.row .wk b{color:var(--ok);font-weight:600}
 .split{display:flex;height:6px;border-radius:999px;overflow:hidden;background:var(--stone-3)}.split i{display:block;height:100%}
@@ -197,7 +197,7 @@ section{margin-bottom:22px}.sh{display:flex;align-items:baseline;justify-content
 .rel{padding:10px 0;border-top:1px solid rgb(255 255 255/.045)}.rel:first-of-type{border-top:0}.rel-h{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}.rel-h b{font-weight:600}.rel-h .sub{margin:0}
 .notif{display:flex;align-items:center;gap:14px;padding:16px 18px}.notif .grow{flex:1;min-width:0}.notif p{margin:2px 0 0;color:var(--dim);font-size:13px}
 
-@media (max-width:1000px){.kpis{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}}
+@media (max-width:1000px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:760px){
   .side{display:none}main{margin:0;padding:14px 12px calc(84px + env(safe-area-inset-bottom));padding-top:max(14px,env(safe-area-inset-top))}
   .top h1{font-size:21px}.top .brandm{display:flex;align-items:center;gap:10px}.top .brandm img{width:32px;height:32px;border-radius:8px}
@@ -456,7 +456,7 @@ ${kpi("k-vi", "globe", "Site visitors", fmt(lastOf(visitors)), Object.keys(s.sit
   ]
     .map(([k, l], i) => `<button class="chip${(toAnswer ? i === 0 : i === 1) ? " on" : ""}" data-threads="${k}">${l}</button>`)
     .join("")}</div></div>
-<div class="panel" id="threads">${threadsList(threads)}</div></section>
+<div class="panel" id="threads">${threadsList(threads)}<p class="empty" id="no-open" hidden>Nothing to answer: every comment has your reply.</p></div></section>
 
 <section id="downloads"><div class="sh"><h2 class="title">Downloads</h2><p>New downloads a day, by addon</p></div>
 <div class="panel card"><div class="chart" id="c-dl"></div><div class="legend" id="l-dl"></div>
@@ -573,8 +573,9 @@ if($("feed-more"))$("feed-more").onclick=()=>{all=true;apply()};
 document.querySelectorAll(".feed .b").forEach(b=>b.onclick=()=>b.classList.toggle("open"));apply();
 
 // The comments: the ones to answer, or all.
-const showThreads=(k)=>{document.querySelectorAll(".thread").forEach(t=>t.hidden=k==="open"&&t.dataset.open!=="1");document.querySelectorAll("[data-threads]").forEach(b=>b.classList.toggle("on",b.dataset.threads===k));
-  if(k==="open"&&!document.querySelector(".thread[data-open='1']")&&$("threads"))showThreads("all")};
+const showThreads=(k)=>{let shown=0;document.querySelectorAll(".thread").forEach(t=>{t.hidden=k==="open"&&t.dataset.open!=="1";if(!t.hidden)shown++});
+  document.querySelectorAll("[data-threads]").forEach(b=>b.classList.toggle("on",b.dataset.threads===k));
+  if($("no-open"))$("no-open").hidden=!(k==="open"&&!shown&&document.querySelector(".thread"))};
 document.querySelectorAll("[data-threads]").forEach(b=>b.onclick=()=>showThreads(b.dataset.threads));
 const firstOn=document.querySelector("[data-threads].on");if(firstOn)showThreads(firstOn.dataset.threads);
 

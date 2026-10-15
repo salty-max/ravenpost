@@ -34,6 +34,15 @@ describe("CurseForge's releases and downloads", () => {
     expect(digestOf({ days: {} }, await events.recent()).lines).toContain("Live on CurseForge: Yonder v0.11.0.");
   });
 
+  test("an addon with more releases than the dashboard keeps: none told twice, its name not in the version", async () => {
+    files[1727545] = Array.from({ length: 26 }, (_, i) => ({ id: 100 + i, displayName: i < 20 ? `v0.${26 - i}.0` : `Lorekeeper's Codex 0.${26 - i}.0 (Classic)`, dateCreated: "2026-10-01T00:00:00Z", totalDownloads: 1, releaseType: 1 }));
+    await look();
+    expect((await look()).live).toEqual([]);
+    expect((await look()).live).toEqual([]);
+    files[1727545] = [{ id: 999, displayName: "Lorekeeper's Codex 0.27.0 (Forever)", dateCreated: "2026-10-16T00:00:00Z", totalDownloads: 0, releaseType: 1 }, ...files[1727545]];
+    expect((await look()).live).toEqual(["Lorekeeper's Codex 0.27.0 (Forever) is live on CurseForge"]);
+  });
+
   test("the last 48 hours: an hour's rise by addon, today's so far", () => {
     const now = Date.parse("2026-10-15T12:10:00Z");
     const h = hourlyOf(
