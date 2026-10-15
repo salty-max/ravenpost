@@ -108,6 +108,13 @@ describe("the numbers", () => {
     }
   });
 
+  test("the dashboard's scripts parse (one slip there and nothing on the page answers)", () => {
+    const html = dashboard({ days: { "2026-10-16": { downloads: { Yonder: { curseforge: 1 } } } } }, { pushKey: "k", events: [] });
+    const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+    expect(scripts.length).toBeGreaterThan(0);
+    for (const code of scripts) expect(() => new Function(code)).not.toThrow();
+  });
+
   test("the dashboard draws an empty history and a full one", () => {
     expect(dashboard({ days: {} })).toContain("Nothing yet");
     const html = dashboard({

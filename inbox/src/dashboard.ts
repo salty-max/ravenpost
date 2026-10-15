@@ -599,7 +599,7 @@ if($("refresh"))$("refresh").onclick=reload;
 {const pull=$("pull");let y0=null,dy=0;
   addEventListener("touchstart",(e)=>{y0=scrollY<=0&&e.touches.length===1?e.touches[0].clientY:null;dy=0},{passive:true});
   addEventListener("touchmove",(e)=>{if(y0===null)return;dy=Math.max(0,e.touches[0].clientY-y0);pull.classList.add("held");pull.style.transform="translateY("+(Math.min(dy,110)*0.7-60)+"px) rotate("+dy*2+"deg)";pull.classList.toggle("ready",dy>90)},{passive:true});
-  addEventListener("touchend",()=>{if(y0===null)return;pull.classList.remove("held");pull.style.transform="";pull.classList.remove("ready");if(dy>90)reload()y0=null;dy=0})}
+  addEventListener("touchend",()=>{if(y0===null)return;pull.classList.remove("held");pull.style.transform="";pull.classList.remove("ready");if(dy>90)reload();y0=null;dy=0})}
 
 // The nav: where the page is (the last part whose top has passed a third of
 // the screen, the last part once at the bottom); a part clicked stays marked
