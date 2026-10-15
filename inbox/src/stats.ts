@@ -13,6 +13,9 @@ import * as store from "./store";
  *   merged     what wow-data's daily merge made of them (new facts by game)
  *   traffic    the sites' page views and visitors (Vercel Web Analytics'
  *              API, when VERCEL_ANALYTICS_TOKEN is set)
+ *   curseforge each addon's standing there: its rank among every WoW addon
+ *              by popularity, its favorites and thumbs up (CurseForge's
+ *              official API, when CURSEFORGE_API_KEY is set)
  * The day's pings and counts are dropped once counted: only the sums stay.
  */
 export type Day = {
@@ -21,6 +24,7 @@ export type Day = {
   sharing?: { sharers: number; uploads: number; facts: number; games: Record<string, number>; locales: Record<string, number> };
   merged?: Record<string, { uploads: number; newFacts: number }>;
   traffic?: Record<string, { pageviews: number; visitors: number }>;
+  curseforge?: Record<string, { rank?: number; favorites?: number; likes?: number }>;
 };
 export type History = { updated?: string; days: Record<string, Day> };
 
@@ -188,6 +192,32 @@ async function traffic(day: string): Promise<Day["traffic"]> {
   return out;
 }
 
+// ── each addon's standing on CurseForge (its official API) ──────────────────
+async function standing(): Promise<Day["curseforge"]> {
+  const key = process.env.CURSEFORGE_API_KEY;
+  if (!key) return undefined;
+  const ids = ADDONS.filter(([, cf]) => cf).map(([name, cf]) => [name, cf!] as const);
+  const r = await settle(
+    fetchImpl("https://api.curseforge.com/v1/mods", {
+      method: "POST",
+      headers: { "x-api-key": key, "content-type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ modIds: ids.map(([, id]) => id) }),
+      signal: AbortSignal.timeout(20_000),
+    }),
+  );
+  if (!r?.ok) {
+    console.error(JSON.stringify({ curseforge: "standing", status: r?.status ?? "no answer" }));
+    return undefined;
+  }
+  const mods = ((await r.json()) as { data?: { id: number; gamePopularityRank?: number; favoriteCount?: number; thumbsUpCount?: number }[] }).data ?? [];
+  const out: NonNullable<Day["curseforge"]> = {};
+  for (const [name, id] of ids) {
+    const m = mods.find((x) => x.id === id);
+    if (m) out[name] = { rank: m.gamePopularityRank, favorites: m.favoriteCount, likes: m.thumbsUpCount };
+  }
+  return out;
+}
+
 // ── the daily job ────────────────────────────────────────────────────────────
 /** Yesterday's pings, counts and traffic, today's download totals, into the history. */
 export async function collect(now = new Date()): Promise<History> {
@@ -214,14 +244,14 @@ export async function collect(now = new Date()): Promise<History> {
     for (const [g, n] of Object.entries(c.games)) bump(sharing.games, g, n);
     for (const [l, n] of Object.entries(c.locales)) bump(sharing.locales, l, n);
   }
-  const [dl, tr] = await Promise.all([downloads(), traffic(day)]);
+  const [dl, tr, cf] = await Promise.all([downloads(), traffic(day), standing()]);
   // (run again the same day: what was counted stays, the files being gone)
   const had = (await history()).days[day];
   const kept = {
     ravenpost: pings.length || !had?.ravenpost ? ravenpost : had.ravenpost,
     sharing: counts.length || !had?.sharing ? sharing : had.sharing,
   };
-  const h = await record({ [day]: { ...kept, ...(tr && { traffic: tr }) }, [dayOf(now)]: { downloads: dl } });
+  const h = await record({ [day]: { ...kept, ...(tr && { traffic: tr }) }, [dayOf(now)]: { downloads: dl, ...(cf && { curseforge: cf }) } });
   await store.remove([...pings, ...counts]);
   return h;
 }

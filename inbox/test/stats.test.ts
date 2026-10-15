@@ -15,6 +15,7 @@ beforeEach(() => {
     if (url.includes("addons.wago.io/addons/yonder")) return new Response('{"id":"ZKbq5y61","download_count":42}');
     if (url.includes("addons.wago.io")) return new Response("<html>another addon</html>");
     if (url.includes("api.github.com")) return Response.json([{ assets: [{ download_count: 7 }, { download_count: 3 }] }]);
+    if (url === "https://api.curseforge.com/v1/mods") return Response.json({ data: [{ id: 1728396, gamePopularityRank: 14410, favoriteCount: 3, thumbsUpCount: 1 }] });
     return new Response("", { status: 404 });
   });
 });
@@ -53,6 +54,14 @@ describe("the numbers", () => {
     expect(h.days["2026-10-16"].downloads!.Yonder).toEqual({ curseforge: 100, wago: 42, github: 10 });
     expect(h.days["2026-10-16"].downloads!.Hearthtale).toEqual({ curseforge: 100, github: 10 });
     expect(h.days["2026-10-16"].downloads!.Ravenpost).toEqual({ github: 10 });
+    // (no CurseForge key, no standing; with it, each addon's rank, favorites, thumbs up)
+    expect(h.days["2026-10-16"].curseforge).toBeUndefined();
+    process.env.CURSEFORGE_API_KEY = "k";
+    try {
+      expect((await collect(next)).days["2026-10-16"].curseforge).toEqual({ Yonder: { rank: 14410, favorites: 3, likes: 1 } });
+    } finally {
+      delete process.env.CURSEFORGE_API_KEY;
+    }
     // Run again: the day's numbers stay.
     const again = await collect(next);
     expect(again.days["2026-10-15"].ravenpost!.installs).toBe(2);

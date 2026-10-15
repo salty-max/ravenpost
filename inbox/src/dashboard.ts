@@ -283,6 +283,27 @@ ${e.body ? `<div class="b">${esc(e.body)}</div>` : ""}
   return `<ul class="feed">${rows}</ul>${list.length > 8 ? `<button class="more" id="feed-more">Show ${Math.min(list.length, 60) - 8} more</button>` : ""}`;
 }
 
+/** Each addon's standing on CurseForge: its rank (and how far it moved in 7 days), favorites, thumbs up. */
+function popularity(h: History): string {
+  const days = Object.keys(h.days).filter((d) => h.days[d]?.curseforge).sort();
+  if (!days.length) return `<p class="empty" style="padding:12px 0 0">The daily numbers fill this in, once CurseForge's key is set.</p>`;
+  const last = days[days.length - 1];
+  const cut = new Date(Date.parse(last) - 7 * DAY).toISOString().slice(0, 10);
+  const base = [...days].reverse().find((d) => d <= cut) ?? (days.length > 1 ? days[0] : undefined);
+  const now = h.days[last].curseforge!;
+  const was = base ? h.days[base].curseforge! : {};
+  const rows = Object.entries(now)
+    .filter(([, s]) => s.rank)
+    .sort((a, b) => a[1].rank! - b[1].rank!)
+    .map(([name, s]) => {
+      const moved = was[name]?.rank ? was[name].rank! - s.rank! : null;
+      const change = moved === null || moved === 0 ? `<span class="wk">–</span>` : `<span class="wk" style="color:${moved > 0 ? "var(--ok)" : "var(--blood)"}">${moved > 0 ? "▲" : "▼"} ${fmt(Math.abs(moved))}</span>`;
+      return `<div class="bar-r" style="grid-template-columns:minmax(0,1fr) 70px 64px 70px"><span style="color:var(--parchment)">${esc(name)}</span><b>#${fmt(s.rank)}</b>${change}<span style="text-align:right">♥ ${fmt(s.favorites ?? 0)} · 👍 ${fmt(s.likes ?? 0)}</span></div>`;
+    })
+    .join("");
+  return `<div class="bars">${rows}</div><p class="sub" style="margin-top:10px">${base ? `Moves since ${short(base)}; a smaller rank is better.` : "Moves show from tomorrow; a smaller rank is better."}</p>`;
+}
+
 /** Each addon's downloads by release: the newest gold, the older ones fading. */
 function releasesCard(releases: Record<string, Release[]>): string {
   const list = Object.entries(releases).filter(([, r]) => r.length);
@@ -411,7 +432,10 @@ ${kpi("k-vi", "globe", "Site visitors", fmt(lastOf(visitors)), Object.keys(s.sit
 <div class="rows" style="margin-top:14px">${rows || `<p class="empty">Nothing yet.</p>`}</div>
 <p class="sub" style="margin-top:10px">Download events, not players. CurseForge from its own pages, Wago from its pages, GitHub from the releases.</p></div>
 <div class="grid2" style="margin-top:12px;align-items:start">
+<div style="display:flex;flex-direction:column;gap:12px;min-width:0">
 <div class="panel card"><h3>The last 48 hours</h3><p class="sub">New CurseForge downloads an hour, read every half hour</p><div class="chart" id="c-hr" style="height:170px"></div></div>
+<div class="panel card"><h3>Popularity on CurseForge</h3><p class="sub">Each addon's rank among every WoW addon, its favorites and thumbs up</p>${popularity(h)}</div>
+</div>
 <div class="panel card"><h3>By release</h3><p class="sub">Each version's CurseForge downloads, the newest first</p>${releasesCard(opts.releases ?? {})}</div>
 </div></section>
 

@@ -41,6 +41,9 @@ with Battle.net in the browser (a signed cookie, 30 days). Its history,
 - sharing: the day's sharers, uploads and facts by game and language
   (counted as they come in, by the sharer's hash);
 - merged: the new facts wow-data's merge found;
+- curseforge: each addon's rank among every WoW addon by popularity, its
+  favorites and thumbs up (CurseForge's official API, `CURSEFORGE_API_KEY`;
+  its search is closed to this key);
 - traffic: hearthtale.app's and wow-locker.app's page views and visitors
   from Vercel Web Analytics' API (`STATS_SITES`, `VERCEL_TEAM_ID`, and
   `VERCEL_ANALYTICS_TOKEN`: a Vercel token; without it, a link to Vercel).
@@ -116,7 +119,7 @@ accounts refused, a token's `sub`, comma-separated), and `BNET_CLIENT_ID` /
 `BNET_CLIENT_SECRET`: the Battle.net app "Ravenpost" on develop.battle.net,
 its redirect URL `https://ravenpost-inbox.vercel.app/api/login/callback`;
 the numbers': `CRON_SECRET`, `STATS_BATTLETAGS`, `STATS_SITES`,
-`VERCEL_TEAM_ID` (and `VERCEL_ANALYTICS_TOKEN`, `GITHUB_TOKEN` when set);
+`VERCEL_TEAM_ID` (and `VERCEL_ANALYTICS_TOKEN`, `GITHUB_TOKEN`, `CURSEFORGE_API_KEY` when set);
 the notifications': `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`,
 `INBOX_EVENTS_TOKEN` (the workflows'); `WOWHEAD_TOKEN` (the Wowhead tab's).
 
