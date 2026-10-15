@@ -54,6 +54,10 @@ became an app with its own window.
   (`POST /api/facts`), held until wow-data's daily job merges and removes
   them. Deployed with `vercel deploy --prod` from `inbox/`; `cd inbox && bun
   run check` in CI.
+- `ping.go`: once a day (a minute after the start, then every 24 h) a ping
+  to the inbox's `/api/ping` for its numbers: the install's random id
+  (`InstallID` in the config; the inbox keeps a hash), the version, the
+  system, the links made, how many addons share. Nothing of the player.
 - `login.go`: the one Battle.net sign-in, the way desktop apps sign in: a
   listener on 127.0.0.1, the browser on the inbox's `/api/login?port=&nonce=`,
   Battle.net, then back here on `/linked` with the sharing token (the addons'

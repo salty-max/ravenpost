@@ -1,5 +1,8 @@
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import { getCookie, setCookie } from "hono/cookie";
+import { dashboard } from "./dashboard";
+import { collect, countUpload, history, ping, readPing, record, type Day } from "./stats";
 import { account, authorizeUrl, sharer, sign, subOf, tokenFor, verify } from "./auth";
 import { flatten } from "./facts";
 import { passportFor } from "./passport";
@@ -25,6 +28,11 @@ const page = (title: string, text: string) =>
   `<!doctype html><meta charset="utf-8"><title>${title}</title><body style="font:16px system-ui;background:#16130f;color:#e8dcc2;display:grid;place-items:center;height:90vh"><div><h1 style="font-size:20px;color:#d4a843">${title}</h1><p>${text}</p></div>`;
 
 app.get("/api/login", (c) => {
+  // (the dashboard's own sign-in, in the browser: back to /stats)
+  if (c.req.query("web") === "1") {
+    if (!process.env.BNET_CLIENT_ID) return c.html(page("Ravenpost", "Signing in with Battle.net isn't open yet."), 503);
+    return c.redirect(authorizeUrl(sign({ web: true, exp: Math.floor(Date.now() / 1000) + 600 })));
+  }
   const port = c.req.query("port");
   const nonce = c.req.query("nonce");
   if (!isPort(port) || !isNonce(nonce)) return c.html(page("Ravenpost", "This page opens from Ravenpost's window."), 400);
@@ -44,8 +52,20 @@ app.get("/api/login", (c) => {
 });
 
 app.get("/api/login/callback", async (c) => {
-  const s = verify<{ port: number; nonce: string }>(c.req.query("state") ?? "");
-  if (!s) return c.html(page("Ravenpost", "This sign-in has expired. Click Link with Battle.net in Ravenpost again."), 400);
+  const s = verify<{ port: number; nonce: string; web?: boolean }>(c.req.query("state") ?? "");
+  if (!s) return c.html(page("Ravenpost", "This sign-in has expired. Click Sign in with Battle.net in Ravenpost again."), 400);
+  if (s.web) {
+    const who = c.req.query("code") ? await account(c.req.query("code")!).catch(() => null) : null;
+    if (!who || !statsAllowed(who.battletag)) return c.html(page("Ravenpost", "This page is its owner's."), 403);
+    setCookie(c, STATS_COOKIE, sign({ tag: who.battletag, exp: Math.floor(Date.now() / 1000) + 30 * 86400 }), {
+      httpOnly: true,
+      secure: true,
+      sameSite: "Lax",
+      path: "/",
+      maxAge: 30 * 86400,
+    });
+    return c.redirect("/stats");
+  }
   const code = c.req.query("code");
   if (!code) return c.redirect(back(s.port, { error: "denied", nonce: s.nonce }));
   const who = await account(code).catch(() => null);
@@ -77,6 +97,9 @@ app.post(
         at: new Date().toISOString(),
         facts: facts.map((f) => [f.locale, f.kind, f.entity, f.field, f.value, f.build]),
       });
+      const locales: Record<string, number> = {};
+      for (const f of facts) locales[f.locale] = (locales[f.locale] ?? 0) + 1;
+      await countUpload(who.sub, game, locales);
     }
     return c.json({ facts: facts.length });
   },
@@ -109,3 +132,48 @@ app.post("/api/inbox/done", async (c) => {
   if (!Array.isArray(done) || !done.every((n) => typeof n === "string")) return c.json({ error: "names: a list" }, 400);
   return c.json({ removed: await remove(done) });
 });
+
+// Each day's numbers from wow-data's merge (bin/players.ts), or days brought by hand.
+app.post("/api/inbox/stats", async (c) => {
+  const { days } = (await c.req.json().catch(() => ({}))) as { days?: Record<string, Day> };
+  if (!days || typeof days !== "object" || Object.keys(days).some((d) => !/^\d{4}-\d{2}-\d{2}$/.test(d)))
+    return c.json({ error: "days: { YYYY-MM-DD: numbers }" }, 400);
+  const h = await record(days);
+  return c.json({ days: Object.keys(h.days).length });
+});
+
+// ── Ravenpost's daily ping (anonymous: a hash of its random install id) ──────
+app.post("/api/ping", bodyLimit({ maxSize: 4096 }), async (c) => {
+  const p = readPing(await c.req.json().catch(() => null));
+  if (!p) return c.json({ error: "not a ping" }, 400);
+  await ping(p);
+  return c.json({ ok: true });
+});
+
+// ── the daily job (Vercel Cron, CRON_SECRET; or by hand with INBOX_TOKEN) ─────
+app.get("/api/cron/stats", async (c) => {
+  const auth = c.req.header("authorization") ?? "";
+  const ok = [process.env.CRON_SECRET, process.env.INBOX_TOKEN].some((t) => t && auth === `Bearer ${t}`);
+  if (!ok) return c.json({ error: "unauthorized" }, 401);
+  const h = await collect();
+  return c.json({ days: Object.keys(h.days).length, updated: h.updated });
+});
+
+// ── the dashboard, for its owner (STATS_BATTLETAGS, signed in with Battle.net) ─
+const STATS_COOKIE = "rp_stats";
+function statsAllowed(tag: string): boolean {
+  return (process.env.STATS_BATTLETAGS ?? "")
+    .split(",")
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean)
+    .includes(tag.toLowerCase());
+}
+
+app.get("/stats", async (c) => {
+  const local = process.env.INBOX_DEV === "1" && !process.env.VERCEL;
+  const viewer = verify<{ tag: string }>(getCookie(c, STATS_COOKIE) ?? "");
+  if (!local && !(viewer && statsAllowed(viewer.tag))) return c.redirect("/api/login?web=1");
+  c.header("Cache-Control", "private, no-store");
+  return c.html(dashboard(await history(), { viewer: viewer?.tag }));
+});
+app.get("/", (c) => c.redirect("/stats"));

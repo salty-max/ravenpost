@@ -24,7 +24,30 @@ Blob store, and goes once merged.
   (`Authorization: Bearer <token>`), flattened and checked (`src/facts.ts`),
   dropped in the inbox (`src/inbox.ts`).
 - `GET /api/inbox/list`, `POST /api/inbox/read`, `POST /api/inbox/done`: for
-  wow-data's daily job, behind `INBOX_TOKEN`.
+  wow-data's daily job, behind `INBOX_TOKEN`; `POST /api/inbox/stats`: its
+  merge's numbers (or days brought by hand: downloads.md's were).
+
+## The numbers
+
+`/stats` (https://ravenpost-inbox.vercel.app/stats): the dashboard
+(`src/dashboard.ts`), for the BattleTags in `STATS_BATTLETAGS`, signed in
+with Battle.net in the browser (a signed cookie, 30 days). Its history,
+`stats/history.json` (`src/stats.ts`), a day at a time:
+
+- downloads: each addon's CurseForge (cfwidget), Wago (its page) and GitHub
+  (releases) totals, Ravenpost's releases;
+- Ravenpost: the installs that pinged that day (`POST /api/ping`, once a
+  day each: a hash of a random install id, the version, system, links);
+- sharing: the day's sharers, uploads and facts by game and language
+  (counted as they come in, by the sharer's hash);
+- merged: the new facts wow-data's merge found;
+- traffic: hearthtale.app's and wow-locker.app's page views and visitors
+  from Vercel Web Analytics' API (`STATS_SITES`, `VERCEL_TEAM_ID`, and
+  `VERCEL_ANALYTICS_TOKEN`: a Vercel token; without it, a link to Vercel).
+
+The daily job (`/api/cron/stats`, Vercel Cron at 05:17 UTC with
+`CRON_SECRET`; by hand with `INBOX_TOKEN`) counts yesterday's pings and
+uploads, then drops their files: only the sums stay.
 
 ## Running it here
 
@@ -48,7 +71,9 @@ its public half is in Hearthtale's `lib/ravenpost.ts`), `INBOX_TOKEN`
 (wow-data's), `INBOX_BLOCKED` (optional:
 accounts refused, a token's `sub`, comma-separated), and `BNET_CLIENT_ID` /
 `BNET_CLIENT_SECRET`: the Battle.net app "Ravenpost" on develop.battle.net,
-its redirect URL `https://ravenpost-inbox.vercel.app/api/login/callback`.
+its redirect URL `https://ravenpost-inbox.vercel.app/api/login/callback`;
+the numbers': `CRON_SECRET`, `STATS_BATTLETAGS`, `STATS_SITES`,
+`VERCEL_TEAM_ID` (and `VERCEL_ANALYTICS_TOKEN`, `GITHUB_TOKEN` when set).
 
 Elsewhere: wow-data's `INBOX_URL` variable and `INBOX_TOKEN` secret (the same
 as here), and this repository's `INBOX_URL` variable, which release builds

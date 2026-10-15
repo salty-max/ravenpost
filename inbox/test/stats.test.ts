@@ -1,0 +1,124 @@
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { app } from "../src/app";
+import { sign, subOf, tokenFor } from "../src/auth";
+import { dashboard } from "../src/dashboard";
+import { collect, countUpload, history, ping, readPing, setStatsFetch } from "../src/stats";
+
+beforeEach(() => {
+  process.env.INBOX_DIR = mkdtempSync(path.join(tmpdir(), "stats-"));
+  process.env.INBOX_TOKEN = "t0ken";
+  setStatsFetch(async (url) => {
+    if (url.startsWith("https://api.cfwidget.com/")) return Response.json({ downloads: { total: 100 } });
+    if (url.includes("addons.wago.io/addons/yonder")) return new Response('{"id":"ZKbq5y61","download_count":42}');
+    if (url.includes("addons.wago.io")) return new Response("<html>another addon</html>");
+    if (url.includes("api.github.com")) return Response.json([{ assets: [{ download_count: 7 }, { download_count: 3 }] }]);
+    return new Response("", { status: 404 });
+  });
+});
+afterEach(() => {
+  rmSync(process.env.INBOX_DIR!, { recursive: true, force: true });
+  delete process.env.INBOX_DIR;
+  delete process.env.INBOX_TOKEN;
+  setStatsFetch((input, init) => fetch(input, init));
+});
+
+describe("the numbers", () => {
+  test("a ping: an install's random id, its version, system and links, nothing else", () => {
+    expect(readPing({ id: "x" })).toBeNull();
+    const p = readPing({ id: "a".repeat(32), version: "0.4.0", os: "darwin", arch: "arm64", linked: ["hearthtale", "evil"], sharing: 2, name: "Max" });
+    expect(p).toEqual({ id: "a".repeat(32), version: "0.4.0", os: "darwin", arch: "arm64", linked: ["hearthtale"], sharing: 2 });
+  });
+
+  test("a day: pings and uploads counted, then the files go; downloads as of the morning", async () => {
+    const day = new Date("2026-10-15T12:00:00Z");
+    const next = new Date("2026-10-16T05:17:00Z");
+    await ping(readPing({ id: "a".repeat(32), version: "0.4.0", os: "darwin", arch: "arm64", linked: ["hearthtale", "shared"], sharing: 1 })!, day);
+    await ping(readPing({ id: "a".repeat(32), version: "0.4.0", os: "darwin", arch: "arm64", linked: ["hearthtale", "shared"], sharing: 1 })!, day);
+    await ping(readPing({ id: "b".repeat(32), version: "0.3.0", os: "windows", arch: "amd64", linked: [], sharing: 0 })!, day);
+    await countUpload("sub-1", "forever", { enUS: 10, deDE: 5 }, day);
+    await countUpload("sub-1", "forever", { enUS: 2 }, day);
+    await countUpload("sub-2", "classic", { frFR: 4 }, day);
+    const h = await collect(next);
+    expect(h.days["2026-10-15"].ravenpost).toEqual({
+      installs: 2,
+      versions: { "0.4.0": 1, "0.3.0": 1 },
+      os: { darwin: 1, windows: 1 },
+      linked: { hearthtale: 1, shared: 1 },
+      sharing: 1,
+    });
+    expect(h.days["2026-10-15"].sharing).toEqual({ sharers: 2, uploads: 3, facts: 21, games: { forever: 17, classic: 4 }, locales: { enUS: 12, deDE: 5, frFR: 4 } });
+    expect(h.days["2026-10-16"].downloads!.Yonder).toEqual({ curseforge: 100, wago: 42, github: 10 });
+    expect(h.days["2026-10-16"].downloads!.Hearthtale).toEqual({ curseforge: 100, github: 10 });
+    expect(h.days["2026-10-16"].downloads!.Ravenpost).toEqual({ github: 10 });
+    // Run again: the day's numbers stay.
+    const again = await collect(next);
+    expect(again.days["2026-10-15"].ravenpost!.installs).toBe(2);
+    expect(again.days["2026-10-15"].sharing!.facts).toBe(21);
+  });
+
+  test("an upload counts on its sharer's line for the day", async () => {
+    const t = tokenFor({ sub: subOf(7), tag: "Max#1234" });
+    const body = { game: "forever", facts: { deDE: { quest: { "1": { title: "Eins" }, "2": { title: "Zwei" } } } } };
+    await app.request("/api/facts", { method: "POST", headers: { authorization: `Bearer ${t}` }, body: JSON.stringify(body) });
+    const h = await collect(new Date(Date.now() + 86_400_000));
+    const day = new Date().toISOString().slice(0, 10);
+    expect(h.days[day].sharing).toMatchObject({ sharers: 1, uploads: 1, facts: 2, locales: { deDE: 2 } });
+  });
+
+  test("the routes: a ping from anyone, the job and the merge's numbers behind their tokens", async () => {
+    expect((await app.request("/api/ping", { method: "POST", body: "{}" })).status).toBe(400);
+    expect((await app.request("/api/ping", { method: "POST", body: JSON.stringify({ id: "c".repeat(32), os: "linux" }) })).status).toBe(200);
+    expect((await app.request("/api/cron/stats")).status).toBe(401);
+    expect((await app.request("/api/cron/stats", { headers: { authorization: "Bearer t0ken" } })).status).toBe(200);
+    const merged = { days: { "2026-10-15": { merged: { forever: { uploads: 3, newFacts: 12 } } } } };
+    expect((await app.request("/api/inbox/stats", { method: "POST", body: JSON.stringify(merged) })).status).toBe(401);
+    const res = await app.request("/api/inbox/stats", { method: "POST", headers: { authorization: "Bearer t0ken" }, body: JSON.stringify(merged) });
+    expect(res.status).toBe(200);
+    expect((await history()).days["2026-10-15"].merged).toEqual({ forever: { uploads: 3, newFacts: 12 } });
+    expect((await app.request("/api/inbox/stats", { method: "POST", headers: { authorization: "Bearer t0ken" }, body: '{"days":{"yesterday":{}}}' })).status).toBe(400);
+  });
+
+  test("the dashboard: its owner's only", async () => {
+    process.env.STATS_BATTLETAGS = "Namzar#21586";
+    try {
+      expect((await app.request("/stats")).headers.get("location")).toBe("/api/login?web=1");
+      const stranger = sign({ tag: "Someone#1", exp: Math.floor(Date.now() / 1000) + 60 });
+      expect((await app.request("/stats", { headers: { cookie: `rp_stats=${stranger}` } })).status).toBe(302);
+      const owner = sign({ tag: "namzar#21586", exp: Math.floor(Date.now() / 1000) + 60 });
+      const res = await app.request("/stats", { headers: { cookie: `rp_stats=${owner}` } });
+      expect(res.status).toBe(200);
+      expect(await res.text()).toContain("Ravenpost's numbers");
+    } finally {
+      delete process.env.STATS_BATTLETAGS;
+    }
+  });
+
+  test("the dashboard draws an empty history and a full one", () => {
+    expect(dashboard({ days: {} })).toContain("Nothing yet");
+    const html = dashboard({
+      updated: "2026-10-16T05:17:00Z",
+      days: {
+        "2026-10-13": { downloads: { Yonder: { curseforge: 90, wago: 40, github: 8 } } },
+        "2026-10-16": { downloads: { Yonder: { curseforge: 100, wago: 42, github: 10 } }, ravenpost: { installs: 2, versions: { "0.4.0": 2 }, os: { darwin: 2 }, linked: { hearthtale: 2 }, sharing: 1 } },
+      },
+    });
+    expect(html).toContain("<b>152</b>");
+    expect(html).toContain("<polyline");
+  });
+});
+
+describe("the store", () => {
+  test("on this computer, a Blob token in the environment never sends a file to production", async () => {
+    process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_fake";
+    try {
+      await ping(readPing({ id: "d".repeat(32), version: "1", os: "linux", arch: "x", linked: [], sharing: 0 })!);
+      const { readdirSync } = await import("node:fs");
+      expect(readdirSync(path.join(process.env.INBOX_DIR!, "pings")).length).toBe(1);
+    } finally {
+      delete process.env.BLOB_READ_WRITE_TOKEN;
+    }
+  });
+});

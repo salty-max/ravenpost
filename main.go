@@ -57,6 +57,7 @@ func main() {
 
 	if *headless {
 		go app.syncer.Run(ctx)
+		go app.pingDaily(ctx)
 		log.Printf("Ravenpost %s started (headless)", version)
 		sig := make(chan os.Signal, 1)
 		signal.Notify(sig, os.Interrupt, syscall.SIGTERM)

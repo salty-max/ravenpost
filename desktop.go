@@ -74,6 +74,7 @@ func (a *App) runDesktop(ctx context.Context, background bool, stop func()) erro
 	// Only now, past the single-instance check (a second one has exited in
 	// New): one syncer at a time.
 	go a.syncer.Run(ctx)
+	go a.pingDaily(ctx)
 	svc.chooseFolder = func() (string, error) {
 		return app.Dialog.OpenFile().
 			CanChooseDirectories(true).

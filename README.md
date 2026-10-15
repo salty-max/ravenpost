@@ -66,6 +66,11 @@ you open it.
   the account itself. Your name, class and race are never in what's sent, nor
   a line naming another player, nor your chat.
 
+- **Once a day**, Ravenpost tells its inbox it's running: a random number
+  made for this install (the inbox keeps only a hash of it), its version,
+  your system and which links are made. That's how many use it is counted,
+  nothing about you or your characters.
+
 Ravenpost sends no other file and reads no other addon. You can leave out a
 character or a whole game account in the window. If you remove a book from
 hearthtale.app, Ravenpost shows it as removed and only sends it again after
