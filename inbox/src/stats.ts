@@ -170,7 +170,11 @@ async function traffic(day: string): Promise<Day["traffic"]> {
         signal: AbortSignal.timeout(20_000),
       }),
     );
-    if (!r?.ok) continue;
+    if (!r?.ok) {
+      // (in the function's logs: why a site's numbers are missing)
+      console.error(JSON.stringify({ traffic: name, status: r?.status ?? "no answer", body: r ? (await r.text()).slice(0, 300) : "" }));
+      continue;
+    }
     const rows = ((await r.json()) as { data?: { pageviews: number; visitors: number }[] }).data ?? [];
     out[name] = rows.reduce((a, x) => ({ pageviews: a.pageviews + x.pageviews, visitors: a.visitors + x.visitors }), { pageviews: 0, visitors: 0 });
   }
