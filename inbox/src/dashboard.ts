@@ -198,9 +198,10 @@ section{margin-bottom:22px}.sh{display:flex;align-items:baseline;justify-content
 .switch[aria-checked=true]{background:rgb(201 162 39/.8);border-color:var(--gold-soft)}.switch[aria-checked=true]::after{transform:translateX(18px);background:var(--night)}.switch:disabled{opacity:.4;cursor:default}
 .rel{padding:10px 0;border-top:1px solid rgb(255 255 255/.045)}.rel:first-of-type{border-top:0}.rel-h{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}.rel-h b{font-weight:600}.rel-h .sub{margin:0}
 .notif{display:flex;align-items:center;gap:14px;padding:16px 18px}
-.refresh{width:36px;padding:0;height:36px}.refresh.busy .ic,.pull.busy .ic{animation:spin .8s linear infinite}
-.pull{position:fixed;top:env(safe-area-inset-top);left:50%;z-index:20;width:40px;height:40px;margin-left:-20px;border-radius:50%;display:grid;place-items:center;background:var(--stone-2);border:1px solid var(--edge);color:var(--dim);transform:translateY(-60px);transition:transform .2s,color .15s,border-color .15s;box-shadow:0 6px 18px rgb(0 0 0/.45);pointer-events:none}
-.pull.held{transition:none}.pull.ready{color:var(--gold);border-color:var(--edge-gold)}.pull .ic{width:18px;height:18px}
+.tools{display:flex;align-items:center;gap:6px}.refresh{width:36px;padding:0;height:36px}.refresh.busy .ic,.pull.busy .ic{animation:spin .8s linear infinite}
+.pull{position:fixed;top:env(safe-area-inset-top);left:50%;z-index:20;width:40px;height:40px;margin-left:-20px;border-radius:50%;display:grid;place-items:center;background:var(--stone-2);border:1px solid var(--edge);color:var(--dim);opacity:0;transform:translateY(-60px);transition:transform .2s,opacity .2s,color .15s,border-color .15s;box-shadow:0 6px 18px rgb(0 0 0/.45);pointer-events:none}
+.pull.held{opacity:1}
+.pull.held{transition:opacity .15s}.pull.ready{color:var(--gold);border-color:var(--edge-gold)}.pull .ic{width:18px;height:18px}
 @keyframes spin{to{transform:rotate(360deg)}}.notif .grow{flex:1;min-width:0}.notif p{margin:2px 0 0;color:var(--dim);font-size:13px}
 
 @media (max-width:1000px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:minmax(0,1fr)}}
@@ -435,7 +436,7 @@ export function dashboard(
 <nav class="tabs">${NAV.slice(0, 5).map(([id, ic, label]) => `<a href="#${id}" data-nav="${id}">${icon(ic)}${label}</a>`).join("")}</nav>
 <main>
 <div class="top" id="overview"><div class="brandm"><img src="/icon-192.png" alt=""><div><h1 class="title">Overview</h1><p>${lastDay ? `To ${short(lastDay)}` : "No numbers yet"}</p></div></div>
-<div class="row" style="flex-wrap:nowrap;gap:6px"><div class="seg" role="group" aria-label="Range"><button data-range="30" class="on">30 d</button><button data-range="90">90 d</button><button data-range="0">All</button></div><button class="btn btn-ghost refresh" id="refresh" aria-label="Refresh" title="Refresh">${icon("refresh")}</button></div></div>
+<div class="tools"><div class="seg" role="group" aria-label="Range"><button data-range="30" class="on">30 d</button><button data-range="90">90 d</button><button data-range="0">All</button></div><button class="btn btn-ghost refresh" id="refresh" aria-label="Refresh" title="Refresh">${icon("refresh")}</button></div></div>
 <div class="pull" id="pull" aria-hidden="true">${icon("refresh")}</div>
 
 <div class="panel hero"><div class="raven"><img src="/icon-192.png" alt=""><span class="badge ${st.tone}">${icon(st.icon)}</span></div><div class="grow"><h2 class="title">${esc(st.title)}</h2><p>${esc(st.line)}</p></div></div>
@@ -591,14 +592,14 @@ const firstOn=document.querySelector("[data-threads].on");if(firstOn)showThreads
 // it, and has no pull to refresh): the page is fetched again when it's shown
 // after a minute away, on a pull at the top, and with the refresh button.
 const loadedAt=Date.now();
-const reload=()=>{document.querySelectorAll("#refresh,#pull").forEach(e=>e.classList.add("busy"));location.reload()};
+const reload=()=>{if($("refresh"))$("refresh").classList.add("busy");location.reload()};
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&Date.now()-loadedAt>60000)reload()});
 addEventListener("pageshow",(e)=>{if(e.persisted)reload()});
 if($("refresh"))$("refresh").onclick=reload;
 {const pull=$("pull");let y0=null,dy=0;
   addEventListener("touchstart",(e)=>{y0=scrollY<=0&&e.touches.length===1?e.touches[0].clientY:null;dy=0},{passive:true});
   addEventListener("touchmove",(e)=>{if(y0===null)return;dy=Math.max(0,e.touches[0].clientY-y0);pull.classList.add("held");pull.style.transform="translateY("+(Math.min(dy,110)*0.7-60)+"px) rotate("+dy*2+"deg)";pull.classList.toggle("ready",dy>90)},{passive:true});
-  addEventListener("touchend",()=>{if(y0===null)return;pull.classList.remove("held");if(dy>90){pull.style.transform="translateY(14px)";reload()}else{pull.style.transform="";pull.classList.remove("ready")}y0=null;dy=0})}
+  addEventListener("touchend",()=>{if(y0===null)return;pull.classList.remove("held");pull.style.transform="";pull.classList.remove("ready");if(dy>90)reload()y0=null;dy=0})}
 
 // The nav: where the page is (the last part whose top has passed a third of
 // the screen, the last part once at the bottom); a part clicked stays marked
