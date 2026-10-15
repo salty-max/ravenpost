@@ -110,13 +110,16 @@ became an app with its own window.
   `Browser.OpenURL` from the frontend (Wails runs rundll32 for them); the
   window opens links through the service's `Open`. The window needs WebView2
   (part of Windows 11, and of Windows 10 kept up to date).
-  Even behaving, an unsigned build can be blocked: Smart App Control asks
-  Microsoft's cloud about each new file and blocks unsigned code it can't
-  vouch for (v0.3.0 passed; a build of main, v0.3.0-20, was blocked on 15
-  October 2026 with no new process launched). Only signing with a certificate
-  of a CA in Microsoft's Trusted Root Program fixes it (Azure Artifact
-  Signing takes individuals in the US and Canada only; elsewhere an OV
-  certificate). The user's decision, pending.
+  Even behaving, one unsigned file can be blocked: Smart App Control judges
+  each file (its hash) through Microsoft's cloud. On 15 October 2026 a build
+  of main (v0.3.0-20) was blocked while the same code built again, twice,
+  ran, as did a build at each feature commit since v0.3.0 (sharing, the
+  sign-in's listener, the ping): no code was to blame. A blocked build:
+  rebuild it (a new file: another version or commit) and try again before
+  suspecting the code. A release file blocked for players would need a new
+  release. Signing with a certificate of a CA in Microsoft's Trusted Root
+  Program is the lasting fix (Azure Artifact Signing takes individuals in the
+  US and Canada only; elsewhere an OV certificate), the user's decision.
 - Upload feedback stays inside the app (the window's journal and toasts, the
   menu's status line): no system notifications.
 - Env for tests and dev: `RAVENPOST_CONFIG_DIR`, `RAVENPOST_LEGACY_DIR`,
