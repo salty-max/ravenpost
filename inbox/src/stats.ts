@@ -4,7 +4,7 @@ import * as store from "./store";
 /**
  * The numbers, for the dashboard (/stats): one entry a day in
  * stats/history.json, filled by the daily job (/api/cron/stats, Vercel Cron):
- *   downloads  each addon's totals on CurseForge, Wago and GitHub, Ravenpost's
+ *   downloads  each addon's totals on CurseForge (its own JSON, else cfwidget), Wago and GitHub, Ravenpost's
  *              releases (totals as of that day: download events, not players)
  *   ravenpost  the installs that pinged that day (one anonymous ping a day:
  *              a hash of a random install id, its version, system, links)
@@ -108,7 +108,14 @@ export const setStatsFetch = (f: FetchFn) => {
 };
 const UA = { "User-Agent": "Mozilla/5.0 (ravenpost-inbox; download counters)" };
 
+// (CurseForge's own JSON first, its releases' downloads summed: cfwidget's
+// number, without the middleman; cfwidget should it refuse)
 async function curseforge(id: number): Promise<number | undefined> {
+  const own = await settle(fetchImpl(`https://www.curseforge.com/api/v1/mods/${id}/files?pageIndex=0&pageSize=50`, { headers: UA, signal: AbortSignal.timeout(20_000) }));
+  if (own?.ok) {
+    const files = ((await own.json()) as { data?: { totalDownloads?: number }[]; pagination?: { totalCount?: number } });
+    if (files.data && (files.pagination?.totalCount ?? 0) <= 50) return files.data.reduce((t, f) => t + (f.totalDownloads ?? 0), 0);
+  }
   const r = await fetchImpl(`https://api.cfwidget.com/${id}`, { headers: UA, signal: AbortSignal.timeout(20_000) });
   return r.ok ? ((await r.json()) as { downloads?: { total?: number } }).downloads?.total : undefined;
 }

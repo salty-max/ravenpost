@@ -4,6 +4,7 @@ import { bodyLimit } from "hono/body-limit";
 import { getCookie, setCookie } from "hono/cookie";
 import { cors } from "hono/cors";
 import { watch } from "./comments";
+import * as curseforge from "./curseforge";
 import { dashboard, signinPage } from "./dashboard";
 import { digestOf } from "./digest";
 import * as events from "./events";
@@ -192,8 +193,10 @@ app.get("/stats", async (c) => {
   const tag = owner(c);
   c.header("Cache-Control", "private, no-store");
   if (!tag) return c.html(signinPage());
-  const [h, ev, devices] = await Promise.all([history(), events.recent(), push.devices()]);
-  return c.html(dashboard(h, { viewer: tag, events: ev, pushKey: push.vapid()?.publicKey ?? null, devices }));
+  const today = new Date().toISOString().slice(0, 10);
+  const yday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+  const [h, ev, devices, r0, r1, releases] = await Promise.all([history(), events.recent(), push.devices(), curseforge.readings(yday), curseforge.readings(today), curseforge.latest()]);
+  return c.html(dashboard(h, { viewer: tag, events: ev, pushKey: push.vapid()?.publicKey ?? null, devices, readings: [...r0, ...r1], releases }));
 });
 app.get("/", (c) => c.redirect("/stats"));
 
@@ -249,11 +252,12 @@ app.get("/api/cron/digest", async (c) => {
   return c.json({ ...d, ...told });
 });
 
-// ── the players' comments on CurseForge (Vercel Cron, every 30 minutes) ──────
-app.get("/api/cron/comments", async (c) => {
+// ── CurseForge, every 30 minutes (Vercel Cron): the players' comments, the
+// releases live, each addon's downloads ───────────────────────────────────────
+app.get("/api/cron/curseforge", async (c) => {
   const ok = [process.env.CRON_SECRET, process.env.INBOX_TOKEN].some((t) => bearer(c, t));
   if (!ok) return c.json({ error: "unauthorized" }, 401);
-  return c.json(await watch());
+  return c.json({ comments: await watch(), releases: await curseforge.look() });
 });
 
 // ── Wowhead's pages, from a Wowhead tab (wow-data's bin/wowhead-tab.js) ──────

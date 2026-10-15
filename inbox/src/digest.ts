@@ -32,12 +32,14 @@ export function digestOf(h: History, events: Event[], now = new Date()): { title
   // What the data jobs did
   const merged = [...new Set(events.filter((e) => e.kind === "merged").map((e) => nameOf(e.repo) || e.title))];
   const comments = events.filter((e) => e.kind === "comment");
+  const releases = events.filter((e) => e.kind === "release").map((e) => e.title.replace(/ is live on CurseForge$/, ""));
   const failed = events.filter((e) => e.kind === "failed");
   const waiting = events.filter((e) => e.kind === "waiting");
   if (merged.length) lines.push(`${cap(`new game data in ${and(merged)}`)}.`);
   for (const f of failed) lines.push(f.title.endsWith(".") ? f.title : `${f.title}.`);
   for (const w of waiting) lines.push(w.title.endsWith(".") ? w.title : `${w.title}.`);
   if (!merged.length && !failed.length && !waiting.length) lines.push("No new game data.");
+  if (releases.length) lines.push(`Live on CurseForge: ${and(releases)}.`);
   if (comments.length) {
     const by: Record<string, number> = {};
     for (const c of comments) {
