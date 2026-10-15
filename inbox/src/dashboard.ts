@@ -3,125 +3,235 @@ import type { Event } from "./events";
 import type { Day, History } from "./stats";
 
 /**
- * The dashboard (/stats), drawn here: the charts plain SVG, in Ravenpost's
- * look (night stone, gold, Cinzel and Inter). Totals are as of the latest
- * day; the charts the last 60 days. An app too (public/: its manifest, its
- * service worker for the notifications, Ravenpost's raven for its icons): on
- * a phone, added to the Home Screen, told of the data jobs and the morning's
- * digest. Its one script: the notifications' switch.
+ * The dashboard (/stats), in Ravenpost's window's look (its theme: night
+ * stone, the game's gold, Cinzel and Inter, panels with a gold hairline,
+ * lucide's icons): how things stand, the numbers with a small chart each,
+ * the activity, then each part's charts. The page carries the numbers as
+ * JSON (`seriesOf`) and draws the charts itself at the size they're shown,
+ * a value under the finger or the mouse. An app too (public/: its manifest,
+ * its service worker for the notifications, Ravenpost's raven for its icons).
  */
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
-const fmt = (n: number | undefined) => (n === undefined ? "–" : n.toLocaleString("en-GB"));
+const fmt = (n: number | undefined | null) => (n === undefined || n === null ? "–" : n.toLocaleString("en-GB"));
 const sum = (o: Record<string, number | undefined> | undefined) => Object.values(o ?? {}).reduce<number>((a, b) => a + (b ?? 0), 0);
-const COLORS = ["#d4a843", "#7fb3d5", "#9fd18b", "#e08a6e", "#c39bd3", "#e8dcc2", "#76d7c4"];
+const DAY = 86_400_000;
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const short = (d: string) => `${Number(d.slice(8))} ${MONTHS[Number(d.slice(5, 7)) - 1]}`;
+const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
-type Series = { name: string; points: (number | undefined)[] };
+// ── the numbers, as the page draws them ──────────────────────────────────────
+type N = number | null;
+export type Series = {
+  days: string[];
+  downloads: { addons: string[]; daily: Record<string, N[]>; since: (string | null)[]; totals: Record<string, number>; channels: Record<string, NonNullable<Day["downloads"]>[string]>; week: Record<string, number | null> };
+  installs: N[];
+  facts: N[];
+  sharers: N[];
+  newFacts: N[];
+  sites: Record<string, { visitors: N[]; pageviews: N[] }>;
+};
 
-/** A line chart of several series over the same days. */
-function lines(days: string[], series: Series[], height = 180): string {
-  const W = 640, H = height, L = 48, B = 22, T = 10;
-  const values = series.flatMap((s) => s.points.filter((v): v is number => v !== undefined));
-  if (!values.length || days.length < 1) return `<p class="empty">Nothing yet.</p>`;
-  const lo = Math.min(...values), hi = Math.max(...values);
-  const span = hi - lo || 1;
-  const x = (i: number) => L + (days.length === 1 ? (W - L) / 2 : (i * (W - L - 8)) / (days.length - 1));
-  const y = (v: number) => T + (H - T - B) * (1 - (v - lo) / span);
-  const grid = [lo, lo + span / 2, hi]
-    .map((v) => `<line x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}" class="grid"/><text x="${L - 6}" y="${y(v) + 4}" class="axis" text-anchor="end">${fmt(Math.round(v))}</text>`)
-    .join("");
-  const labels = [0, days.length - 1]
-    .filter((i, k, a) => a.indexOf(i) === k)
-    .map((i) => `<text x="${x(i)}" y="${H - 4}" class="axis" text-anchor="${i === 0 ? "start" : "end"}">${days[i].slice(5)}</text>`)
-    .join("");
-  const paths = series
-    .map((s, k) => {
-      const pts = s.points.map((v, i) => (v === undefined ? null : `${x(i).toFixed(1)},${y(v).toFixed(1)}`)).filter(Boolean);
-      const dot = pts.length === 1 ? `<circle cx="${pts[0]!.split(",")[0]}" cy="${pts[0]!.split(",")[1]}" r="3" fill="${COLORS[k % COLORS.length]}"/>` : "";
-      return `<polyline points="${pts.join(" ")}" fill="none" stroke="${COLORS[k % COLORS.length]}" stroke-width="2"/>${dot}`;
-    })
-    .join("");
-  const legend = series.map((s, k) => `<span><i style="background:${COLORS[k % COLORS.length]}"></i>${esc(s.name)}</span>`).join("");
-  return `<svg viewBox="0 0 ${W} ${H}" class="chart" role="img">${grid}${paths}${labels}</svg><div class="legend">${legend}</div>`;
+/** Every calendar day from the first to the last (the last 180), each part's numbers on them; downloads a day as the totals' difference (a gap's shared evenly over its days, said in `since`). */
+export function seriesOf(h: History): Series {
+  const have = Object.keys(h.days).sort();
+  const days: string[] = [];
+  if (have.length) {
+    const last = Date.parse(have[have.length - 1]);
+    const first = Math.max(Date.parse(have[0]), last - 179 * DAY);
+    for (let t = first; t <= last; t += DAY) days.push(new Date(t).toISOString().slice(0, 10));
+  }
+  const at = (d: string) => h.days[d];
+  const addons = [...new Set(days.flatMap((d) => Object.keys(at(d)?.downloads ?? {})))];
+  const daily: Record<string, N[]> = {};
+  const since: (string | null)[] = days.map(() => null);
+  const totals: Record<string, number> = {};
+  const channels: Series["downloads"]["channels"] = {};
+  const week: Record<string, number | null> = {};
+  for (const a of addons) {
+    let prev: { day: string; total: number; i: number } | null = null;
+    const out: N[] = days.map(() => null);
+    days.forEach((d, i) => {
+      const c = at(d)?.downloads?.[a];
+      if (!c) return;
+      const total = sum(c);
+      totals[a] = total;
+      channels[a] = c;
+      if (prev) {
+        // (a gap: the difference covers the days since the last count, shared over them)
+        const span = i - prev.i;
+        const each = Math.max(0, total - prev.total) / span;
+        for (let j = prev.i + 1; j <= i; j++) {
+          out[j] = each;
+          if (span > 1) since[j] = prev.day;
+        }
+      }
+      prev = { day: d, total, i };
+    });
+    daily[a] = out;
+    const counted = days.filter((d) => at(d)?.downloads?.[a]);
+    const last = counted[counted.length - 1];
+    const cut = last ? new Date(Date.parse(last) - 7 * DAY).toISOString().slice(0, 10) : "";
+    const base = [...counted].reverse().find((d) => d <= cut) ?? (counted.length > 1 ? counted[0] : undefined);
+    week[a] = base && last && base !== last ? totals[a] - sum(at(base)!.downloads![a]) : null;
+  }
+  addons.sort((a, b) => (totals[b] ?? 0) - (totals[a] ?? 0));
+  const siteNames = [...new Set(days.flatMap((d) => Object.keys(at(d)?.traffic ?? {})))];
+  return {
+    days,
+    downloads: { addons, daily, since, totals, channels, week },
+    installs: days.map((d) => at(d)?.ravenpost?.installs ?? null),
+    facts: days.map((d) => at(d)?.sharing?.facts ?? null),
+    sharers: days.map((d) => at(d)?.sharing?.sharers ?? null),
+    newFacts: days.map((d) => (at(d)?.merged ? sum(Object.fromEntries(Object.entries(at(d)!.merged!).map(([g, m]) => [g, m.newFacts]))) : null)),
+    sites: Object.fromEntries(
+      siteNames.map((s) => [s, { visitors: days.map((d) => at(d)?.traffic?.[s]?.visitors ?? null), pageviews: days.map((d) => at(d)?.traffic?.[s]?.pageviews ?? null) }]),
+    ),
+  };
 }
 
-/** Bars, one a day. */
-function bars(days: string[], values: (number | undefined)[], height = 140): string {
-  if (!values.some((v) => v)) return `<p class="empty">Nothing yet.</p>`;
-  const W = 640, H = height, L = 48, B = 22, T = 10;
-  const hi = Math.max(...values.map((v) => v ?? 0)) || 1;
-  const w = (W - L) / days.length;
-  const rects = values
-    .map((v, i) => {
-      const h = ((H - T - B) * (v ?? 0)) / hi;
-      return `<rect x="${L + i * w + w * 0.15}" y="${H - B - h}" width="${w * 0.7}" height="${h}" class="bar"><title>${days[i]}: ${fmt(v)}</title></rect>`;
-    })
-    .join("");
-  return `<svg viewBox="0 0 ${W} ${H}" class="chart" role="img"><line x1="${L}" x2="${W}" y1="${H - B}" y2="${H - B}" class="grid"/><text x="${L - 6}" y="${T + 8}" class="axis" text-anchor="end">${fmt(hi)}</text>${rects}<text x="${L}" y="${H - 4}" class="axis">${days[0]?.slice(5) ?? ""}</text><text x="${W}" y="${H - 4}" class="axis" text-anchor="end">${days[days.length - 1]?.slice(5) ?? ""}</text></svg>`;
-}
-
-const tiles = (items: [string, string][]) =>
-  `<div class="tiles">${items.map(([v, l]) => `<div class="tile"><b>${v}</b><span>${esc(l)}</span></div>`).join("")}</div>`;
-const table = (head: string[], rows: string[][]) =>
-  `<div class="scroll"><table><thead><tr>${head.map((h, i) => `<th${i ? ' class="n"' : ""}>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows
-    .map((r) => `<tr>${r.map((c, i) => `<td${i ? ' class="n"' : ""}>${c}</td>`).join("")}</tr>`)
-    .join("")}</tbody></table></div>`;
-const shares = (m: Record<string, number> | undefined) =>
-  Object.entries(m ?? {})
-    .sort((a, b) => b[1] - a[1])
-    .map(([k, v]) => `${esc(k)} <b>${fmt(v)}</b>`)
-    .join(" · ") || "–";
-
+// ── the look: Ravenpost's window's theme ─────────────────────────────────────
 const STYLE = `
-:root{--bg:#16130f;--panel:#201b15;--line:#3a3127;--gold:#d4a843;--text:#e8dcc2;--dim:#a99c84;--faint:#7a6f5d;--green:#9fd18b;--red:#e08a6e}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 Inter,system-ui,sans-serif}
-main{max-width:1100px;margin:0 auto;padding:28px 16px 60px;padding-top:max(28px,env(safe-area-inset-top))}
-h1,h2{font-family:Cinzel,serif;color:var(--gold);font-weight:600;margin:0}h1{font-size:28px}h2{font-size:18px;margin-bottom:12px}
-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:22px}header p{margin:0;color:var(--dim);font-size:13px}
-.brand{display:flex;align-items:center;gap:12px}.brand img{width:44px;height:44px;border-radius:10px;box-shadow:0 2px 10px #0008}
-section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:18px}
-.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px;margin-bottom:18px}.grid2 section{margin-bottom:0}
-.tiles{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}.tile{background:#0003;border:1px solid var(--line);border-radius:10px;padding:10px 14px;min-width:120px}
-.tile b{display:block;font-size:22px;color:var(--gold)}.tile span{font-size:12px;color:var(--dim)}
-table{width:100%;border-collapse:collapse;font-size:14px}th{color:var(--dim);font-weight:600;text-align:left;border-bottom:1px solid var(--line);padding:6px 4px;white-space:nowrap}
-td{padding:6px 4px;border-bottom:1px solid #ffffff0d}.n{text-align:right;font-variant-numeric:tabular-nums}
-.chart{width:100%;height:auto;margin-top:6px}.grid{stroke:var(--line)}.axis{fill:var(--faint);font-size:11px}.bar{fill:var(--gold);opacity:.85}
-.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--dim);margin-top:4px}.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
-.empty{color:var(--faint);font-size:13px;margin:6px 0}.note{color:var(--faint);font-size:12px;margin:8px 0 0}a{color:var(--gold)}
-.mix{font-size:13px;color:var(--dim);margin:4px 0}.mix b{color:var(--text)}
-.scroll{overflow-x:auto}
-.events{list-style:none;margin:0;padding:0}.events li{display:grid;grid-template-columns:22px 1fr;gap:4px 10px;padding:10px 0;border-bottom:1px solid #ffffff0d}.events li:last-child{border:0}
-.events .k{font-weight:700;text-align:center}.events .t{font-weight:600}.events .t a{text-decoration:none}.events .b{grid-column:2;color:var(--dim);font-size:13px;white-space:pre-line}.events .w{grid-column:2;color:var(--faint);font-size:12px}
-.k.merged{color:var(--green)}.k.failed{color:var(--red)}.k.waiting,.k.digest,.k.test{color:var(--gold)}
-button{font:600 14px Inter,system-ui,sans-serif;color:var(--gold);background:#2a2218;border:1px solid var(--gold);border-radius:8px;padding:8px 14px;cursor:pointer}button:disabled{opacity:.5;cursor:default}
-button.quiet{color:var(--dim);border-color:var(--line)}.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-@media (max-width:560px){main{padding:20px 12px 40px;padding-top:max(20px,env(safe-area-inset-top))}section{padding:14px 12px}h1{font-size:22px}th,td{padding:5px 3px;font-size:13px}.tile{min-width:0;flex:1 1 40%}.tile b{font-size:19px}.grid2{grid-template-columns:1fr}}
+:root{color-scheme:dark;--night:#0b0c10;--stone:#121319;--stone-2:#181a21;--stone-3:#21242d;--edge:#2b2f3a;--edge-gold:#5a4a2a;--parchment:#ece3cf;--dim:#a39b88;--faint:#6f6a5e;--gold:#f2c14e;--gold-soft:#c9a227;--ok:#6fd08c;--blood:#e0634f;--bnet:#148eff;--display:"Cinzel","Trajan Pro",Georgia,serif;--sans:"Inter",ui-sans-serif,system-ui,sans-serif}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:16px}
+body{margin:0;background:radial-gradient(1200px 600px at 70% -10%,rgb(242 193 78/.06),transparent 60%),var(--night);color:var(--parchment);font:14px/1.5 var(--sans);-webkit-font-smoothing:antialiased;min-height:100vh}
+a{color:inherit;text-decoration:none}
+.title{font-family:var(--display);font-weight:700;letter-spacing:.03em;color:var(--gold);margin:0}
+.panel{position:relative;border:1px solid var(--edge);border-radius:12px;background:linear-gradient(180deg,color-mix(in srgb,var(--stone-2) 98%,white 2%),var(--stone));box-shadow:inset 0 1px 0 rgb(255 255 255/.03),inset 0 0 0 1px rgb(242 193 78/.05),0 10px 30px rgb(0 0 0/.35)}
+.ic{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;height:2.25rem;padding:0 .95rem;border-radius:8px;border:1px solid var(--edge);background:linear-gradient(180deg,var(--stone-3),var(--stone-2));color:var(--parchment);font:500 14px var(--sans);cursor:pointer;white-space:nowrap;transition:border-color .15s,filter .15s}
+.btn:hover{border-color:var(--edge-gold);filter:brightness(1.12)}.btn:disabled{opacity:.45;cursor:default}
+.btn-gold{border-color:#f6d27a;background:linear-gradient(180deg,#f6d27a,#c9a227 60%,#a07a1c);color:#22170a;font-weight:600;text-shadow:0 1px 0 rgb(255 240 200/.35);box-shadow:0 0 18px rgb(242 193 78/.15)}
+.btn-bnet{border-color:#4aa8ff;background:linear-gradient(180deg,#2e9bff,#0b6fd6);color:#fff;font-weight:600;height:2.6rem;padding:0 1.3rem}
+.btn-ghost{border-color:transparent;background:transparent;color:var(--dim)}
+.tag{display:inline-flex;align-items:center;gap:.3rem;height:1.3rem;padding:0 .5rem;border-radius:999px;border:1px solid rgb(255 255 255/.12);color:var(--dim);font-size:11px;font-weight:500;white-space:nowrap}
+.tag.ok{border-color:rgb(111 208 140/.35);color:var(--ok)}.tag.blood{border-color:rgb(224 99 79/.4);color:var(--blood)}.tag.gold{border-color:rgb(242 193 78/.35);color:var(--gold)}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}[hidden]{display:none!important}.sub{color:var(--faint);font-size:12px;margin:2px 0 0}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:rgb(255 255 255/.08);border-radius:999px;border:3px solid transparent;background-clip:padding-box}
+
+/* the frame: a sidebar on a computer, a bar of tabs at the bottom on a phone */
+.side{position:fixed;inset:0 auto 0 0;width:224px;display:flex;flex-direction:column;border-right:1px solid var(--edge);background:rgb(18 19 25/.85);backdrop-filter:blur(8px);padding:22px 12px 18px;z-index:10}
+.brand{display:flex;align-items:center;gap:12px;padding:0 8px 22px}.brand img{width:40px;height:40px;border-radius:9px;box-shadow:0 0 14px rgb(242 193 78/.25)}
+.brand .title{font-size:18px;line-height:1.1}.brand small{display:block;color:var(--faint);font-size:12px}
+.nav{display:flex;flex-direction:column;gap:2px}.nav a{display:flex;align-items:center;gap:12px;padding:8px 12px;border-radius:9px;color:var(--dim);transition:background .15s,color .15s}
+.nav a:hover{background:rgb(255 255 255/.04);color:var(--parchment)}.nav a.on{background:rgb(242 193 78/.1);color:var(--gold)}
+.side-foot{margin-top:auto;padding:0 10px;font-size:12px;color:var(--faint)}.side-foot p{margin:6px 0 0}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--faint);flex:none}.dot.ok{background:var(--ok)}.dot.blood{background:var(--blood)}.dot.gold{background:var(--gold)}
+.pulse{animation:pulse 2s ease-in-out infinite}@keyframes pulse{50%{opacity:.35}}
+main{margin-left:224px;padding:28px 32px 64px;max-width:1180px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}
+.top h1{font-size:26px}.top p{margin:4px 0 0;color:var(--dim)}
+.seg{display:inline-flex;padding:3px;border:1px solid var(--edge);border-radius:9px;background:rgb(0 0 0/.25)}.seg button{border:0;background:none;color:var(--dim);font:500 12px var(--sans);padding:5px 10px;border-radius:6px;cursor:pointer}.seg button.on{background:var(--stone-3);color:var(--gold)}
+section{margin-bottom:22px}.sh{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 2px 12px}.sh h2{font-size:17px}.sh p{margin:0;color:var(--faint);font-size:12px}
+.tabs{display:none}
+
+/* how things stand */
+.hero{display:flex;align-items:center;gap:16px;padding:18px 20px;margin-bottom:16px}
+.hero .raven{position:relative;width:56px;height:56px;flex:none}.hero .raven img{width:56px;height:56px;border-radius:12px}
+.hero .raven .badge{position:absolute;right:-5px;bottom:-5px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;border:2px solid var(--stone);color:var(--night)}
+.badge.ok{background:var(--ok)}.badge.blood{background:var(--blood)}.badge.gold{background:var(--gold)}.badge .ic{width:13px;height:13px;stroke-width:3}
+.hero h2{font-size:20px}.hero p{margin:3px 0 0;color:var(--dim)}.hero .grow{flex:1;min-width:0}
+
+/* the numbers */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}
+.kpi{padding:14px 16px 10px;display:flex;flex-direction:column;min-width:0}
+.kpi .k{display:flex;align-items:center;gap:7px;color:var(--dim);font-size:12px;font-weight:500}.kpi .k .ic{width:14px;height:14px;color:var(--gold-soft)}
+.kpi .v{font:600 26px/1.15 var(--sans);margin-top:6px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.kpi .d{font-size:12px;color:var(--faint);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.kpi .d b{color:var(--ok);font-weight:600}
+.kpi .spark{height:42px;margin:8px -6px 0}
+
+/* the activity */
+.chips{display:flex;gap:6px;flex-wrap:wrap}.chip{border:1px solid var(--edge);background:transparent;color:var(--dim);font:500 12px var(--sans);height:28px;padding:0 11px;border-radius:999px;cursor:pointer}.chip.on{border-color:var(--edge-gold);background:rgb(242 193 78/.1);color:var(--gold)}
+.feed{list-style:none;margin:0;padding:6px 0}.feed li{display:flex;gap:12px;padding:12px 18px;border-top:1px solid rgb(255 255 255/.045)}.feed li:first-child{border-top:0}
+.feed .i{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;flex:none;margin-top:1px}
+.i.merged{background:rgb(111 208 140/.12);color:var(--ok)}.i.failed{background:rgb(224 99 79/.14);color:var(--blood)}.i.waiting,.i.test{background:rgb(242 193 78/.12);color:var(--gold)}.i.digest{background:rgb(108 180 238/.12);color:#6cb4ee}
+.feed .c{flex:1;min-width:0}.feed .t{display:flex;align-items:baseline;justify-content:space-between;gap:10px}.feed .t b{font-weight:600}.feed .t time{color:var(--faint);font-size:12px;white-space:nowrap}
+.feed .b{color:var(--dim);font-size:13px;white-space:pre-line;margin-top:2px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}.feed .b.open{display:block}
+.feed .m{display:flex;gap:6px;align-items:center;margin-top:6px}.feed .m a{color:var(--gold);font-size:12px}
+.more{display:block;width:100%;border:0;border-top:1px solid rgb(255 255 255/.045);background:none;color:var(--dim);font:500 13px var(--sans);padding:11px;cursor:pointer;border-radius:0 0 12px 12px}.more:hover{color:var(--gold)}
+.empty{color:var(--faint);padding:18px;margin:0;font-size:13px}
+
+/* the charts */
+.card{padding:16px 18px}.card h3{margin:0;font:600 13px var(--sans);color:var(--parchment)}
+.chart{position:relative;height:220px;margin-top:12px;touch-action:pan-y}.chart svg{display:block;width:100%;height:100%;overflow:visible}
+.chart .grid line{stroke:rgb(255 255 255/.06)}.chart text{fill:var(--faint);font:11px var(--sans)}
+.tip{position:absolute;top:0;pointer-events:none;min-width:130px;padding:8px 10px;border-radius:8px;border:1px solid var(--edge-gold);background:rgb(18 19 25/.96);box-shadow:0 8px 24px rgb(0 0 0/.5);font-size:12px;opacity:0;transition:opacity .12s;z-index:2}
+.tip.on{opacity:1}.tip b{display:block;color:var(--gold);font-weight:600;margin-bottom:3px}.tip div{display:flex;justify-content:space-between;gap:14px;color:var(--dim)}.tip div span:last-child{color:var(--parchment);font-variant-numeric:tabular-nums}.tip i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:12px;color:var(--dim)}.legend span{display:inline-flex;align-items:center;gap:6px}.legend i{width:9px;height:9px;border-radius:2px}
+.wait{display:grid;place-items:center;text-align:center;color:var(--faint);font-size:13px;height:100%;border:1px dashed var(--edge);border-radius:10px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.rows{margin-top:6px}.row{display:grid;grid-template-columns:minmax(0,1.4fr) 90px minmax(0,1.6fr) 72px;align-items:center;gap:14px;padding:11px 0;border-top:1px solid rgb(255 255 255/.045)}.row:first-child{border-top:0}
+.row .n{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.row .tot{font-variant-numeric:tabular-nums;font-weight:600;text-align:right}.row .wk{text-align:right;font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums}.row .wk b{color:var(--ok);font-weight:600}
+.split{display:flex;height:6px;border-radius:999px;overflow:hidden;background:var(--stone-3)}.split i{display:block;height:100%}
+.split-l{display:flex;gap:10px;font-size:11px;color:var(--faint);margin-top:4px;white-space:nowrap;overflow:hidden}
+.bars{display:flex;flex-direction:column;gap:8px;margin-top:12px}.bar-r{display:grid;grid-template-columns:minmax(0,1fr) 2fr 36px;gap:10px;align-items:center;font-size:12px;color:var(--dim)}.bar-r .track{height:6px;border-radius:999px;background:var(--stone-3);overflow:hidden}.bar-r .track i{display:block;height:100%;background:var(--gold-soft);border-radius:999px}.bar-r b{color:var(--parchment);text-align:right;font-weight:500;font-variant-numeric:tabular-nums}
+.switch{position:relative;width:40px;height:22px;border-radius:999px;border:1px solid var(--edge);background:var(--stone-3);cursor:pointer;flex:none;transition:background .15s}.switch::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--dim);transition:transform .15s}
+.switch[aria-checked=true]{background:rgb(201 162 39/.8);border-color:var(--gold-soft)}.switch[aria-checked=true]::after{transform:translateX(18px);background:var(--night)}.switch:disabled{opacity:.4;cursor:default}
+.notif{display:flex;align-items:center;gap:14px;padding:16px 18px}.notif .grow{flex:1;min-width:0}.notif p{margin:2px 0 0;color:var(--dim);font-size:13px}
+
+@media (max-width:1000px){.kpis{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}}
+@media (max-width:760px){
+  .side{display:none}main{margin:0;padding:14px 12px calc(84px + env(safe-area-inset-bottom));padding-top:max(14px,env(safe-area-inset-top))}
+  .top h1{font-size:21px}.top .brandm{display:flex;align-items:center;gap:10px}.top .brandm img{width:32px;height:32px;border-radius:8px}
+  .hero{padding:14px}.hero .raven,.hero .raven img{width:46px;height:46px}.hero h2{font-size:17px}
+  .kpis{gap:10px}.kpi{padding:12px 12px 8px}.kpi .v{font-size:22px}
+  .chart{height:190px}.card{padding:14px}
+  .row{grid-template-columns:minmax(0,1fr) auto;gap:4px 12px}.row .sp{grid-column:1/-1}.row .wk{grid-column:2;grid-row:1;display:none}
+  .tabs{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:10;justify-content:space-around;padding:6px 6px calc(6px + env(safe-area-inset-bottom));background:rgb(18 19 25/.92);backdrop-filter:blur(10px);border-top:1px solid var(--edge)}
+  .tabs a{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:var(--faint);padding:4px 8px;border-radius:8px;min-width:56px}.tabs a .ic{width:20px;height:20px}.tabs a.on{color:var(--gold)}
+}
+@media (min-width:761px){.top .brandm img{display:none}}
+@media (prefers-reduced-motion:reduce){.pulse{animation:none}html{scroll-behavior:auto}}
 `;
+
+const ICON: Record<string, string> = {
+  house: '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  activity: '<path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/>',
+  download: '<path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/>',
+  globe: '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
+  bell: '<path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+  merge: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/>',
+  send: '<path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/>',
+};
+const icon = (name: string, cls = "ic") => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICON[name]}</svg>`;
 
 /** The page's head: the app's manifest, icons and colours. */
 function head(title: string): string {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>${esc(title)}</title>
-<link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#16130f">
+<link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#0b0c10">
 <link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Ravenpost">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>${STYLE}</style></head>`;
-}
-
-/** Signing in, with Battle.net (back here after, in the app on a phone too). */
-export function signinPage(): string {
-  return `${head("Ravenpost")}<body><main style="max-width:440px">
-<header><div class="brand"><img src="/icon-192.png" alt=""><h1>Ravenpost</h1></div></header>
-<section><h2>Sign in</h2>
-<p><a href="/api/login?web=1"><button>Sign in with Battle.net</button></a></p>
-<p class="note">The dashboard is its owner's.</p>
-</section></main>${SW}</body></html>`;
 }
 
 // (the service worker, for the notifications and the app on a phone)
 const SW = `<script>if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js")</script>`;
 
-const ICONS: Record<Event["kind"], string> = { merged: "✓", failed: "✗", waiting: "●", digest: "☀", test: "♪" };
+/** Signing in, with Battle.net (back here after, in the app on a phone too). */
+export function signinPage(): string {
+  return `${head("Ravenpost")}<body><div style="min-height:100vh;display:grid;place-items:center;padding:24px">
+<div class="panel" style="width:min(400px,100%);padding:30px 28px;text-align:center">
+<img src="/icon-192.png" alt="" style="width:84px;height:84px;border-radius:18px;box-shadow:0 0 30px rgb(242 193 78/.25)">
+<h1 class="title" style="font-size:26px;margin-top:16px">Ravenpost</h1>
+<p style="color:var(--dim);margin:6px 0 24px">The addons' numbers and their data jobs, for their owner.</p>
+<a class="btn btn-bnet" href="/api/login?web=1">Sign in with Battle.net</a>
+</div></div>${SW}</body></html>`;
+}
+
+// ── the parts ────────────────────────────────────────────────────────────────
+const KIND: Record<Event["kind"], { icon: string; label: string; group: string }> = {
+  merged: { icon: "merge", label: "Merged", group: "data" },
+  failed: { icon: "x", label: "Failed", group: "problems" },
+  waiting: { icon: "clock", label: "Waiting", group: "problems" },
+  digest: { icon: "sun", label: "Digest", group: "digests" },
+  test: { icon: "send", label: "Test", group: "data" },
+};
 function ago(iso: string, now = Date.now()): string {
   const m = Math.round((now - Date.parse(iso)) / 60_000);
   if (m < 60) return m <= 1 ? "just now" : `${m} min ago`;
@@ -129,138 +239,267 @@ function ago(iso: string, now = Date.now()): string {
   if (h < 36) return `${h} h ago`;
   return `${Math.round(h / 24)} days ago`;
 }
-function activity(list: Event[]): string {
+
+function feed(list: Event[]): string {
   if (!list.length) return `<p class="empty">Nothing yet. The data jobs report here each morning, then the digest.</p>`;
-  return `<ul class="events">${list
-    .slice(0, 40)
-    .map(
-      (e) =>
-        `<li><span class="k ${e.kind}">${ICONS[e.kind]}</span><span class="t">${e.url ? `<a href="${esc(e.url)}">${esc(e.title)}</a>` : esc(e.title)}</span>${e.body ? `<span class="b">${esc(e.body)}</span>` : ""}<span class="w">${ago(e.at)}${e.repo ? ` · ${esc(REPO_NAMES[e.repo] ?? e.repo)}` : ""}</span></li>`,
-    )
-    .join("")}</ul>`;
+  const rows = list
+    .slice(0, 60)
+    .map((e, i) => {
+      const k = KIND[e.kind];
+      return `<li data-group="${k.group}"${i >= 8 ? " hidden data-more" : ""}><span class="i ${e.kind}">${icon(k.icon)}</span><div class="c">
+<div class="t"><b>${esc(e.title)}</b><time datetime="${esc(e.at)}" title="${esc(e.at.slice(0, 16).replace("T", " "))} UTC">${ago(e.at)}</time></div>
+${e.body ? `<div class="b">${esc(e.body)}</div>` : ""}
+<div class="m">${e.repo ? `<span class="tag">${esc(cap(REPO_NAMES[e.repo] ?? e.repo))}</span>` : ""}${e.url ? `<a href="${esc(e.url)}" target="_blank" rel="noopener">${e.url.includes("/pull/") ? "Pull request" : e.url.includes("/actions/") ? "The run" : "Open"} ↗</a>` : ""}</div>
+</div></li>`;
+    })
+    .join("");
+  return `<ul class="feed">${rows}</ul>${list.length > 8 ? `<button class="more" id="feed-more">Show ${Math.min(list.length, 60) - 8} more</button>` : ""}`;
 }
 
-// The notifications' switch (Hearthtale's lib/push.ts, without React).
+/** How things stand, from the day's events: a failure first, a pull request waiting, else quiet. */
+function standing(events: Event[], now = Date.now()) {
+  const recent = events.filter((e) => now - Date.parse(e.at) < 36 * 3600_000);
+  const failed = recent.filter((e) => e.kind === "failed");
+  const waiting = recent.filter((e) => e.kind === "waiting");
+  if (failed.length) return { tone: "blood", icon: "x", title: failed.length > 1 ? `${failed.length} jobs failed` : "A job failed", line: failed.map((e) => e.title).join(" · ") };
+  if (waiting.length) return { tone: "gold", icon: "clock", title: "Something waits for you", line: waiting.map((e) => e.title).join(" · ") };
+  const last = events.find((e) => e.kind !== "digest");
+  return { tone: "ok", icon: "check", title: "All quiet", line: last ? `Last word ${ago(last.at, now)}: ${last.title}` : "The data jobs report here each morning." };
+}
+
+const lastOf = (xs: N[]) => {
+  for (let i = xs.length - 1; i >= 0; i--) if (xs[i] !== null) return xs[i];
+  return null;
+};
+
+export function dashboard(h: History, opts: { viewer?: string; events?: Event[]; pushKey?: string | null; devices?: number } = {}): string {
+  const s = seriesOf(h);
+  const events = opts.events ?? [];
+  const st = standing(events);
+  const total = Object.values(s.downloads.totals).reduce((a, b) => a + b, 0);
+  const weeks = Object.values(s.downloads.week).filter((v): v is number => v !== null);
+  const week = weeks.length ? weeks.reduce((a, b) => a + b, 0) : null;
+  const visitors = s.days.map((_, i) => {
+    const vs = Object.values(s.sites).map((x) => x.visitors[i]).filter((v): v is number => v !== null);
+    return vs.length ? vs.reduce((a, b) => a + b, 0) : null;
+  });
+  const lastDay = [...Object.keys(h.days)].sort().pop();
+  const latest = <K extends keyof Day>(k: K): Day[K] | undefined => {
+    const all = Object.keys(h.days).sort();
+    for (let i = all.length - 1; i >= 0; i--) if (h.days[all[i]]?.[k]) return h.days[all[i]][k];
+    return undefined;
+  };
+  const rp = latest("ravenpost");
+  const sh = latest("sharing");
+  const shares = (m: Record<string, number> | undefined, empty: string) => {
+    const e = Object.entries(m ?? {}).sort((a, b) => b[1] - a[1]);
+    const hi = Math.max(1, ...e.map(([, v]) => v));
+    return e.length
+      ? `<div class="bars">${e.map(([k, v]) => `<div class="bar-r"><span>${esc(k)}</span><span class="track"><i style="width:${Math.max(4, (100 * v) / hi)}%"></i></span><b>${fmt(v)}</b></div>`).join("")}</div>`
+      : `<p class="empty" style="padding:12px 0 0">${empty}</p>`;
+  };
+  const CH = { curseforge: ["CurseForge", "#f16436"], wago: ["Wago", "#f2c14e"], github: ["GitHub", "#a39b88"] } as const;
+  const rows = s.downloads.addons
+    .map((a, k) => {
+      const c = s.downloads.channels[a] ?? {};
+      const t = s.downloads.totals[a] ?? 0;
+      const parts = (Object.keys(CH) as (keyof typeof CH)[]).filter((x) => c[x]);
+      return `<div class="row"><span class="n"><i class="dotc" style="display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:8px;background:var(--c${k % 7})"></i>${esc(a)}</span>
+<span class="tot">${fmt(t)}</span>
+<span class="sp"><span class="split">${parts.map((x) => `<i style="width:${(100 * (c[x] ?? 0)) / (t || 1)}%;background:${CH[x][1]}"></i>`).join("")}</span><span class="split-l">${parts.map((x) => `<span>${CH[x][0]} ${fmt(c[x])}</span>`).join("")}</span></span>
+<span class="wk">${s.downloads.week[a] === null ? "–" : `<b>+${fmt(s.downloads.week[a])}</b> 7 d`}</span></div>`;
+    })
+    .join("");
+  const kpi = (id: string, ic: string, label: string, value: string, line: string) =>
+    `<div class="panel kpi"><span class="k">${icon(ic)}${esc(label)}</span><span class="v">${value}</span><span class="d">${line}</span><div class="spark" id="${id}"></div></div>`;
+  const NAV = [
+    ["overview", "house", "Overview"],
+    ["activity", "activity", "Activity"],
+    ["downloads", "download", "Downloads"],
+    ["players", "users", "Players"],
+    ["sites", "globe", "Sites"],
+    ["notifications", "bell", "Notifications"],
+  ];
+  const data = {
+    ...s,
+    visitors,
+    labels: s.days.map(short),
+    since: s.downloads.since.map((d) => (d ? short(d) : null)),
+  };
+  return `${head("Ravenpost")}<body>
+<aside class="side"><div class="brand"><img src="/icon-192.png" alt=""><div><p class="title">Ravenpost</p><small>The inbox</small></div></div>
+<nav class="nav">${NAV.map(([id, ic, label]) => `<a href="#${id}" data-nav="${id}">${icon(ic)}${label}</a>`).join("")}</nav>
+<div class="side-foot"><p style="display:flex;align-items:center;gap:8px;color:var(--dim)"><span class="dot ${st.tone} pulse"></span>${esc(st.title)}</p><p>${h.updated ? `Numbers of ${esc(h.updated.slice(0, 10))}, ${esc(h.updated.slice(11, 16))} UTC` : "No numbers yet"}</p>${opts.viewer ? `<p>${esc(opts.viewer)}</p>` : ""}</div></aside>
+<nav class="tabs">${NAV.slice(0, 5).map(([id, ic, label]) => `<a href="#${id}" data-nav="${id}">${icon(ic)}${label}</a>`).join("")}</nav>
+<main>
+<div class="top" id="overview"><div class="brandm"><img src="/icon-192.png" alt=""><div><h1 class="title">Overview</h1><p>${lastDay ? `To ${short(lastDay)}` : "No numbers yet"}</p></div></div>
+<div class="seg" role="group" aria-label="Range"><button data-range="30" class="on">30 d</button><button data-range="90">90 d</button><button data-range="0">All</button></div></div>
+
+<div class="panel hero"><div class="raven"><img src="/icon-192.png" alt=""><span class="badge ${st.tone}">${icon(st.icon)}</span></div><div class="grow"><h2 class="title">${esc(st.title)}</h2><p>${esc(st.line)}</p></div></div>
+
+<div class="kpis">
+${kpi("k-dl", "download", "Downloads", fmt(total), week === null ? "every addon, every store" : `<b>+${fmt(week)}</b> in 7 days`)}
+${kpi("k-in", "users", "Ravenpost installs", fmt(rp?.installs), rp ? `${fmt(rp.sharing)} sharing · yesterday` : "pinged yesterday")}
+${kpi("k-fa", "send", "Facts shared", fmt(sh?.facts), sh ? `${fmt(sh.sharers)} player${sh.sharers === 1 ? "" : "s"} · yesterday` : "yesterday")}
+${kpi("k-vi", "globe", "Site visitors", fmt(lastOf(visitors)), Object.keys(s.sites).length ? Object.keys(s.sites).join(" · ") : "Web Analytics")}
+</div>
+
+<section id="activity"><div class="sh"><h2 class="title">Activity</h2><div class="chips" role="group" aria-label="Show">${[
+    ["all", "All"],
+    ["data", "Data"],
+    ["problems", "Problems"],
+    ["digests", "Digests"],
+  ]
+    .map(([k, l], i) => `<button class="chip${i ? "" : " on"}" data-filter="${k}">${l}</button>`)
+    .join("")}</div></div>
+<div class="panel" id="feed">${feed(events)}</div></section>
+
+<section id="downloads"><div class="sh"><h2 class="title">Downloads</h2><p>New downloads a day, by addon</p></div>
+<div class="panel card"><div class="chart" id="c-dl"></div><div class="legend" id="l-dl"></div>
+<div class="rows" style="margin-top:14px">${rows || `<p class="empty">Nothing yet.</p>`}</div>
+<p class="sub" style="margin-top:10px">Download events, not players. CurseForge through cfwidget, Wago from its pages, GitHub from the releases.</p></div></section>
+
+<section id="players"><div class="sh"><h2 class="title">Players</h2><p>Ravenpost and the shared facts</p></div>
+<div class="grid2">
+<div class="panel card"><h3>Ravenpost installs</h3><p class="sub">Active a day: one anonymous ping each</p><div class="chart" id="c-in" style="height:170px"></div>
+<div class="grid2" style="gap:14px;margin-top:6px"><div><p class="sub">Versions</p>${shares(rp?.versions, "–")}</div><div><p class="sub">Systems</p>${shares(rp?.os, "–")}</div></div>
+<p class="sub" style="margin-top:12px">Linked</p>${shares(rp?.linked, "None yet.")}</div>
+<div class="panel card"><h3>Facts shared</h3><p class="sub">A day, and the ones new to the database</p><div class="chart" id="c-fa" style="height:170px"></div><div class="legend" id="l-fa"></div>
+<div class="grid2" style="gap:14px;margin-top:6px"><div><p class="sub">Games</p>${shares(sh?.games, "–")}</div><div><p class="sub">Languages</p>${shares(sh?.locales, "–")}</div></div></div>
+</div></section>
+
+<section id="sites"><div class="sh"><h2 class="title">Sites</h2><p>Visitors a day</p></div>
+<div class="panel card">${Object.keys(s.sites).length ? `<div class="chart" id="c-vi"></div><div class="legend" id="l-vi"></div>` : `<p class="empty" style="padding:4px 0">No traffic numbers yet. Web Analytics feeds them once its token is set.</p>`}</div></section>
+
+<section id="notifications"><div class="sh"><h2 class="title">Notifications</h2><p>${opts.devices ? `${fmt(opts.devices)} device${opts.devices === 1 ? "" : "s"} told` : "No device told yet"}</p></div>
+<div class="panel notif"><div class="grow"><b>This device</b><p id="push-state">…</p></div><button class="btn btn-ghost" id="push-test" hidden>Send a test</button><button class="switch" id="push-switch" role="switch" aria-checked="false" aria-label="Notifications on this device" disabled></button></div>
+<p class="sub" style="margin:10px 4px 0">The data jobs as they finish, and a digest each morning. On a phone: add this page to the Home Screen, open Ravenpost from there, sign in, then turn them on.</p></section>
+</main>
+<script type="application/json" id="data">${JSON.stringify(data).replace(/</g, "\\u003c")}</script>
+${SW}${SCRIPT(opts.pushKey ?? null)}</body></html>`;
+}
+
+// ── the page's script: the charts, the activity's filters, the nav, the notifications ──
 const SCRIPT = (key: string | null) => `<script>
+(()=>{
+const D=JSON.parse(document.getElementById("data").textContent);
+const C=["#f2c14e","#6cb4ee","#6fd08c","#e0634f","#b58cf0","#ece3cf","#5fd3c4"];
+C.forEach((c,i)=>document.documentElement.style.setProperty("--c"+i,c));
+const $=(id)=>document.getElementById(id);
+const nf=(v)=>v==null?"–":Math.round(v).toLocaleString("en-GB");
+const NS="http://www.w3.org/2000/svg";
+const el=(tag,a={},p)=>{const e=document.createElementNS(NS,tag);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e};
+const nice=(v)=>{if(v<=0)return 1;const p=Math.pow(10,Math.floor(Math.log10(v)));const n=v/p;return ([1,1.2,1.5,2,2.5,3,4,5,6,8,10].find(s=>n<=s))*p};
+let range=30;
+const cut=(xs)=>range&&xs.length>range?xs.slice(-range):xs;
+// (a smooth line through the points: monotone, it never overshoots)
+function smooth(p){if(p.length<2)return "";const n=p.length,d=[],m=[];for(let i=0;i<n-1;i++)d.push((p[i+1][1]-p[i][1])/(p[i+1][0]-p[i][0]||1));m.push(d[0]);for(let i=1;i<n-1;i++)m.push(d[i-1]*d[i]<=0?0:(d[i-1]+d[i])/2);m.push(d[n-2]);
+for(let i=0;i<n-1;i++){if(d[i]===0){m[i]=m[i+1]=0;continue}const a=m[i]/d[i],b=m[i+1]/d[i],s=a*a+b*b;if(s>9){const t=3/Math.sqrt(s);m[i]=t*a*d[i];m[i+1]=t*b*d[i]}}
+let s="M"+p[0][0]+","+p[0][1];for(let i=0;i<n-1;i++){const h=(p[i+1][0]-p[i][0])/3;s+="C"+(p[i][0]+h)+","+(p[i][1]+m[i]*h)+" "+(p[i+1][0]-h)+","+(p[i+1][1]-m[i]*h)+" "+p[i+1][0]+","+p[i+1][1]}return s}
+/** A chart: "area" (lines, each with a soft fill) or "bars" (stacked), at its box's size, a value under the finger. */
+function chart(box,{type,series,labels,since,format=nf,height}){
+  if(!box)return;box.innerHTML="";
+  const lab=cut(labels),ser=series.map(s=>({...s,v:cut(s.values)}));
+  const n=lab.length,has=ser.some(s=>s.v.filter(v=>v!=null).length>(type==="bars"?0:1));
+  if(!n||!has){const w=document.createElement("div");w.className="wait";const one=ser.map(s=>s.v.filter(v=>v!=null).pop()).filter(v=>v!=null);w.innerHTML=(one.length?"<b style=\\"color:var(--parchment);font-size:18px\\">"+format(one.reduce((a,b)=>a+b,0))+"</b><br>":"")+"Collecting: the chart draws itself as the days come in.";box.appendChild(w);return}
+  const W=box.clientWidth,H=box.clientHeight,L=34,R=8,T=10,B=22,pw=W-L-R,ph=H-T-B;
+  const tot=(i)=>ser.reduce((a,s)=>a+(s.v[i]||0),0);
+  let hi=0;for(let i=0;i<n;i++)hi=Math.max(hi,type==="bars"?tot(i):Math.max(0,...ser.map(s=>s.v[i]||0)));hi=nice(hi*1.08);
+  const x=type==="bars"?(i)=>L+(i+.5)*pw/n:(i)=>L+(n===1?pw/2:i*pw/(n-1)),y=(v)=>T+ph*(1-v/hi);
+  const svg=el("svg",{viewBox:"0 0 "+W+" "+H,role:"img"},box),defs=el("defs",{},svg);
+  const g=el("g",{class:"grid"},svg);
+  for(const f of [0,.5,1]){const v=hi*f;el("line",{x1:L,x2:W-R,y1:y(v),y2:y(v),"stroke-dasharray":f?"3 4":""},g);const t=el("text",{x:L-8,y:y(v)+4,"text-anchor":"end"},svg);t.textContent=v>=1000?(v/1000).toLocaleString("en-GB",{maximumFractionDigits:1})+"k":nf(v)}
+  const ticks=Math.min(n,W<420?3:5);for(let k=0;k<ticks;k++){const i=ticks===1?0:Math.round(k*(n-1)/(ticks-1));const t=el("text",{x:x(i),y:H-5,"text-anchor":ticks>1&&k===0?"start":ticks>1&&k===ticks-1?"end":"middle"},svg);t.textContent=lab[i]}
+  if(type==="bars"){
+    const bw=Math.max(2,Math.min(16,pw/n*.6));
+    for(let i=0;i<n;i++){let acc=0;ser.forEach((s,k)=>{const v=s.v[i]||0;if(!v)return;const y0=y(acc),y1=y(acc+v);acc+=v;el("rect",{x:x(i)-bw/2,y:y1,width:bw,height:Math.max(1,y0-y1),rx:Math.min(2.5,bw/4),fill:s.color,opacity:.92,stroke:"#15161c","stroke-width":bw>5?1:0},svg)})}
+  }else{
+    ser.forEach((s,k)=>{const gid="g"+box.id+k;const lg=el("linearGradient",{id:gid,x1:0,y1:0,x2:0,y2:1},defs);el("stop",{offset:"0","stop-color":s.color,"stop-opacity":.28},lg);el("stop",{offset:"1","stop-color":s.color,"stop-opacity":0},lg);
+      let run=[];const runs=[];s.v.forEach((v,i)=>{if(v==null){if(run.length)runs.push(run);run=[]}else run.push([x(i),y(v)])});if(run.length)runs.push(run);
+      for(const r of runs){if(r.length===1){el("circle",{cx:r[0][0],cy:r[0][1],r:3,fill:s.color},svg);continue}const d=smooth(r);el("path",{d:d+"L"+r[r.length-1][0]+","+(T+ph)+"L"+r[0][0]+","+(T+ph)+"Z",fill:"url(#"+gid+")"},svg);el("path",{d,fill:"none",stroke:s.color,"stroke-width":2,"stroke-linejoin":"round","stroke-linecap":"round"},svg)}})
+  }
+  // (the value under the finger or the mouse)
+  const line=el("line",{y1:T,y2:T+ph,stroke:"rgb(242 193 78/.35)","stroke-width":1,opacity:0},svg);
+  const dots=ser.map(s=>el("circle",{r:4,fill:s.color,stroke:"#0b0c10","stroke-width":2,opacity:0},svg));
+  const tip=document.createElement("div");tip.className="tip";box.appendChild(tip);
+  const show=(ev)=>{const r=box.getBoundingClientRect();const px=ev.clientX-r.left;let i=type==="bars"?Math.floor((px-L)/(pw/n)):Math.round((px-L)/(pw/(n-1||1)));i=Math.max(0,Math.min(n-1,i));
+    line.setAttribute("x1",x(i));line.setAttribute("x2",x(i));line.setAttribute("opacity",1);let acc=0;
+    ser.forEach((s,k)=>{const v=s.v[i];if(v==null||type==="bars"){dots[k].setAttribute("opacity",0);return}dots[k].setAttribute("cx",x(i));dots[k].setAttribute("cy",y(v));dots[k].setAttribute("opacity",1)});
+    const sc=since&&cut(since)[i];
+    tip.innerHTML="<b>"+lab[i]+(sc?" <span style=\\"color:var(--faint);font-weight:400\\">≈ shared since "+sc+"</span>":"")+"</b>"+ser.filter(s=>s.v[i]!=null).map(s=>"<div><span><i style=\\"background:"+s.color+"\\"></i>"+s.name+"</span><span>"+format(s.v[i])+"</span></div>").join("")+(type==="bars"&&ser.length>1?"<div style=\\"border-top:1px solid var(--edge);margin-top:4px;padding-top:4px\\"><span>Total</span><span>"+format(tot(i))+"</span></div>":"");
+    tip.classList.add("on");const tw=tip.offsetWidth;tip.style.left=Math.max(0,Math.min(W-tw,x(i)+(x(i)>W/2?-tw-12:12)))+"px";tip.style.top=T+"px"};
+  const hide=()=>{tip.classList.remove("on");line.setAttribute("opacity",0);dots.forEach(d=>d.setAttribute("opacity",0))};
+  box.onpointermove=show;box.onpointerdown=show;box.onpointerleave=hide;
+}
+function spark(box,values,color){if(!box)return;box.innerHTML="";const v=cut(values);const pts=v.map((y,i)=>[i,y]).filter(p=>p[1]!=null);if(pts.length<2)return;
+  const W=box.clientWidth,H=box.clientHeight,hi=Math.max(...pts.map(p=>p[1]))||1,n=v.length;const X=(i)=>2+i*(W-4)/(n-1),Y=(y)=>H-3-(H-6)*y/hi;
+  const svg=el("svg",{viewBox:"0 0 "+W+" "+H},box),gid="s"+box.id,lg=el("linearGradient",{id:gid,x1:0,y1:0,x2:0,y2:1},el("defs",{},svg));el("stop",{offset:"0","stop-color":color,"stop-opacity":.3},lg);el("stop",{offset:"1","stop-color":color,"stop-opacity":0},lg);
+  const p=pts.map(([i,y])=>[X(i),Y(y)]),d=smooth(p);el("path",{d:d+"L"+p[p.length-1][0]+","+H+"L"+p[0][0]+","+H+"Z",fill:"url(#"+gid+")"},svg);el("path",{d,fill:"none",stroke:color,"stroke-width":1.6},svg);el("circle",{cx:p[p.length-1][0],cy:p[p.length-1][1],r:2.6,fill:color},svg)}
+const legend=(box,series,onToggle)=>{if(!box)return;box.innerHTML=series.map((s,k)=>"<span data-k=\\""+k+"\\" style=\\"cursor:pointer;opacity:"+(s.off?.35:1)+"\\"><i style=\\"background:"+s.color+"\\"></i>"+s.name+"</span>").join("");box.querySelectorAll("span").forEach(sp=>sp.onclick=()=>onToggle(+sp.dataset.k))};
+const addons=D.downloads.addons.map((a,k)=>({name:a,color:C[k%7],values:D.downloads.daily[a]}));
+const dlTotal=D.days.map((_,i)=>{let t=null;for(const a of addons){const v=a.values[i];if(v!=null)t=(t||0)+v}return t});
+const sites=Object.entries(D.sites).map(([s,v],k)=>({name:s,color:C[(k+1)%7],values:v.visitors}));
+function draw(){
+  spark($("k-dl"),dlTotal,C[0]);spark($("k-in"),D.installs,C[1]);spark($("k-fa"),D.facts,C[2]);spark($("k-vi"),D.visitors,C[4]);
+  const on=addons.filter(a=>!a.off);
+  chart($("c-dl"),{type:"bars",series:on,labels:D.labels,since:D.since});legend($("l-dl"),addons,(k)=>{addons[k].off=!addons[k].off;draw()});
+  chart($("c-in"),{type:"bars",series:[{name:"Installs",color:C[1],values:D.installs}],labels:D.labels});
+  const fa=[{name:"Facts",color:C[2],values:D.facts},{name:"New to the database",color:C[0],values:D.newFacts}];
+  chart($("c-fa"),{type:"area",series:fa,labels:D.labels});legend($("l-fa"),fa,()=>{});
+  if($("c-vi")){chart($("c-vi"),{type:"area",series:sites.filter(s=>!s.off),labels:D.labels});legend($("l-vi"),sites,(k)=>{sites[k].off=!sites[k].off;draw()})}
+}
+document.querySelectorAll("[data-range]").forEach(b=>b.onclick=()=>{range=+b.dataset.range;document.querySelectorAll("[data-range]").forEach(x=>x.classList.toggle("on",x===b));draw()});
+let t;new ResizeObserver(()=>{clearTimeout(t);t=setTimeout(draw,60)}).observe(document.querySelector("main"));draw();
+
+// The activity: its filters, more of it, a long word opened.
+let filter="all";const items=[...document.querySelectorAll(".feed li")];let all=false;
+const apply=()=>{let shown=0;for(const li of items){const ok=filter==="all"||li.dataset.group===filter;const show=ok&&(all||shown<8);li.hidden=!show;if(ok)shown++}const m=$("feed-more");if(m)m.hidden=all||items.filter(li=>filter==="all"||li.dataset.group===filter).length<=8};
+document.querySelectorAll("[data-filter]").forEach(b=>b.onclick=()=>{filter=b.dataset.filter;document.querySelectorAll("[data-filter]").forEach(x=>x.classList.toggle("on",x===b));apply()});
+if($("feed-more"))$("feed-more").onclick=()=>{all=true;apply()};
+document.querySelectorAll(".feed .b").forEach(b=>b.onclick=()=>b.classList.toggle("open"));apply();
+
+// The nav: where the page is.
+const links=[...document.querySelectorAll("[data-nav]")];const mark=(id)=>links.forEach(a=>a.classList.toggle("on",a.dataset.nav===id));
+const seen=new IntersectionObserver((es)=>{for(const e of es)if(e.isIntersecting)mark(e.target.id)},{rootMargin:"-30% 0px -60% 0px"});
+["overview","activity","downloads","players","sites","notifications"].forEach(id=>$(id)&&seen.observe($(id)));mark("overview");
+})();
+
+// The notifications' switch (Hearthtale's lib/push.ts, without React).
+(()=>{
 const KEY=${JSON.stringify(key)};
 const $=(id)=>document.getElementById(id);
 const bytes=(s)=>{const b=atob(s.replace(/-/g,"+").replace(/_/g,"/")+"=".repeat((4-s.length%4)%4));return Uint8Array.from(b,c=>c.charCodeAt(0))};
 const ios=/iPhone|iPad|iPod/.test(navigator.userAgent)&&!(matchMedia("(display-mode: standalone)").matches||navigator.standalone);
 const supported="serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;
 const reg=()=>navigator.serviceWorker.register("/sw.js").then(()=>navigator.serviceWorker.ready);
+const sw=$("push-switch"),state=$("push-state"),test=$("push-test");
 async function draw(){
-  const s=$("push-state"),on=$("push-on"),off=$("push-off"),test=$("push-test");
-  [on,off,test].forEach(b=>b.hidden=true);
-  if(ios){s.textContent="On an iPhone: Share, then Add to Home Screen, and open Ravenpost from there to turn them on.";return}
-  if(!supported){s.textContent="This browser can't receive notifications.";return}
-  if(!KEY){s.textContent="Notifications aren't set up on the inbox yet (its VAPID keys).";return}
-  if(Notification.permission==="denied"){s.textContent="Notifications are blocked for this site in the browser's settings.";return}
+  sw.disabled=true;test.hidden=true;
+  if(ios){state.textContent="On an iPhone: Share, then Add to Home Screen, and open Ravenpost from there.";return}
+  if(!supported){state.textContent="This browser can't receive notifications.";return}
+  if(!KEY){state.textContent="Not set up on the inbox yet (its VAPID keys).";return}
+  if(Notification.permission==="denied"){state.textContent="Blocked for this site in the browser's settings.";return}
   const sub=await (await reg()).pushManager.getSubscription();
-  s.textContent=sub?"On for this device: the data jobs as they finish, and the morning's digest.":"Off for this device.";
-  on.hidden=!!sub;off.hidden=test.hidden=!sub;
+  sw.disabled=false;sw.setAttribute("aria-checked",!!sub);test.hidden=!sub;
+  state.textContent=sub?"On: the data jobs as they finish, and the morning's digest.":"Off.";
 }
-async function turnOn(){
+async function on(){
   try{
     if(await Notification.requestPermission()!=="granted")return draw();
     const r=await reg();
     const sub=(await r.pushManager.getSubscription())||(await r.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:bytes(KEY)}));
     const res=await fetch("/api/push/subscriptions",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(sub.toJSON())});
     if(!res.ok)throw new Error(res.status);
-  }catch(e){$("push-state").textContent="That didn't work ("+e.message+"). Try again."}
+  }catch(e){state.textContent="That didn't work ("+e.message+"). Try again."}
   draw();
 }
-async function turnOff(){
+async function off(){
   const sub=await (await reg()).pushManager.getSubscription();
   if(sub){await fetch("/api/push/subscriptions",{method:"DELETE",headers:{"content-type":"application/json"},body:JSON.stringify({endpoint:sub.endpoint})});await sub.unsubscribe()}
   draw();
 }
-async function test(){const r=await (await fetch("/api/push/test",{method:"POST"})).json();$("push-state").textContent="Sent to "+r.sent+" device"+(r.sent===1?"":"s")+"."}
-$("push-on").onclick=turnOn;$("push-off").onclick=turnOff;$("push-test").onclick=test;
+sw.onclick=()=>(sw.getAttribute("aria-checked")==="true"?off():on());
+test.onclick=async()=>{const r=await (await fetch("/api/push/test",{method:"POST"})).json();state.textContent="Sent to "+r.sent+" device"+(r.sent===1?"":"s")+"."};
 draw();
+})();
 </script>`;
-
-export function dashboard(h: History, opts: { viewer?: string; events?: Event[]; pushKey?: string | null; devices?: number } = {}): string {
-  const all = Object.keys(h.days).sort();
-  const days = all.slice(-60);
-  const get = <K extends keyof Day>(k: K) => days.map((d) => h.days[d]?.[k]);
-  const latest = <K extends keyof Day>(k: K): Day[K] | undefined => {
-    for (let i = all.length - 1; i >= 0; i--) if (h.days[all[i]]?.[k]) return h.days[all[i]][k];
-    return undefined;
-  };
-  // (the count a week before the latest, else the oldest one there is: "since" it)
-  const base = <K extends keyof Day>(k: K, ago: number): { day: string; value: Day[K] } | undefined => {
-    const have = all.filter((d) => h.days[d]?.[k]);
-    if (have.length < 2) return undefined;
-    const last = have[have.length - 1];
-    const cut = new Date(new Date(last).getTime() - ago * 86_400_000).toISOString().slice(0, 10);
-    const day = [...have].reverse().find((d) => d <= cut) ?? have[0];
-    return day === last ? undefined : { day, value: h.days[day][k] };
-  };
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const since = (d: string) => `${Number(d.slice(8))} ${months[Number(d.slice(5, 7)) - 1]}`;
-
-  // Downloads
-  const dl = latest("downloads") ?? {};
-  const week = base("downloads", 7);
-  const dl7 = week?.value ?? {};
-  const weekLabel = week ? (new Date(all[all.length - 1]).getTime() - new Date(week.day).getTime() >= 7 * 86_400_000 ? "7 days" : `since ${since(week.day)}`) : "7 days";
-  const addons = Object.keys(dl).sort((a, b) => sum(dl[b]) - sum(dl[a]));
-  const dlRows = addons.map((a) => {
-    const t = sum(dl[a]);
-    const prev = dl7[a] ? sum(dl7[a]) : undefined;
-    return [esc(a), fmt(dl[a].curseforge), fmt(dl[a].wago), fmt(dl[a].github), `<b>${fmt(t)}</b>`, prev === undefined ? "–" : `+${fmt(t - prev)}`];
-  });
-  const dlSeries = addons.map((a) => ({ name: a, points: get("downloads").map((d) => (d?.[a] ? sum(d[a]) : undefined)) }));
-
-  // Ravenpost
-  const rp = get("ravenpost");
-  const rpLast = latest("ravenpost");
-  // Sharing
-  const sh = get("sharing");
-  const shLast = latest("sharing");
-  const merged = latest("merged");
-  // Traffic
-  const tr = get("traffic");
-  const sites = [...new Set(tr.flatMap((t) => Object.keys(t ?? {})))];
-
-  const total = sum(Object.fromEntries(addons.map((a) => [a, sum(dl[a])])));
-  return `${head("Ravenpost's numbers")}<body><main>
-<header><div class="brand"><img src="/icon-192.png" alt=""><h1>Ravenpost's numbers</h1></div><p>${h.updated ? `Updated ${esc(h.updated.slice(0, 16).replace("T", " "))} UTC` : "No numbers yet"}${opts.viewer ? ` · ${esc(opts.viewer)}` : ""}</p></header>
-
-<section id="activity"><h2>Activity</h2>
-${activity(opts.events ?? [])}
-</section>
-
-<section><h2>Downloads</h2>
-${tiles([
-  [fmt(total), "downloads, every addon and channel"],
-  ...(week ? ([[fmt(sum(Object.fromEntries(addons.map((a) => [a, dl7[a] ? sum(dl[a]) - sum(dl7[a]) : 0])))), weekLabel === "7 days" ? "in the last 7 days" : weekLabel]] as [string, string][]) : []),
-])}
-${table(["Addon", "CurseForge", "Wago", "GitHub", "Total", weekLabel], dlRows)}
-${lines(days, dlSeries)}
-<p class="note">Download events, not players. CurseForge through cfwidget, Wago from its pages, GitHub from the releases.</p></section>
-
-<div class="grid2">
-<section><h2>Ravenpost</h2>
-${tiles([[fmt(rpLast?.installs), "installs active (last day)"], [fmt(rpLast?.sharing), "sharing"], [fmt(rpLast?.linked?.hearthtale), "linked to Hearthtale"]])}
-${bars(days, rp.map((r) => r?.installs))}
-<p class="mix">Versions: ${shares(rpLast?.versions)}</p><p class="mix">Systems: ${shares(rpLast?.os)}</p><p class="mix">Linked: ${shares(rpLast?.linked)}</p>
-<p class="note">One anonymous ping an install a day.</p></section>
-
-<section><h2>Sharing</h2>
-${tiles([[fmt(shLast?.sharers), "players sharing (last day)"], [fmt(shLast?.facts), "facts sent"], [fmt(sum(Object.fromEntries(Object.entries(merged ?? {}).map(([g, m]) => [g, m.newFacts])))), "new to the database (last merge)"]])}
-${bars(days, sh.map((s) => s?.facts))}
-<p class="mix">Games: ${shares(shLast?.games)}</p><p class="mix">Languages: ${shares(shLast?.locales)}</p>
-<p class="note">Facts a day; new ones as wow-data's daily merge counts them.</p></section>
-</div>
-
-<section><h2>The sites</h2>
-${sites.length ? lines(days, sites.map((s) => ({ name: `${s} visitors`, points: tr.map((t) => t?.[s]?.visitors) }))) : `<p class="empty">No traffic numbers yet: Web Analytics feeds them once its token is set. Meanwhile, <a href="https://vercel.com/jellycat/hearthtale/analytics">Hearthtale's analytics on Vercel</a>.</p>`}
-</section>
-
-<section><h2>Notifications</h2>
-<p id="push-state" class="mix">…</p>
-<div class="row"><button id="push-on" hidden>Turn on for this device</button><button id="push-test" class="quiet" hidden>Send a test</button><button id="push-off" class="quiet" hidden>Turn off</button></div>
-<p class="note">${opts.devices ? `${fmt(opts.devices)} device${opts.devices === 1 ? "" : "s"} told.` : "No device told yet."} The data jobs as they finish, and a digest each morning. On a phone: add this page to the Home Screen, open Ravenpost from there, sign in, then turn them on.</p></section>
-</main>${SW}${SCRIPT(opts.pushKey ?? null)}</body></html>`;
-}

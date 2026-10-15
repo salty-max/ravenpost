@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { app } from "../src/app";
 import { sign, subOf, tokenFor } from "../src/auth";
-import { dashboard } from "../src/dashboard";
+import { dashboard, seriesOf } from "../src/dashboard";
 import { collect, countUpload, history, ping, readPing, setStatsFetch } from "../src/stats";
 
 beforeEach(() => {
@@ -93,7 +93,7 @@ describe("the numbers", () => {
       const owner = sign({ tag: "namzar#21586", exp: Math.floor(Date.now() / 1000) + 60 });
       const res = await app.request("/stats", { headers: { cookie: `rp_stats=${owner}` } });
       expect(res.status).toBe(200);
-      expect(await res.text()).toContain("Ravenpost's numbers");
+      expect(await res.text()).toContain('id="downloads"');
     } finally {
       delete process.env.STATS_BATTLETAGS;
     }
@@ -108,8 +108,24 @@ describe("the numbers", () => {
         "2026-10-16": { downloads: { Yonder: { curseforge: 100, wago: 42, github: 10 } }, ravenpost: { installs: 2, versions: { "0.4.0": 2 }, os: { darwin: 2 }, linked: { hearthtale: 2 }, sharing: 1 } },
       },
     });
-    expect(html).toContain("<b>152</b>");
-    expect(html).toContain("<polyline");
+    expect(html).toContain('class="v">152<');
+    expect(html).toContain('id="data"');
+  });
+
+  test("the charts' numbers: every day, downloads a day from the totals, a gap said", () => {
+    const s = seriesOf({
+      days: {
+        "2026-10-13": { downloads: { Yonder: { curseforge: 90, wago: 40, github: 8 } } },
+        "2026-10-15": { downloads: { Yonder: { curseforge: 95, wago: 40, github: 8 } }, traffic: { hearthtale: { pageviews: 9, visitors: 4 } } },
+        "2026-10-16": { downloads: { Yonder: { curseforge: 100, wago: 42, github: 10 } }, ravenpost: { installs: 2, versions: {}, os: {}, linked: {}, sharing: 1 } },
+      },
+    });
+    expect(s.days).toEqual(["2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16"]);
+    expect(s.downloads.daily.Yonder).toEqual([null, 2.5, 2.5, 9]); // (the gap's 5, shared over its two days)
+    expect(s.downloads.since).toEqual([null, "2026-10-13", "2026-10-13", null]);
+    expect(s.downloads.week.Yonder).toBe(14);
+    expect(s.installs).toEqual([null, null, null, 2]);
+    expect(s.sites.hearthtale.visitors).toEqual([null, null, 4, null]);
   });
 });
 
