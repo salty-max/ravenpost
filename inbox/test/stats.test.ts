@@ -84,9 +84,12 @@ describe("the numbers", () => {
   test("the dashboard: its owner's only", async () => {
     process.env.STATS_BATTLETAGS = "Namzar#21586";
     try {
-      expect((await app.request("/stats")).headers.get("location")).toBe("/api/login?web=1");
+      // (a stranger: the sign-in page, Battle.net or a phone's code)
+      expect(await (await app.request("/stats")).text()).toContain("/api/login?web=1");
       const stranger = sign({ tag: "Someone#1", exp: Math.floor(Date.now() / 1000) + 60 });
-      expect((await app.request("/stats", { headers: { cookie: `rp_stats=${stranger}` } })).status).toBe(302);
+      const theirs = await (await app.request("/stats", { headers: { cookie: `rp_stats=${stranger}` } })).text();
+      expect(theirs).toContain("Sign in with Battle.net");
+      expect(theirs).not.toContain("Downloads");
       const owner = sign({ tag: "namzar#21586", exp: Math.floor(Date.now() / 1000) + 60 });
       const res = await app.request("/stats", { headers: { cookie: `rp_stats=${owner}` } });
       expect(res.status).toBe(200);

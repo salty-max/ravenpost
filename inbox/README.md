@@ -49,6 +49,37 @@ The daily job (`/api/cron/stats`, Vercel Cron at 05:17 UTC with
 `CRON_SECRET`; by hand with `INBOX_TOKEN`) counts yesterday's pings and
 uploads, then drops their files: only the sums stay.
 
+## The app on a phone, and its notifications
+
+The dashboard is an app (`public/`: its manifest, its service worker
+`sw.js`, Ravenpost's painted raven for its icons and favicon, made from
+`../assets/icon-painted-1024.png` and `icon-512.png` with magick). On a
+phone: open `/stats`, add it to the Home Screen, open Ravenpost from there
+and sign in with Battle.net (it comes back into the app, as Hearthtale's
+does). A sign-in lasts 90 days, renewed each week it's used.
+
+Notifications (`src/push.ts`, Web Push from Hearthtale's `webpush.ts`, a
+subscription a file in `push/`): turned on per device from the dashboard,
+for:
+
+- the GitHub workflows' words (`POST /api/events`, `INBOX_EVENTS_TOKEN`:
+  wow-data's `bin/tell.ts`): an addon's game data merged by itself (what
+  changed, in words: `bin/describe-data.ts`), the pins moved, a job failed,
+  a pull request waiting for a hand (players' facts). Kept in
+  `events/recent.json` (60 days), the dashboard's Activity;
+- the morning's digest (`/api/cron/digest`, Vercel Cron at 07:15 UTC, once
+  the data jobs are done; `src/digest.ts`): what the jobs did since the
+  last one, and yesterday's downloads, installs, sharing and visitors.
+
+## Wowhead's pages, handed over
+
+A Wowhead tab fetching pages for wow-data (its `bin/wowhead-tab.js`) can
+reach neither the computer nor a folder: it hands them here
+(`POST /api/wowhead/pages`, `WOWHEAD_TOKEN`, CORS for www.wowhead.com only),
+files in `wowhead/`, until wow-data's `bin/wowhead-pages.ts pull` takes them
+(`/api/wowhead/list`, `read`, `done`, the same token, which reaches nothing
+else).
+
 ## Running it here
 
 ```bash
@@ -73,8 +104,12 @@ accounts refused, a token's `sub`, comma-separated), and `BNET_CLIENT_ID` /
 `BNET_CLIENT_SECRET`: the Battle.net app "Ravenpost" on develop.battle.net,
 its redirect URL `https://ravenpost-inbox.vercel.app/api/login/callback`;
 the numbers': `CRON_SECRET`, `STATS_BATTLETAGS`, `STATS_SITES`,
-`VERCEL_TEAM_ID` (and `VERCEL_ANALYTICS_TOKEN`, `GITHUB_TOKEN` when set).
+`VERCEL_TEAM_ID` (and `VERCEL_ANALYTICS_TOKEN`, `GITHUB_TOKEN` when set);
+the notifications': `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`,
+`INBOX_EVENTS_TOKEN` (the workflows'); `WOWHEAD_TOKEN` (the Wowhead tab's).
 
 Elsewhere: wow-data's `INBOX_URL` variable and `INBOX_TOKEN` secret (the same
-as here), and this repository's `INBOX_URL` variable, which release builds
-need (`scripts/build.sh`).
+as here), `INBOX_EVENTS_TOKEN` on wow-data and the four addons with game data
+(the same as here), and this repository's `INBOX_URL` variable, which release
+builds need (`scripts/build.sh`). This computer: `~/.config/wow-data/wowhead-token`
+(the same `WOWHEAD_TOKEN`, for `pull`).

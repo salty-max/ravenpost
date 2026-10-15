@@ -1,7 +1,13 @@
-import { Hono } from "hono";
+import { randomBytes, timingSafeEqual } from "node:crypto";
+import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { getCookie, setCookie } from "hono/cookie";
-import { dashboard } from "./dashboard";
+import { cors } from "hono/cors";
+import { dashboard, signinPage } from "./dashboard";
+import { digestOf } from "./digest";
+import * as events from "./events";
+import * as push from "./push";
+import * as store from "./store";
 import { collect, countUpload, history, ping, readPing, record, type Day } from "./stats";
 import { account, authorizeUrl, sharer, sign, subOf, tokenFor, verify } from "./auth";
 import { flatten } from "./facts";
@@ -57,13 +63,7 @@ app.get("/api/login/callback", async (c) => {
   if (s.web) {
     const who = c.req.query("code") ? await account(c.req.query("code")!).catch(() => null) : null;
     if (!who || !statsAllowed(who.battletag)) return c.html(page("Ravenpost", "This page is its owner's."), 403);
-    setCookie(c, STATS_COOKIE, sign({ tag: who.battletag, exp: Math.floor(Date.now() / 1000) + 30 * 86400 }), {
-      httpOnly: true,
-      secure: true,
-      sameSite: "Lax",
-      path: "/",
-      maxAge: 30 * 86400,
-    });
+    signIn(c, who.battletag);
     return c.redirect("/stats");
   }
   const code = c.req.query("code");
@@ -161,6 +161,7 @@ app.get("/api/cron/stats", async (c) => {
 
 // ── the dashboard, for its owner (STATS_BATTLETAGS, signed in with Battle.net) ─
 const STATS_COOKIE = "rp_stats";
+const COOKIE_DAYS = 90;
 function statsAllowed(tag: string): boolean {
   return (process.env.STATS_BATTLETAGS ?? "")
     .split(",")
@@ -168,12 +169,115 @@ function statsAllowed(tag: string): boolean {
     .filter(Boolean)
     .includes(tag.toLowerCase());
 }
+function signIn(c: Context, tag: string) {
+  setCookie(c, STATS_COOKIE, sign({ tag, exp: Math.floor(Date.now() / 1000) + COOKIE_DAYS * 86400 }), {
+    httpOnly: true,
+    secure: true,
+    sameSite: "Lax",
+    path: "/",
+    maxAge: COOKIE_DAYS * 86400,
+  });
+}
+/** The owner signed in, or null; their sign-in renewed once a week while they come (the app on a phone stays signed in). */
+function owner(c: Context): string | null {
+  if (process.env.INBOX_DEV === "1" && !process.env.VERCEL) return "Tester#1234";
+  const viewer = verify<{ tag: string; exp: number }>(getCookie(c, STATS_COOKIE) ?? "");
+  if (!viewer || !statsAllowed(viewer.tag)) return null;
+  if (viewer.exp - Date.now() / 1000 < (COOKIE_DAYS - 7) * 86400) signIn(c, viewer.tag);
+  return viewer.tag;
+}
 
 app.get("/stats", async (c) => {
-  const local = process.env.INBOX_DEV === "1" && !process.env.VERCEL;
-  const viewer = verify<{ tag: string }>(getCookie(c, STATS_COOKIE) ?? "");
-  if (!local && !(viewer && statsAllowed(viewer.tag))) return c.redirect("/api/login?web=1");
+  const tag = owner(c);
   c.header("Cache-Control", "private, no-store");
-  return c.html(dashboard(await history(), { viewer: viewer?.tag }));
+  if (!tag) return c.html(signinPage());
+  const [h, ev, devices] = await Promise.all([history(), events.recent(), push.devices()]);
+  return c.html(dashboard(h, { viewer: tag, events: ev, pushKey: push.vapid()?.publicKey ?? null, devices }));
 });
 app.get("/", (c) => c.redirect("/stats"));
+
+// ── notifications, for the owner's devices ───────────────────────────────────
+app.get("/api/push/key", (c) => {
+  const keys = push.vapid();
+  return keys ? c.json({ key: keys.publicKey }) : c.json({ error: "no notifications here" }, 404);
+});
+app.post("/api/push/subscriptions", async (c) => {
+  const tag = owner(c);
+  if (!tag) return c.json({ error: "sign in" }, 401);
+  const sub = push.readSub(await c.req.json().catch(() => null));
+  if (!sub) return c.json({ error: "not a push subscription" }, 400);
+  await push.subscribe(sub, tag);
+  return c.json({ ok: true });
+});
+app.delete("/api/push/subscriptions", async (c) => {
+  if (!owner(c)) return c.json({ error: "sign in" }, 401);
+  const { endpoint } = (await c.req.json().catch(() => ({}))) as { endpoint?: unknown };
+  if (typeof endpoint !== "string") return c.json({ error: "endpoint" }, 400);
+  await push.unsubscribe(endpoint);
+  return c.json({ ok: true });
+});
+app.post("/api/push/test", async (c) => {
+  if (!owner(c)) return c.json({ error: "sign in" }, 401);
+  return c.json(await push.notify({ title: "Ravenpost", body: "Notifications work on this device.", url: "/stats", tag: "test" }, { ttl: 600, urgency: "high" }));
+});
+
+// ── what happened, from the GitHub workflows (INBOX_EVENTS_TOKEN) ────────────
+const bearer = (c: Context, token: string | undefined) => {
+  const got = Buffer.from(c.req.header("authorization") ?? "");
+  const want = Buffer.from(`Bearer ${token}`);
+  return !!token && got.length === want.length && timingSafeEqual(got, want);
+};
+app.post("/api/events", bodyLimit({ maxSize: 16 * 1024 }), async (c) => {
+  if (!bearer(c, process.env.INBOX_EVENTS_TOKEN)) return c.json({ error: "unauthorized" }, 401);
+  const e = events.readEvent(await c.req.json().catch(() => null));
+  if (!e || e.kind === "digest") return c.json({ error: "not an event" }, 400);
+  await events.add(e);
+  const told = await push.notify({ title: e.title, body: e.body, url: "/stats#activity", tag: `${e.kind}-${e.repo ?? "inbox"}` });
+  return c.json({ ok: true, ...told });
+});
+
+// ── the morning's digest (Vercel Cron, CRON_SECRET; or by hand with INBOX_TOKEN) ─
+app.get("/api/cron/digest", async (c) => {
+  const ok = [process.env.CRON_SECRET, process.env.INBOX_TOKEN].some((t) => bearer(c, t));
+  if (!ok) return c.json({ error: "unauthorized" }, 401);
+  const all = await events.recent();
+  const last = all.find((e) => e.kind === "digest")?.at ?? new Date(Date.now() - 86_400_000).toISOString();
+  const d = digestOf(await history(), await events.since(last));
+  await events.add({ at: new Date().toISOString(), kind: "digest", title: d.title, body: d.body });
+  const told = await push.notify({ title: d.title, body: d.body, url: "/stats#activity", tag: "digest" });
+  return c.json({ ...d, ...told });
+});
+
+// ── Wowhead's pages, from a Wowhead tab (wow-data's bin/wowhead-tab.js) ──────
+// The tab can't reach this computer: it hands its pages here, wow-data takes
+// them (bin/wowhead-pages.ts pull). WOWHEAD_TOKEN, theirs alone: it lives in
+// a Wowhead page, so it reaches nothing but these files.
+const PAGE_KEY = /^(quest|npc|object|itembook|objbook)\/(enUS|deDE|frFR|esES|esMX)\/\d{1,9}$/;
+app.use("/api/wowhead/*", cors({ origin: "https://www.wowhead.com", allowHeaders: ["authorization", "content-type"], allowMethods: ["GET", "POST"] }));
+app.use("/api/wowhead/*", async (c, next) => {
+  if (c.req.method !== "OPTIONS" && !bearer(c, process.env.WOWHEAD_TOKEN)) return c.json({ error: "unauthorized" }, 401);
+  await next();
+});
+app.post("/api/wowhead/pages", bodyLimit({ maxSize: 4 * 1024 * 1024, onError: (c) => c.json({ error: "too large" }, 413) }), async (c) => {
+  const { pages } = (await c.req.json().catch(() => ({}))) as { pages?: Record<string, unknown> };
+  if (!pages || typeof pages !== "object" || Array.isArray(pages)) return c.json({ error: "pages: { key: page }" }, 400);
+  const keys = Object.keys(pages);
+  if (!keys.length || keys.length > 500 || !keys.every((k) => PAGE_KEY.test(k) && pages[k] && typeof pages[k] === "object"))
+    return c.json({ error: "keys: kind/locale/id, pages: objects" }, 400);
+  await store.write(`wowhead/${new Date().toISOString()}-${randomBytes(4).toString("hex")}.json`, JSON.stringify(pages));
+  return c.json({ saved: keys.length });
+});
+app.get("/api/wowhead/list", async (c) => c.json(await store.names("wowhead/", c.req.query("cursor") || undefined)));
+app.post("/api/wowhead/read", async (c) => {
+  const { names: wanted } = (await c.req.json().catch(() => ({}))) as { names?: unknown };
+  if (!Array.isArray(wanted) || wanted.length > 50 || !wanted.every((n) => typeof n === "string" && n.startsWith("wowhead/")))
+    return c.json({ error: "names: wowhead/…, 50 at most" }, 400);
+  const items = await Promise.all(wanted.map(async (name) => ({ name, pages: JSON.parse((await store.read(name)) ?? "{}") })));
+  return c.json({ items });
+});
+app.post("/api/wowhead/done", async (c) => {
+  const { names: done } = (await c.req.json().catch(() => ({}))) as { names?: unknown };
+  if (!Array.isArray(done) || !done.every((n) => typeof n === "string" && n.startsWith("wowhead/"))) return c.json({ error: "names: wowhead/…" }, 400);
+  await store.remove(done);
+  return c.json({ removed: done.length });
+});
