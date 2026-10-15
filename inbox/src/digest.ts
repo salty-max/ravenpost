@@ -31,12 +31,23 @@ export function digestOf(h: History, events: Event[], now = new Date()): { title
 
   // What the data jobs did
   const merged = [...new Set(events.filter((e) => e.kind === "merged").map((e) => nameOf(e.repo) || e.title))];
+  const comments = events.filter((e) => e.kind === "comment");
   const failed = events.filter((e) => e.kind === "failed");
   const waiting = events.filter((e) => e.kind === "waiting");
   if (merged.length) lines.push(`${cap(`new game data in ${and(merged)}`)}.`);
   for (const f of failed) lines.push(f.title.endsWith(".") ? f.title : `${f.title}.`);
   for (const w of waiting) lines.push(w.title.endsWith(".") ? w.title : `${w.title}.`);
   if (!merged.length && !failed.length && !waiting.length) lines.push("No new game data.");
+  if (comments.length) {
+    const by: Record<string, number> = {};
+    for (const c of comments) {
+      // (a word for several counts them all)
+      const n = Number(c.title.match(/^(\d+) new comments/)?.[1] ?? 1);
+      by[nameOf(c.repo) || "an addon"] = (by[nameOf(c.repo) || "an addon"] ?? 0) + n;
+    }
+    const total = Object.values(by).reduce((a, b) => a + b, 0);
+    lines.push(`${plural(total, "new comment", "new comments")} on CurseForge: ${Object.entries(by).map(([a, k]) => `${a} ${k}`).join(", ")}.`);
+  }
 
   // Downloads: today's totals against yesterday's
   const now_ = h.days[today]?.downloads, before = h.days[yday]?.downloads;

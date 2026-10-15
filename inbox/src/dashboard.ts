@@ -143,7 +143,7 @@ section{margin-bottom:22px}.sh{display:flex;align-items:baseline;justify-content
 .chips{display:flex;gap:6px;flex-wrap:wrap}.chip{border:1px solid var(--edge);background:transparent;color:var(--dim);font:500 12px var(--sans);height:28px;padding:0 11px;border-radius:999px;cursor:pointer}.chip.on{border-color:var(--edge-gold);background:rgb(242 193 78/.1);color:var(--gold)}
 .feed{list-style:none;margin:0;padding:6px 0}.feed li{display:flex;gap:12px;padding:12px 18px;border-top:1px solid rgb(255 255 255/.045)}.feed li:first-child{border-top:0}
 .feed .i{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;flex:none;margin-top:1px}
-.i.merged{background:rgb(111 208 140/.12);color:var(--ok)}.i.failed{background:rgb(224 99 79/.14);color:var(--blood)}.i.waiting,.i.test{background:rgb(242 193 78/.12);color:var(--gold)}.i.digest{background:rgb(108 180 238/.12);color:#6cb4ee}
+.i.merged{background:rgb(111 208 140/.12);color:var(--ok)}.i.failed{background:rgb(224 99 79/.14);color:var(--blood)}.i.waiting,.i.test{background:rgb(242 193 78/.12);color:var(--gold)}.i.digest{background:rgb(108 180 238/.12);color:#6cb4ee}.i.comment{background:rgb(181 140 240/.14);color:#b58cf0}
 .feed .c{flex:1;min-width:0}.feed .t{display:flex;align-items:baseline;justify-content:space-between;gap:10px}.feed .t b{font-weight:600}.feed .t time{color:var(--faint);font-size:12px;white-space:nowrap}
 .feed .b{color:var(--dim);font-size:13px;white-space:pre-line;margin-top:2px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}.feed .b.open{display:block}
 .feed .m{display:flex;gap:6px;align-items:center;margin-top:6px}.feed .m a{color:var(--gold);font-size:12px}
@@ -195,6 +195,7 @@ const ICON: Record<string, string> = {
   clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
   merge: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/>',
+  comment: '<path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/>',
   send: '<path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/>',
 };
 const icon = (name: string, cls = "ic") => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICON[name]}</svg>`;
@@ -230,6 +231,7 @@ const KIND: Record<Event["kind"], { icon: string; label: string; group: string }
   failed: { icon: "x", label: "Failed", group: "problems" },
   waiting: { icon: "clock", label: "Waiting", group: "problems" },
   digest: { icon: "sun", label: "Digest", group: "digests" },
+  comment: { icon: "comment", label: "Comment", group: "comments" },
   test: { icon: "send", label: "Test", group: "data" },
 };
 function ago(iso: string, now = Date.now()): string {
@@ -249,7 +251,7 @@ function feed(list: Event[]): string {
       return `<li data-group="${k.group}"${i >= 8 ? " hidden data-more" : ""}><span class="i ${e.kind}">${icon(k.icon)}</span><div class="c">
 <div class="t"><b>${esc(e.title)}</b><time datetime="${esc(e.at)}" title="${esc(e.at.slice(0, 16).replace("T", " "))} UTC">${ago(e.at)}</time></div>
 ${e.body ? `<div class="b">${esc(e.body)}</div>` : ""}
-<div class="m">${e.repo ? `<span class="tag">${esc(cap(REPO_NAMES[e.repo] ?? e.repo))}</span>` : ""}${e.url ? `<a href="${esc(e.url)}" target="_blank" rel="noopener">${e.url.includes("/pull/") ? "Pull request" : e.url.includes("/actions/") ? "The run" : "Open"} ↗</a>` : ""}</div>
+<div class="m">${e.repo ? `<span class="tag">${esc(cap(REPO_NAMES[e.repo] ?? e.repo))}</span>` : ""}${e.url ? `<a href="${esc(e.url)}" target="_blank" rel="noopener">${e.url.includes("/pull/") ? "Pull request" : e.url.includes("/actions/") ? "The run" : e.url.includes("curseforge.com") ? "Answer on CurseForge" : "Open"} ↗</a>` : ""}</div>
 </div></li>`;
     })
     .join("");
@@ -348,6 +350,7 @@ ${kpi("k-vi", "globe", "Site visitors", fmt(lastOf(visitors)), Object.keys(s.sit
     ["all", "All"],
     ["data", "Data"],
     ["problems", "Problems"],
+    ["comments", "Comments"],
     ["digests", "Digests"],
   ]
     .map(([k, l], i) => `<button class="chip${i ? "" : " on"}" data-filter="${k}">${l}</button>`)

@@ -3,12 +3,13 @@ import * as store from "./store";
 /**
  * What happened, for the owner, in words: the daily data jobs' merges and
  * failures, a pull request waiting for a hand (players' facts, pins that
- * don't build), the morning's digest. Sent by the GitHub workflows (POST
+ * don't build), the players' comments on CurseForge (comments.ts), the
+ * morning's digest. Sent by the GitHub workflows (POST
  * /api/events with INBOX_EVENTS_TOKEN: wow-data's bin/tell.ts), told to the
  * owner's devices at once (push.ts), listed on the dashboard. One file,
  * events/recent.json, the newest first: 60 days, 300 at most.
  */
-export const KINDS = ["merged", "failed", "waiting", "digest", "test"] as const;
+export const KINDS = ["merged", "failed", "waiting", "comment", "digest", "test"] as const;
 export type Kind = (typeof KINDS)[number];
 export type Event = { at: string; kind: Kind; repo?: string; title: string; body: string; url?: string };
 

@@ -3,6 +3,7 @@ import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { getCookie, setCookie } from "hono/cookie";
 import { cors } from "hono/cors";
+import { watch } from "./comments";
 import { dashboard, signinPage } from "./dashboard";
 import { digestOf } from "./digest";
 import * as events from "./events";
@@ -246,6 +247,13 @@ app.get("/api/cron/digest", async (c) => {
   await events.add({ at: new Date().toISOString(), kind: "digest", title: d.title, body: d.body });
   const told = await push.notify({ title: d.title, body: d.body, url: "/stats#activity", tag: "digest" });
   return c.json({ ...d, ...told });
+});
+
+// ── the players' comments on CurseForge (Vercel Cron, every 30 minutes) ──────
+app.get("/api/cron/comments", async (c) => {
+  const ok = [process.env.CRON_SECRET, process.env.INBOX_TOKEN].some((t) => bearer(c, t));
+  if (!ok) return c.json({ error: "unauthorized" }, 401);
+  return c.json(await watch());
 });
 
 // ── Wowhead's pages, from a Wowhead tab (wow-data's bin/wowhead-tab.js) ──────

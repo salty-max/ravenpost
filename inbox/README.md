@@ -67,6 +67,12 @@ for:
   changed, in words: `bin/describe-data.ts`), the pins moved, a job failed,
   a pull request waiting for a hand (players' facts). Kept in
   `events/recent.json` (60 days), the dashboard's Activity;
+- the players' comments on CurseForge (`/api/cron/comments`, every 30
+  minutes; `src/comments.ts`): the site's own JSON, what its comments page
+  reads (`www.curseforge.com/api/v1/mods/<id>/comments`, no key), each new
+  comment or reply by someone else than `CURSEFORGE_AUTHOR` (saltymax by
+  default) a word with a link to answer it, several at once one word; the
+  first look only learns what is there (`comments/seen.json`);
 - the morning's digest (`/api/cron/digest`, Vercel Cron at 07:15 UTC, once
   the data jobs are done; `src/digest.ts`): what the jobs did since the
   last one, and yesterday's downloads, installs, sharing and visitors.
