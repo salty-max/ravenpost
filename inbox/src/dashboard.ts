@@ -195,7 +195,11 @@ section{margin-bottom:22px}.sh{display:flex;align-items:baseline;justify-content
 .switch{position:relative;width:40px;height:22px;border-radius:999px;border:1px solid var(--edge);background:var(--stone-3);cursor:pointer;flex:none;transition:background .15s}.switch::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--dim);transition:transform .15s}
 .switch[aria-checked=true]{background:rgb(201 162 39/.8);border-color:var(--gold-soft)}.switch[aria-checked=true]::after{transform:translateX(18px);background:var(--night)}.switch:disabled{opacity:.4;cursor:default}
 .rel{padding:10px 0;border-top:1px solid rgb(255 255 255/.045)}.rel:first-of-type{border-top:0}.rel-h{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}.rel-h b{font-weight:600}.rel-h .sub{margin:0}
-.notif{display:flex;align-items:center;gap:14px;padding:16px 18px}.notif .grow{flex:1;min-width:0}.notif p{margin:2px 0 0;color:var(--dim);font-size:13px}
+.notif{display:flex;align-items:center;gap:14px;padding:16px 18px}
+.refresh{width:36px;padding:0;height:36px}.refresh.busy .ic,.pull.busy .ic{animation:spin .8s linear infinite}
+.pull{position:fixed;top:env(safe-area-inset-top);left:50%;z-index:20;width:40px;height:40px;margin-left:-20px;border-radius:50%;display:grid;place-items:center;background:var(--stone-2);border:1px solid var(--edge);color:var(--dim);transform:translateY(-60px);transition:transform .2s,color .15s,border-color .15s;box-shadow:0 6px 18px rgb(0 0 0/.45);pointer-events:none}
+.pull.held{transition:none}.pull.ready{color:var(--gold);border-color:var(--edge-gold)}.pull .ic{width:18px;height:18px}
+@keyframes spin{to{transform:rotate(360deg)}}.notif .grow{flex:1;min-width:0}.notif p{margin:2px 0 0;color:var(--dim);font-size:13px}
 
 @media (max-width:1000px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:760px){
@@ -220,6 +224,7 @@ const ICON: Record<string, string> = {
   globe: '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
   bell: '<path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/>',
   check: '<path d="M20 6 9 17l-5-5"/>',
+  refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
   x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
   clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
@@ -428,7 +433,8 @@ export function dashboard(
 <nav class="tabs">${NAV.slice(0, 5).map(([id, ic, label]) => `<a href="#${id}" data-nav="${id}">${icon(ic)}${label}</a>`).join("")}</nav>
 <main>
 <div class="top" id="overview"><div class="brandm"><img src="/icon-192.png" alt=""><div><h1 class="title">Overview</h1><p>${lastDay ? `To ${short(lastDay)}` : "No numbers yet"}</p></div></div>
-<div class="seg" role="group" aria-label="Range"><button data-range="30" class="on">30 d</button><button data-range="90">90 d</button><button data-range="0">All</button></div></div>
+<div class="row" style="flex-wrap:nowrap;gap:6px"><div class="seg" role="group" aria-label="Range"><button data-range="30" class="on">30 d</button><button data-range="90">90 d</button><button data-range="0">All</button></div><button class="btn btn-ghost refresh" id="refresh" aria-label="Refresh" title="Refresh">${icon("refresh")}</button></div></div>
+<div class="pull" id="pull" aria-hidden="true">${icon("refresh")}</div>
 
 <div class="panel hero"><div class="raven"><img src="/icon-192.png" alt=""><span class="badge ${st.tone}">${icon(st.icon)}</span></div><div class="grow"><h2 class="title">${esc(st.title)}</h2><p>${esc(st.line)}</p></div></div>
 
@@ -578,6 +584,19 @@ const showThreads=(k)=>{let shown=0;document.querySelectorAll(".thread").forEach
   if($("no-open"))$("no-open").hidden=!(k==="open"&&!shown&&document.querySelector(".thread"))};
 document.querySelectorAll("[data-threads]").forEach(b=>b.onclick=()=>showThreads(b.dataset.threads));
 const firstOn=document.querySelector("[data-threads].on");if(firstOn)showThreads(firstOn.dataset.threads);
+
+// The app on a phone comes back as it was left (iOS keeps it, never reloads
+// it, and has no pull to refresh): the page is fetched again when it's shown
+// after a minute away, on a pull at the top, and with the refresh button.
+const loadedAt=Date.now();
+const reload=()=>{document.querySelectorAll("#refresh,#pull").forEach(e=>e.classList.add("busy"));location.reload()};
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&Date.now()-loadedAt>60000)reload()});
+addEventListener("pageshow",(e)=>{if(e.persisted)reload()});
+if($("refresh"))$("refresh").onclick=reload;
+{const pull=$("pull");let y0=null,dy=0;
+  addEventListener("touchstart",(e)=>{y0=scrollY<=0&&e.touches.length===1?e.touches[0].clientY:null;dy=0},{passive:true});
+  addEventListener("touchmove",(e)=>{if(y0===null)return;dy=Math.max(0,e.touches[0].clientY-y0);pull.classList.add("held");pull.style.transform="translateY("+(Math.min(dy,110)*0.7-60)+"px) rotate("+dy*2+"deg)";pull.classList.toggle("ready",dy>90)},{passive:true});
+  addEventListener("touchend",()=>{if(y0===null)return;pull.classList.remove("held");if(dy>90){pull.style.transform="translateY(14px)";reload()}else{pull.style.transform="";pull.classList.remove("ready")}y0=null;dy=0})}
 
 // The nav: where the page is (the last part whose top has passed a third of
 // the screen, the last part once at the bottom); a part clicked stays marked
