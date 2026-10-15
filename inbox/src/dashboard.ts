@@ -458,10 +458,17 @@ document.querySelectorAll("[data-filter]").forEach(b=>b.onclick=()=>{filter=b.da
 if($("feed-more"))$("feed-more").onclick=()=>{all=true;apply()};
 document.querySelectorAll(".feed .b").forEach(b=>b.onclick=()=>b.classList.toggle("open"));apply();
 
-// The nav: where the page is.
+// The nav: where the page is (the last part whose top has passed a third of
+// the screen, the last part once at the bottom); a part clicked stays marked
+// while the page scrolls to it, until the reader scrolls on their own.
+const ids=["overview","activity","downloads","players","sites","notifications"].filter(id=>$(id));
 const links=[...document.querySelectorAll("[data-nav]")];const mark=(id)=>links.forEach(a=>a.classList.toggle("on",a.dataset.nav===id));
-const seen=new IntersectionObserver((es)=>{for(const e of es)if(e.isIntersecting)mark(e.target.id)},{rootMargin:"-30% 0px -60% 0px"});
-["overview","activity","downloads","players","sites","notifications"].forEach(id=>$(id)&&seen.observe($(id)));mark("overview");
+let pinned=null,frame=0;
+const where=()=>{if(pinned)return mark(pinned);const line=innerHeight/3;let cur=ids[0];for(const id of ids)if($(id).getBoundingClientRect().top<=line)cur=id;
+  if(innerHeight+scrollY>=document.documentElement.scrollHeight-4)cur=ids[ids.length-1];mark(cur)};
+links.forEach(a=>a.addEventListener("click",()=>{pinned=a.dataset.nav;mark(pinned)}));
+["wheel","touchmove","keydown"].forEach(ev=>addEventListener(ev,()=>{pinned=null},{passive:true}));
+addEventListener("scroll",()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(where)},{passive:true});where();
 })();
 
 // The notifications' switch (Hearthtale's lib/push.ts, without React).
