@@ -4,7 +4,7 @@ import { ADDONS } from "./stats";
 import * as store from "./store";
 
 /**
- * Each addon's releases on CurseForge and their downloads, looked at every 30
+ * Each addon's releases on CurseForge and their downloads, looked at every 10
  * minutes with the comments (/api/cron/curseforge): the site's own JSON
  * (www.curseforge.com/api/v1/mods/<id>/files, no key: every public release,
  * its downloads as they come; their sum is the addon's total, cfwidget's

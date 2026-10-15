@@ -3,7 +3,7 @@ import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { getCookie, setCookie } from "hono/cookie";
 import { cors } from "hono/cors";
-import { watch } from "./comments";
+import { recentThreads, watch } from "./comments";
 import * as curseforge from "./curseforge";
 import { dashboard, signinPage } from "./dashboard";
 import { digestOf } from "./digest";
@@ -195,8 +195,16 @@ app.get("/stats", async (c) => {
   if (!tag) return c.html(signinPage());
   const today = new Date().toISOString().slice(0, 10);
   const yday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
-  const [h, ev, devices, r0, r1, releases] = await Promise.all([history(), events.recent(), push.devices(), curseforge.readings(yday), curseforge.readings(today), curseforge.latest()]);
-  return c.html(dashboard(h, { viewer: tag, events: ev, pushKey: push.vapid()?.publicKey ?? null, devices, readings: [...r0, ...r1], releases }));
+  const [h, ev, devices, r0, r1, releases, threads] = await Promise.all([
+    history(),
+    events.recent(),
+    push.devices(),
+    curseforge.readings(yday),
+    curseforge.readings(today),
+    curseforge.latest(),
+    recentThreads(),
+  ]);
+  return c.html(dashboard(h, { viewer: tag, events: ev, pushKey: push.vapid()?.publicKey ?? null, devices, readings: [...r0, ...r1], releases, threads }));
 });
 app.get("/", (c) => c.redirect("/stats"));
 
@@ -252,7 +260,7 @@ app.get("/api/cron/digest", async (c) => {
   return c.json({ ...d, ...told });
 });
 
-// ── CurseForge, every 30 minutes (Vercel Cron): the players' comments, the
+// ── CurseForge, every 10 minutes (Vercel Cron): the players' comments, the
 // releases live, each addon's downloads ───────────────────────────────────────
 app.get("/api/cron/curseforge", async (c) => {
   const ok = [process.env.CRON_SECRET, process.env.INBOX_TOKEN].some((t) => bearer(c, t));

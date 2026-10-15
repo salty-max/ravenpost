@@ -70,14 +70,14 @@ for:
   changed, in words: `bin/describe-data.ts`), the pins moved, a job failed,
   a pull request waiting for a hand (players' facts). Kept in
   `events/recent.json` (60 days), the dashboard's Activity;
-- CurseForge every 30 minutes (`/api/cron/curseforge`): a release live
+- CurseForge every 10 minutes (`/api/cron/curseforge`): a release live
   (`src/curseforge.ts`: the site's own JSON of each addon's public releases,
   `www.curseforge.com/api/v1/mods/<id>/files`; one not seen before passed the
   review), and each addon's downloads read (`downloads/<day>.json`, 14 days:
   the dashboard's last 48 hours, its releases' downloads in
   `releases/latest.json`; the daily totals read there too, cfwidget should it
   refuse);
-- the players' comments on CurseForge (the same job; `src/comments.ts`): the site's own JSON, what its comments page
+- the players' comments on CurseForge (the same job; `src/comments.ts`), kept for the dashboard's Comments (`comments/recent.json`: the threads, whether the owner had the last word): the site's own JSON, what its comments page
   reads (`www.curseforge.com/api/v1/mods/<id>/comments`, no key), each new
   comment or reply by someone else than `CURSEFORGE_AUTHOR` (saltymax by
   default) a word with a link to answer it, several at once one word; the

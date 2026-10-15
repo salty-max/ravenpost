@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { setCommentsFetch, watch } from "../src/comments";
+import { recentThreads, setCommentsFetch, watch } from "../src/comments";
 import { digestOf } from "../src/digest";
 import * as events from "../src/events";
 
@@ -44,6 +44,12 @@ describe("CurseForge's comments", () => {
     const [e] = await events.recent();
     expect(e).toMatchObject({ kind: "comment", repo: "yonder", title: "DasHound commented on Yonder", body: "A small feature request: herbs on the map.", url: "https://www.curseforge.com/wow/addons/yonder/comments" });
     expect((await watch()).fresh).toBe(0);
+    // (the dashboard's threads: the owner's last word, or one to answer)
+    const shown = await recentThreads();
+    expect(shown.map((t) => [t.author, t.answered, t.replies.map((r) => r.owner)])).toEqual([
+      ["nocty_dream", true, [true]],
+      ["DasHound", false, []],
+    ]);
   });
 
   test("many at once, one word; the digest counts them", async () => {

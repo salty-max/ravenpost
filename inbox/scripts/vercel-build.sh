@@ -12,7 +12,7 @@ cat > "$OUT/functions/api.func/.vc-config.json" <<JSON
 { "runtime": "nodejs22.x", "handler": "index.mjs", "launcherType": "Nodejs", "shouldAddHelpers": false, "maxDuration": 60 }
 JSON
 # (the daily numbers at 05:17 UTC, the digest at 07:15 once the data jobs are
-# done, CurseForge's comments, releases and downloads every 30 minutes: Vercel Cron calls with
+# done, CurseForge's comments, releases and downloads every 10 minutes: Vercel Cron calls with
 # CRON_SECRET; the service worker never cached)
 cat > "$OUT/config.json" <<JSON
 { "version": 3,
@@ -21,6 +21,6 @@ cat > "$OUT/config.json" <<JSON
     { "handle": "filesystem" },
     { "src": "^/(.*)$", "dest": "/api" }
   ],
-  "crons": [{ "path": "/api/cron/stats", "schedule": "17 5 * * *" }, { "path": "/api/cron/digest", "schedule": "15 7 * * *" }, { "path": "/api/cron/curseforge", "schedule": "*/30 * * * *" }] }
+  "crons": [{ "path": "/api/cron/stats", "schedule": "17 5 * * *" }, { "path": "/api/cron/digest", "schedule": "15 7 * * *" }, { "path": "/api/cron/curseforge", "schedule": "*/10 * * * *" }] }
 JSON
 echo "vercel output ready"

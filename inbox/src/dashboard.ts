@@ -1,4 +1,5 @@
 import { REPO_NAMES } from "./digest";
+import type { Thread } from "./comments";
 import type { Reading, Release } from "./curseforge";
 import type { Event } from "./events";
 import type { Day, History } from "./stats";
@@ -171,6 +172,11 @@ section{margin-bottom:22px}.sh{display:flex;align-items:baseline;justify-content
 .feed .m{display:flex;gap:6px;align-items:center;margin-top:6px}.feed .m a{color:var(--gold);font-size:12px}
 .more{display:block;width:100%;border:0;border-top:1px solid rgb(255 255 255/.045);background:none;color:var(--dim);font:500 13px var(--sans);padding:11px;cursor:pointer;border-radius:0 0 12px 12px}.more:hover{color:var(--gold)}
 .empty{color:var(--faint);padding:18px;margin:0;font-size:13px}
+.thread{padding:14px 18px;border-top:1px solid rgb(255 255 255/.045)}.thread:first-child{border-top:0}
+.thread .t{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.thread .t b{font-weight:600}.thread .t time{margin-left:auto;color:var(--faint);font-size:12px}
+.thread .x{color:var(--dim);font-size:13px;margin-top:4px;white-space:pre-line}
+.thread .r{margin:8px 0 0 14px;padding-left:12px;border-left:2px solid var(--edge);font-size:13px}.thread .r.me{border-left-color:var(--edge-gold)}.thread .r b{font-weight:600;color:var(--parchment)}.thread .r.me b{color:var(--gold)}.thread .r span{color:var(--dim)}
+.thread .a{display:flex;gap:10px;align-items:center;margin-top:8px;font-size:12px}.thread .a a{color:var(--gold)}
 
 /* the charts */
 .card{padding:16px 18px}.card h3{margin:0;font:600 13px var(--sans);color:var(--parchment)}
@@ -323,6 +329,20 @@ function releasesCard(releases: Record<string, Release[]>): string {
     .join("");
 }
 
+/** The addons' latest comment threads: who wrote, the replies (the owner's set apart), whether one waits for an answer. */
+function threadsList(threads: Thread[]): string {
+  if (!threads.length) return `<p class="empty">No comments yet. They show here, and on your phone, within ten minutes.</p>`;
+  return threads
+    .slice(0, 40)
+    .map(
+      (t) => `<div class="thread" data-open="${t.answered ? 0 : 1}"><div class="t"><b>${esc(t.author)}</b><span class="tag">${esc(t.addon)}</span>${t.answered ? `<span class="tag ok">Answered</span>` : `<span class="tag gold">To answer</span>`}<time title="${esc(t.at.slice(0, 16).replace("T", " "))} UTC">${ago(t.at)}</time></div>
+<div class="x">${esc(t.text)}</div>
+${t.replies.map((r) => `<div class="r${r.owner ? " me" : ""}"><b>${esc(r.author)}</b> <span>· ${ago(r.at)}</span><div>${esc(r.text)}</div></div>`).join("")}
+<div class="a"><a href="${esc(t.url)}" target="_blank" rel="noopener">${t.answered ? "Open on CurseForge" : "Answer on CurseForge"} ↗</a></div></div>`,
+    )
+    .join("");
+}
+
 /** How things stand, from the day's events: a failure first, a pull request waiting, else quiet. */
 function standing(events: Event[], now = Date.now()) {
   const recent = events.filter((e) => now - Date.parse(e.at) < 36 * 3600_000);
@@ -341,7 +361,7 @@ const lastOf = (xs: N[]) => {
 
 export function dashboard(
   h: History,
-  opts: { viewer?: string; events?: Event[]; pushKey?: string | null; devices?: number; readings?: Reading[]; releases?: Record<string, Release[]> } = {},
+  opts: { viewer?: string; events?: Event[]; pushKey?: string | null; devices?: number; readings?: Reading[]; releases?: Record<string, Release[]>; threads?: Thread[] } = {},
 ): string {
   const s = seriesOf(h);
   const events = opts.events ?? [];
@@ -385,12 +405,15 @@ export function dashboard(
   const NAV = [
     ["overview", "house", "Overview"],
     ["activity", "activity", "Activity"],
+    ["comments", "comment", "Comments"],
     ["downloads", "download", "Downloads"],
     ["players", "users", "Players"],
     ["sites", "globe", "Sites"],
     ["notifications", "bell", "Notifications"],
   ];
   const hourly = hourlyOf(opts.readings ?? []);
+  const threads = opts.threads ?? [];
+  const toAnswer = threads.filter((t) => !t.answered).length;
   const data = {
     ...s,
     hourly,
@@ -400,7 +423,7 @@ export function dashboard(
   };
   return `${head("Ravenpost")}<body>
 <aside class="side"><div class="brand"><img src="/icon-192.png" alt=""><div><p class="title">Ravenpost</p><small>The inbox</small></div></div>
-<nav class="nav">${NAV.map(([id, ic, label]) => `<a href="#${id}" data-nav="${id}">${icon(ic)}${label}</a>`).join("")}</nav>
+<nav class="nav">${NAV.map(([id, ic, label]) => `<a href="#${id}" data-nav="${id}">${icon(ic)}<span style="flex:1">${label}</span>${id === "comments" && toAnswer ? `<span class="tag gold" style="height:18px">${toAnswer}</span>` : ""}</a>`).join("")}</nav>
 <div class="side-foot"><p style="display:flex;align-items:center;gap:8px;color:var(--dim)"><span class="dot ${st.tone} pulse"></span>${esc(st.title)}</p><p>${h.updated ? `Numbers of ${esc(h.updated.slice(0, 10))}, ${esc(h.updated.slice(11, 16))} UTC` : "No numbers yet"}</p>${opts.viewer ? `<p>${esc(opts.viewer)}</p>` : ""}</div></aside>
 <nav class="tabs">${NAV.slice(0, 5).map(([id, ic, label]) => `<a href="#${id}" data-nav="${id}">${icon(ic)}${label}</a>`).join("")}</nav>
 <main>
@@ -427,13 +450,21 @@ ${kpi("k-vi", "globe", "Site visitors", fmt(lastOf(visitors)), Object.keys(s.sit
     .join("")}</div></div>
 <div class="panel" id="feed">${feed(events)}</div></section>
 
+<section id="comments"><div class="sh"><h2 class="title">Comments</h2><div class="chips" role="group" aria-label="Show">${[
+    ["open", `To answer${toAnswer ? ` (${toAnswer})` : ""}`],
+    ["all", "All"],
+  ]
+    .map(([k, l], i) => `<button class="chip${(toAnswer ? i === 0 : i === 1) ? " on" : ""}" data-threads="${k}">${l}</button>`)
+    .join("")}</div></div>
+<div class="panel" id="threads">${threadsList(threads)}</div></section>
+
 <section id="downloads"><div class="sh"><h2 class="title">Downloads</h2><p>New downloads a day, by addon</p></div>
 <div class="panel card"><div class="chart" id="c-dl"></div><div class="legend" id="l-dl"></div>
 <div class="rows" style="margin-top:14px">${rows || `<p class="empty">Nothing yet.</p>`}</div>
 <p class="sub" style="margin-top:10px">Download events, not players. CurseForge from its own pages, Wago from its pages, GitHub from the releases.</p></div>
 <div class="grid2" style="margin-top:12px;align-items:start">
 <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
-<div class="panel card"><h3>The last 48 hours</h3><p class="sub">New CurseForge downloads an hour, read every half hour</p><div class="chart" id="c-hr" style="height:170px"></div></div>
+<div class="panel card"><h3>The last 48 hours</h3><p class="sub">New CurseForge downloads an hour, read every ten minutes</p><div class="chart" id="c-hr" style="height:170px"></div></div>
 <div class="panel card"><h3>Popularity on CurseForge</h3><p class="sub">Each addon's rank among every WoW addon, its favorites and thumbs up</p>${popularity(h)}</div>
 </div>
 <div class="panel card"><h3>By release</h3><p class="sub">Each version's CurseForge downloads, the newest first</p>${releasesCard(opts.releases ?? {})}</div>
@@ -541,10 +572,16 @@ document.querySelectorAll("[data-filter]").forEach(b=>b.onclick=()=>{filter=b.da
 if($("feed-more"))$("feed-more").onclick=()=>{all=true;apply()};
 document.querySelectorAll(".feed .b").forEach(b=>b.onclick=()=>b.classList.toggle("open"));apply();
 
+// The comments: the ones to answer, or all.
+const showThreads=(k)=>{document.querySelectorAll(".thread").forEach(t=>t.hidden=k==="open"&&t.dataset.open!=="1");document.querySelectorAll("[data-threads]").forEach(b=>b.classList.toggle("on",b.dataset.threads===k));
+  if(k==="open"&&!document.querySelector(".thread[data-open='1']")&&$("threads"))showThreads("all")};
+document.querySelectorAll("[data-threads]").forEach(b=>b.onclick=()=>showThreads(b.dataset.threads));
+const firstOn=document.querySelector("[data-threads].on");if(firstOn)showThreads(firstOn.dataset.threads);
+
 // The nav: where the page is (the last part whose top has passed a third of
 // the screen, the last part once at the bottom); a part clicked stays marked
 // while the page scrolls to it, until the reader scrolls on their own.
-const ids=["overview","activity","downloads","players","sites","notifications"].filter(id=>$(id));
+const ids=["overview","activity","comments","downloads","players","sites","notifications"].filter(id=>$(id));
 const links=[...document.querySelectorAll("[data-nav]")];const mark=(id)=>links.forEach(a=>a.classList.toggle("on",a.dataset.nav===id));
 let pinned=null,frame=0;
 const where=()=>{if(pinned)return mark(pinned);const line=innerHeight/3;let cur=ids[0];for(const id of ids)if($(id).getBoundingClientRect().top<=line)cur=id;
