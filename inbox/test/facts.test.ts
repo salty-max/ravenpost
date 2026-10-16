@@ -16,7 +16,7 @@ describe("facts", () => {
       facts: {
         enUS: {
           quest: { "92551": { title: "Stolen Supplies", details: "Hey $N, the supplies.", giver: "npc:252172", map: 2442, x: 46.1, y: 25, b: "70374" } },
-          npc: { "252172": { name: "Danarii Bellowveil", level: [10, 10], rank: "normal", type: "Humanoid", reaction: 5, map: 2442 } },
+          npc: { "252172": { world: true, name: "Danarii Bellowveil", level: [10, 10], rank: "normal", type: "Humanoid", reaction: 5, map: 2442 } },
           say: { "448": { "$N! Fresh meat!": "yell" } },
           gossip: { "448": { "Grr.": true } },
           loot: { "npc:299": { looted: 3, items: { "750": 2 } } },
@@ -34,6 +34,21 @@ describe("facts", () => {
     expect(has("say", "448", "yell", "$N! Fresh meat!")).toBe(true);
     expect(has("gossip", "448", "text", "Grr.")).toBe(true);
     expect(has("loot", "npc:299", "item", "750")).toBe(true);
+  });
+
+  test("the collector's type/family ids survive, unchecked legacy NPCs and invalid ids do not", () => {
+    const facts = flatten({ game: "forever", facts: { deDE: { npc: {
+      "1860": { name: "Graz'nar", level: [10, 10], map: 1426, x: 47.2, y: 51.9, b: "70374" },
+      "252172": { world: true, name: "Danarii", typeId: 7, familyId: 1, b: "70374" },
+      "299": { world: true, typeId: "1", familyId: -1 },
+      "300": { world: "true", name: "Not attested" },
+      "301": { world: false, name: "Player controlled" },
+      "302": { world: true, typeId: 1.5, familyId: 100001 },
+    } } } });
+    expect(facts?.filter((f) => f.entity === "252172").map((f) => [f.field, f.value, f.build])).toEqual([
+      ["name", "Danarii", "70374"], ["typeId", "7", "70374"], ["familyId", "1", "70374"],
+    ]);
+    expect(facts?.some((f) => f.entity !== "252172")).toBe(false);
   });
 
   test("anything else is left out", () => {

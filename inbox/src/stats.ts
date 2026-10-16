@@ -10,7 +10,7 @@ import * as store from "./store";
  *              a hash of a random install id, its version, system, links)
  *   sharing    that day's uploads of facts: sharers, uploads, facts, by game
  *              and language (counted as they come, by the sharer's hash)
- *   merged     what wow-data's daily merge made of them (new facts by game)
+ *   merged     observations newly archived by wow-data, not database gaps filled
  *   traffic    the sites' page views and visitors (Vercel Web Analytics'
  *              API, when VERCEL_ANALYTICS_TOKEN is set)
  *   curseforge each addon's standing there: its rank among every WoW addon

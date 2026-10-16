@@ -4,7 +4,7 @@
  *
  *   { game: "classic" | "forever", facts: { [locale]: {
  *       quest:  { [id]: { title, details, objectives, request, reward, giver, ender, map, x, y, b } },
- *       npc:    { [id]: { name, level: [lo, hi], rank, type, family, reaction, map, x, y, b } },
+ *       npc:    { [id]: { world: true, name, level: [lo, hi], rank, typeId, familyId, type, family, reaction, map, x, y, b } },
  *       say:    { [npc id]: { [text]: "say" | "yell" | "emote" | "whisper" } },
  *       gossip: { [npc id]: { [text]: true } },
  *       loot:   { ["npc:id" | "object:id"]: { looted, items: { [item id]: n } } } } } }
@@ -66,7 +66,9 @@ export function flatten(body: unknown): Fact[] | null {
     }
     for (const [id, raw] of Object.entries(obj(shelves.npc) ?? {})) {
       const n = obj(raw);
-      if (!isId(id) || !n) continue;
+      // Old saved records may be summons with Creature GUIDs. Only the
+      // collector that checks player control can attest a world NPC.
+      if (!isId(id) || !n || n.world !== true) continue;
       const at = build(n.b);
       const name = text(n.name, 200);
       if (name) put(locale, "npc", id, "name", name, at);
@@ -76,6 +78,10 @@ export function flatten(body: unknown): Fact[] | null {
       for (const f of ["rank", "type", "family"]) {
         const v = text(n[f], WORD);
         if (v) put(locale, "npc", id, f, v, at);
+      }
+      for (const f of ["typeId", "familyId"]) {
+        const value = int(n[f], 1, 100_000);
+        if (value !== null) put(locale, "npc", id, f, String(value), at);
       }
       const reaction = int(n.reaction, 1, 8);
       if (reaction !== null) put(locale, "npc", id, "reaction", String(reaction), at);

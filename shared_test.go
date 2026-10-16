@@ -36,12 +36,15 @@ YonderCollect = {
 			},
 			["npc"] = {
 				[299] = {
+					["world"] = true,
 					["name"] = "Young Wolf",
 					["level"] = {
 						2, -- [1]
 						3, -- [2]
 					},
 					["type"] = "Beast",
+					["typeId"] = 1,
+					["familyId"] = 1,
 					["b"] = "70003",
 				},
 			},
@@ -143,6 +146,9 @@ func TestSharesTheFactsOnceAnonymously(t *testing.T) {
 	level, _ := w["level"].([]any)
 	if b["game"] != "classic" || q["details"] != "Hey $N, bring me meat." || len(level) != 2 || level[1] != 3.0 {
 		t.Fatalf("body: %+v", b)
+	}
+	if w["world"] != true || w["typeId"] != 1.0 || w["familyId"] != 1.0 {
+		t.Fatalf("world check and creature ids lost in transit: %+v", w)
 	}
 	if _, ok := b["facts"].(map[string]any)["enUS"].(map[string]any)["say"]; ok {
 		t.Fatal("an empty shelf was sent")

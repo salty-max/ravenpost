@@ -23,6 +23,10 @@ Blob store, and goes once merged.
 - `POST /api/facts`: an addon's collect table, from a signed-in player
   (`Authorization: Bearer <token>`), flattened and checked (`src/facts.ts`),
   dropped in the inbox (`src/inbox.ts`).
+  NPC entries must carry `world: true` from the collector's player-control
+  check. Unchecked NPC entries from older addons are ignored, while their
+  quests, dialogue and loot still work. Creature type/family ids are kept.
+  NPC coordinates are the observer's position, never a confirmed spawn.
 - `GET /api/inbox/list`, `POST /api/inbox/read`, `POST /api/inbox/done`: for
   wow-data's daily job, behind `INBOX_TOKEN`; `POST /api/inbox/stats`: its
   merge's numbers (or days brought by hand: downloads.md's were).

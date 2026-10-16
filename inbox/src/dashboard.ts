@@ -605,7 +605,7 @@ function draw(){
   const on=addons.filter(a=>!a.off);
   chart($("c-dl"),{type:"bars",series:on,labels:D.labels,since:D.since});legend($("l-dl"),addons,(k)=>{addons[k].off=!addons[k].off;remember("hiddenAddons",addons.filter(a=>a.off).map(a=>a.name));draw()});
   chart($("c-in"),{type:"bars",series:[{name:"Installs",color:C[1],values:D.installs}],labels:D.labels});
-  const fa=[{name:"Facts",color:C[2],values:D.facts},{name:"New to the database",color:C[0],values:D.newFacts}];
+  const fa=[{name:"Facts",color:C[2],values:D.facts},{name:"New observations archived",color:C[0],values:D.newFacts}];
   chart($("c-fa"),{type:"area",series:fa,labels:D.labels});legend($("l-fa"),fa,()=>{});
   if($("c-vi")){chart($("c-vi"),{type:"area",series:sites.filter(s=>!s.off),labels:D.labels});legend($("l-vi"),sites,(k)=>{sites[k].off=!sites[k].off;remember("hiddenSites",sites.filter(s=>s.off).map(s=>s.name));draw()})}
   const hl=D.hourly.hours.map(h=>new Date(h).toLocaleString("en-GB",{weekday:"short",hour:"2-digit",minute:"2-digit",hour12:false}));
