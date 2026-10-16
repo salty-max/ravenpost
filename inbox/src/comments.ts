@@ -40,15 +40,24 @@ async function rawThreads(project: number): Promise<Raw[]> {
   return ((await res.json()) as { data?: Raw[] }).data ?? [];
 }
 
-/** Threads, their replies with them, flattened. */
+/** Replies can themselves have replies. Keep each comment once at any depth. */
+function allComments(roots: Raw[]): Raw[] {
+  const found = new Map<number, Raw>();
+  const visit = (list: Raw[]) => {
+    for (const c of list) {
+      if (found.has(c.id)) continue;
+      found.set(c.id, c);
+      visit(c.replies ?? []);
+    }
+  };
+  visit(roots);
+  return [...found.values()];
+}
+
+/** Threads, their replies at every depth, flattened. */
 function flatten(project: number, threads: Raw[]): Comment[] {
-  const out: Comment[] = [];
-  const add = (c: Raw, reply: boolean) => out.push({ id: c.id, project: c.projectId ?? project, author: nameOf(c), text: words(c), at: new Date(c.datePosted).toISOString(), reply });
-  for (const c of threads) {
-    add(c, false);
-    for (const r of c.replies ?? []) add(r, true);
-  }
-  return out;
+  const roots = new Set(threads.map((c) => c.id));
+  return allComments(threads).map((c) => ({ id: c.id, project: c.projectId ?? project, author: nameOf(c), text: words(c), at: new Date(c.datePosted).toISOString(), reply: !roots.has(c.id) }));
 }
 
 /** A project's latest threads, their replies with them, flattened. */
@@ -58,12 +67,12 @@ export async function commentsOf(project: number): Promise<Comment[]> {
 
 /** A thread as the dashboard shows it: the owner's last word or not. */
 function threadOf(addon: string, repo: string, url: string, c: Raw): Thread {
-  const replies = [...(c.replies ?? [])]
+  const replies = allComments(c.replies ?? [])
     .sort((a, b) => a.datePosted - b.datePosted)
     .map((r) => ({ author: nameOf(r), text: words(r), at: new Date(r.datePosted).toISOString(), owner: nameOf(r).toLowerCase() === owner() }));
   const mine = nameOf(c).toLowerCase() === owner();
   const at = new Date(c.datePosted).toISOString();
-  return { addon, repo, url, id: c.id, author: nameOf(c), text: words(c), at, last: replies.length ? replies[replies.length - 1].at : at, replies, answered: mine || (replies.length > 0 && replies[replies.length - 1].owner) };
+  return { addon, repo, url, id: c.id, author: nameOf(c), text: words(c), at, last: replies.length ? replies[replies.length - 1].at : at, replies, answered: replies.length > 0 ? replies[replies.length - 1].owner : mine };
 }
 
 const RECENT = "comments/recent.json";

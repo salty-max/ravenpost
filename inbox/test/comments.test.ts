@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { recentThreads, setCommentsFetch, watch } from "../src/comments";
+import { commentsOf, recentThreads, setCommentsFetch, watch } from "../src/comments";
+import { dashboard } from "../src/dashboard";
 import { digestOf } from "../src/digest";
 import * as events from "../src/events";
 
@@ -61,6 +62,87 @@ describe("CurseForge's comments", () => {
     expect(list.length).toBe(1);
     expect(list[0].title).toBe("5 new comments on Yonder");
     expect(digestOf({ days: {} }, list).lines).toContain("5 new comments on CurseForge: Yonder 5.");
+  });
+
+  test("a player replying to the owner's reply is shown and told, at any depth", async () => {
+    const ownerReply = comment(2, "saltymax", "The fix is up.");
+    threads[1728396] = [comment(1, "player", "I found a bug.", [ownerReply])];
+    await watch();
+    expect((await recentThreads())[0].answered).toBe(true);
+
+    const playerReply = comment(3, "player", "It works now, thank you!");
+    ownerReply.replies.push(playerReply);
+    expect(await watch()).toMatchObject({ looked: 3, fresh: 1, failed: [] });
+    expect(await events.recent()).toHaveLength(1);
+    expect((await events.recent())[0]).toMatchObject({ title: "player replied on Yonder", body: "It works now, thank you!" });
+    let [shown] = await recentThreads();
+    expect(shown).toMatchObject({ answered: false, last: new Date(playerReply.datePosted).toISOString() });
+    expect(shown.replies.map((r) => [r.author, r.text])).toEqual([
+      ["saltymax", "The fix is up."],
+      ["player", "It works now, thank you!"],
+    ]);
+    const html = dashboard({ days: {} }, { threads: [shown] });
+    expect(html).toContain("It works now, thank you!");
+    expect(html).toContain("To answer");
+    expect((await watch()).fresh).toBe(0);
+    expect(await events.recent()).toHaveLength(1);
+
+    const deeperOwner = comment(4, "saltymax", "Glad to hear it.");
+    playerReply.replies.push(deeperOwner);
+    expect((await watch()).fresh).toBe(0);
+    [shown] = await recentThreads();
+    expect(shown.answered).toBe(true);
+    expect(shown.replies.map((r) => r.owner)).toEqual([true, false, true]);
+
+    deeperOwner.replies.push(comment(5, "player", "One more question."));
+    expect((await watch()).fresh).toBe(1);
+    [shown] = await recentThreads();
+    expect(shown.answered).toBe(false);
+    expect(shown.replies).toHaveLength(4);
+    expect(await events.recent()).toHaveLength(2);
+  });
+
+  test("the first look learns deeply nested replies without notifying about old messages", async () => {
+    threads[1728396] = [comment(1, "player", "Bug", [comment(2, "saltymax", "Fixed", [comment(3, "player", "Thanks")])])];
+    expect(await watch()).toMatchObject({ looked: 3, fresh: 0 });
+    expect((await recentThreads())[0].replies).toHaveLength(2);
+    expect((await watch()).fresh).toBe(0);
+    expect(await events.recent()).toEqual([]);
+  });
+
+  test("replies on different branches are ordered by time, not their position in the response", async () => {
+    threads[1728396] = [comment(25, "other player", "A newer top-level comment"), comment(1, "player", "Bug", [
+      comment(20, "saltymax", "Another detail"),
+      comment(10, "saltymax", "Fixed", [comment(30, "player", "I still need help")]),
+    ])];
+    await watch();
+    const shownThreads = await recentThreads();
+    expect(shownThreads.map((t) => t.id)).toEqual([1, 25]);
+    const [shown] = shownThreads;
+    expect(shown.replies.map((r) => r.text)).toEqual(["Fixed", "Another detail", "I still need help"]);
+    expect(shown.answered).toBe(false);
+    expect(shown.last).toBe(new Date(Date.parse("2026-10-15T08:00:00Z") + 30).toISOString());
+  });
+
+  test("a thread started by the owner still needs an answer when a player replies last", async () => {
+    threads[1728396] = [comment(1, "saltymax", "Any feedback?")];
+    await watch();
+    expect((await recentThreads())[0].answered).toBe(true);
+    threads[1728396] = [comment(1, "saltymax", "Any feedback?", [comment(2, "player", "How do I open it?")])];
+    expect((await watch()).fresh).toBe(1);
+    expect((await recentThreads())[0].answered).toBe(false);
+  });
+
+  test("a reply included in more than one place is shown and announced only once", async () => {
+    threads[1728396] = [comment(1, "player", "Bug")];
+    await watch();
+    const reply = comment(3, "player", "A follow-up");
+    threads[1728396] = [comment(1, "player", "Bug", [comment(2, "saltymax", "Fixed", [reply]), reply])];
+    expect((await commentsOf(1728396)).map((c) => [c.id, c.reply])).toEqual([[1, false], [2, true], [3, true]]);
+    expect(await watch()).toMatchObject({ looked: 3, fresh: 1 });
+    expect((await recentThreads())[0].replies).toHaveLength(2);
+    expect(await events.recent()).toHaveLength(1);
+    expect((await watch()).fresh).toBe(0);
   });
 
   test("a refusal from CurseForge is said, the others still looked at", async () => {

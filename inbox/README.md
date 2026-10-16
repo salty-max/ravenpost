@@ -101,7 +101,10 @@ for:
   reads (`www.curseforge.com/api/v1/mods/<id>/comments`, no key), each new
   comment or reply by someone else than `CURSEFORGE_AUTHOR` (saltymax by
   default) a word with a link to answer it, several at once one word; the
-  first look only learns what is there (`comments/seen.json`);
+  first look only learns what is there (`comments/seen.json`). Replies are
+  read at every depth, including players replying to the owner's replies,
+  shown once in chronological order within their thread. The latest reply
+  decides whether the thread needs an answer, even if the owner started it.
 - the morning's digest (`/api/cron/digest`, Vercel Cron at 07:15 UTC, once
   the data jobs are done; `src/digest.ts`): what the jobs did since the
   last one, and yesterday's downloads, installs, sharing and visitors.
