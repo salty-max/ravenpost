@@ -20,12 +20,14 @@ few seconds after you log out or use `/reload`, it carries what they saved:
 
 ## Using Ravenpost
 
-To share what you see, click **Link with Battle.net** on the addons'
-database card and sign in in your browser: the window then shows which
-addons share and how much went. To use a site, link it the same way on its
-card, sign in on the site and check that the code matches the one Ravenpost
-shows. The window then shows what each logout
-sent, the characters Ravenpost found and the game folders it watches.
+Click **Sign in with Battle.net** at the top of the overview and finish
+signing in in your browser. This connects Hearthtale and the addons'
+database. With **Share what you see** turned on in an addon, the window
+shows which addons share and how much went.
+
+WoWLocker keeps its own link: use its card, sign in on the site and check
+that the code matches the one Ravenpost shows. The window shows what each
+logout sent, the characters Ravenpost found and the game folders it watches.
 
 Closing the window doesn't stop Ravenpost. It keeps working from the menu bar
 on macOS or the tray on Windows. With **Open Ravenpost at login** turned on in
