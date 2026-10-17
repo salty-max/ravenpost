@@ -81,19 +81,19 @@ WowLockerDB = {
 					["type"] = "level",
 				}, -- [9]
 				{
+					["max"] = 75,
+					["name"] = "Cooking",
+					["rank"] = 26,
+					["section"] = "Professions",
+					["t"] = 1790900282,
+					["type"] = "skill",
+				}, -- [10]
+				{
 					["learned"] = true,
 					["max"] = 75,
 					["name"] = "First Aid",
 					["rank"] = 1,
 					["section"] = "Weapon Skills",
-					["t"] = 1790900282,
-					["type"] = "skill",
-				}, -- [10]
-				{
-					["max"] = 75,
-					["name"] = "Cooking",
-					["rank"] = 26,
-					["section"] = "Professions",
 					["t"] = 1790900282,
 					["type"] = "skill",
 				}, -- [11]
@@ -265,6 +265,20 @@ WowLockerDB = {
 						["spellId"] = 18560,
 					}, -- [1]
 				},
+				["equipment"] = {
+					{
+						["color"] = "ffffff",
+						["id"] = 57,
+						["name"] = "Acolyte's Robe",
+						["slot"] = "CHEST",
+					}, -- [1]
+					{
+						["color"] = "1eff00",
+						["id"] = 9999,
+						["name"] = "Gold-flecked Gloves",
+						["slot"] = "HANDS",
+					}, -- [2]
+				},
 				["hardcore"] = true,
 				["level"] = 23,
 				["levelPlayed"] = {
@@ -338,15 +352,15 @@ WowLockerDB = {
 					}, -- [1]
 					{
 						["max"] = 75,
-						["name"] = "First Aid",
-						["rank"] = 1,
-						["section"] = "Weapon Skills",
-					}, -- [2]
-					{
-						["max"] = 75,
 						["name"] = "Cooking",
 						["rank"] = 26,
 						["section"] = "Professions",
+					}, -- [2]
+					{
+						["max"] = 75,
+						["name"] = "First Aid",
+						["rank"] = 1,
+						["section"] = "Weapon Skills",
 					}, -- [3]
 				},
 				["subZone"] = "Moonbrook",
