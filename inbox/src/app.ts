@@ -145,16 +145,6 @@ app.post("/api/inbox/stats", async (c) => {
   return c.json({ days: Object.keys(h.days).length });
 });
 
-// Each addon's downloads and unique downloaders, CurseForge's own statistics,
-// brought from the owner's computer (bin/curseforge-unique.ts: they sit behind
-// the owner's CurseForge session, which never leaves that computer).
-app.post("/api/inbox/unique", bodyLimit({ maxSize: 512 * 1024, onError: (c) => c.json({ error: "too large" }, 413) }), async (c) => {
-  const u = readUnique(await c.req.json().catch(() => null));
-  if (!u) return c.json({ error: "days: { YYYY-MM-DD: { addon: { downloads, unique } } }, periods: { 7|30|90: … }" }, 400);
-  await recordUnique(u);
-  return c.json({ days: Object.keys(u.days).length, through: u.through });
-});
-
 // ── Ravenpost's daily ping (anonymous: a hash of its random install id) ──────
 app.post("/api/ping", bodyLimit({ maxSize: 4096 }), async (c) => {
   const p = readPing(await c.req.json().catch(() => null));
@@ -263,6 +253,18 @@ app.post("/api/events", bodyLimit({ maxSize: 16 * 1024 }), async (c) => {
   await events.add(e);
   const told = await push.notify({ title: e.title, body: e.body, url: "/stats#activity", tag: `${e.kind}-${e.repo ?? "inbox"}` });
   return c.json({ ok: true, ...told });
+});
+
+// ── each addon's unique downloaders, CurseForge's own statistics, brought
+// from the owner's computer (bin/curseforge-unique.ts: they sit behind the
+// owner's CurseForge session, which never leaves that computer). UNIQUE_TOKEN,
+// the script's alone: it reaches nothing else ────────────────────────────────
+app.post("/api/unique", bodyLimit({ maxSize: 512 * 1024, onError: (c) => c.json({ error: "too large" }, 413) }), async (c) => {
+  if (!bearer(c, process.env.UNIQUE_TOKEN)) return c.json({ error: "unauthorized" }, 401);
+  const u = readUnique(await c.req.json().catch(() => null));
+  if (!u) return c.json({ error: "days: { YYYY-MM-DD: { addon: { downloads, unique } } }, periods: { 7|30|90: … }" }, 400);
+  await recordUnique(u);
+  return c.json({ days: Object.keys(u.days).length, through: u.through });
 });
 
 // ── the morning's digest (Vercel Cron, CRON_SECRET; or by hand with INBOX_TOKEN) ─

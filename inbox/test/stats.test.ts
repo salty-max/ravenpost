@@ -166,8 +166,11 @@ describe("today so far, and the unique downloaders", () => {
     await record({ "2026-10-18": { merged: { forever: { uploads: 1, newFacts: 2 } }, downloads: { Yonder: { curseforge: 100 } } } });
     const updated = (await history()).updated;
     const body = { days: { "2026-10-17": { Yonder: { downloads: 46, unique: 30 } }, "2026-10-18": { Yonder: { downloads: 50, unique: 33 } } }, periods: { "7": { Yonder: { downloads: 359, unique: 217 } } } };
-    expect((await app.request("/api/inbox/unique", { method: "POST", body: JSON.stringify(body) })).status).toBe(401);
-    const res = await app.request("/api/inbox/unique", { method: "POST", headers: { authorization: "Bearer t0ken" }, body: JSON.stringify(body) });
+    process.env.UNIQUE_TOKEN = "un1que";
+    expect((await app.request("/api/unique", { method: "POST", body: JSON.stringify(body) })).status).toBe(401);
+    expect((await app.request("/api/unique", { method: "POST", headers: { authorization: "Bearer t0ken" }, body: JSON.stringify(body) })).status).toBe(401);
+    const res = await app.request("/api/unique", { method: "POST", headers: { authorization: "Bearer un1que" }, body: JSON.stringify(body) });
+    delete process.env.UNIQUE_TOKEN;
     expect(await res.json()).toEqual({ days: 2, through: "2026-10-18" });
     const h = await history();
     expect(h.updated).toBe(updated);

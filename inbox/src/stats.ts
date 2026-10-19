@@ -19,7 +19,7 @@ import * as store from "./store";
  *   unique     each addon's CurseForge downloads that day and its unique
  *              downloaders (different people), CurseForge's own statistics:
  *              behind the owner's session, so brought from their computer
- *              (bin/curseforge-unique.ts, POST /api/inbox/unique), a day or
+ *              (bin/curseforge-unique.ts, POST /api/unique), a day or
  *              two behind
  * The day's pings and counts are dropped once counted: only the sums stay.
  * Today's so far are counted at each ten-minute look (stats/today.json).

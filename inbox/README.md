@@ -57,8 +57,8 @@ with Battle.net in the browser (a signed cookie, 30 days). Its history,
   session, which never leaves their computer: `bun bin/curseforge-unique.ts`
   there reads them (the authors site's Downloads statistics queries, the
   cookie in `~/.config/wow-addons/curseforge-cookie`, addon-kit's store.ts's)
-  and hands them over (`POST /api/inbox/unique`, `INBOX_TOKEN` or
-  `~/.config/wow-addons/inbox-token`). A day or two behind; Wago and GitHub
+  and hands them over (`POST /api/unique` with `UNIQUE_TOKEN`, the script's
+  alone, kept there in `~/.config/wow-addons/unique-token`). A day or two behind; Wago and GitHub
   count no people. The Downloads section's All and Unique switch the chart
   and the rows between download events and people.
 
@@ -165,7 +165,7 @@ accounts refused, a token's `sub`, comma-separated), and `BNET_CLIENT_ID` /
 `BNET_CLIENT_SECRET`: the Battle.net app "Ravenpost" on develop.battle.net,
 its redirect URL `https://ravenpost-inbox.vercel.app/api/login/callback`;
 the numbers': `CRON_SECRET`, `STATS_BATTLETAGS`, `STATS_SITES`,
-`VERCEL_TEAM_ID` (and `VERCEL_ANALYTICS_TOKEN`, `GITHUB_TOKEN`, `CURSEFORGE_API_KEY` when set);
+`VERCEL_TEAM_ID` (and `VERCEL_ANALYTICS_TOKEN`, `GITHUB_TOKEN`, `CURSEFORGE_API_KEY`, `UNIQUE_TOKEN` when set);
 the notifications': `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`,
 `INBOX_EVENTS_TOKEN` (the workflows'); `WOWHEAD_TOKEN` (the Wowhead tab's).
 

@@ -6,14 +6,15 @@
  * queries: authors.curseforge.com/_api/statistics-new/queries/<n>, read on 19
  * October 2026: 2 the downloads a day by project, 3 the unique downloaders a
  * day, 4 both over a period), so they're read here, on the owner's computer,
- * never on a server, and handed to the inbox (POST /api/inbox/unique).
+ * never on a server, and handed to the inbox (POST /api/unique).
  *
  *   bun bin/curseforge-unique.ts          read and hand over
  *   bun bin/curseforge-unique.ts --dry    read and show, nothing sent
  *
  * The session: the cookie addon-kit's store.ts uses
- * (~/.config/wow-addons/curseforge-cookie, or CURSEFORGE_COOKIE); the inbox's
- * token: INBOX_TOKEN, or ~/.config/wow-addons/inbox-token; INBOX_URL, else
+ * (~/.config/wow-addons/curseforge-cookie, or CURSEFORGE_COOKIE); the
+ * inbox's token for it, its alone: UNIQUE_TOKEN, or
+ * ~/.config/wow-addons/unique-token (the inbox's UNIQUE_TOKEN); INBOX_URL, else
  * https://ravenpost-inbox.vercel.app. CurseForge's numbers are a day or two
  * behind; each run replaces the days it reads.
  */
@@ -80,9 +81,9 @@ for (const [name] of projects) {
 if (process.argv.includes("--dry")) process.exit(0);
 
 const inbox = (process.env.INBOX_URL || "https://ravenpost-inbox.vercel.app").replace(/\/$/, "");
-const res = await fetch(`${inbox}/api/inbox/unique`, {
+const res = await fetch(`${inbox}/api/unique`, {
   method: "POST",
-  headers: { "content-type": "application/json", authorization: `Bearer ${secret("INBOX_TOKEN", "inbox-token", "inbox token")}` },
+  headers: { "content-type": "application/json", authorization: `Bearer ${secret("UNIQUE_TOKEN", "unique-token", "inbox token")}` },
   body: JSON.stringify({ days, periods }),
 });
 if (!res.ok) throw new Error(`the inbox said ${res.status}: ${(await res.text()).slice(0, 200)}`);
