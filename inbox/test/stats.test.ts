@@ -5,7 +5,7 @@ import path from "node:path";
 import { app } from "../src/app";
 import { sign, subOf, tokenFor } from "../src/auth";
 import { dashboard, seriesOf } from "../src/dashboard";
-import { collect, countUpload, history, ping, readPing, setStatsFetch } from "../src/stats";
+import { collect, countToday, countUpload, history, ping, readPing, readUnique, record, setStatsFetch, today, uniquePeriods } from "../src/stats";
 
 beforeEach(() => {
   process.env.INBOX_DIR = mkdtempSync(path.join(tmpdir(), "stats-"));
@@ -143,6 +143,40 @@ describe("the numbers", () => {
     expect(s.downloads.week.Yonder).toBe(14);
     expect(s.installs).toEqual([null, null, null, 2]);
     expect(s.sites.hearthtale.visitors).toEqual([null, null, 4, null]);
+  });
+});
+
+describe("today so far, and the unique downloaders", () => {
+  test("today's installs and facts counted before the daily job, another day's not shown", async () => {
+    const now = new Date("2026-10-19T10:00:00Z");
+    await ping(readPing({ id: "a".repeat(32), version: "0.4.0", os: "darwin", arch: "arm64", linked: [], sharing: 1 })!, now);
+    await ping(readPing({ id: "b".repeat(32), version: "0.4.0", os: "windows", arch: "x64", linked: [], sharing: 0 })!, now);
+    await ping(readPing({ id: "c".repeat(32), version: "0.4.0", os: "windows", arch: "x64", linked: [], sharing: 0 })!, new Date("2026-10-18T10:00:00Z"));
+    await countUpload("someone", "forever", { enUS: 30 }, now);
+    await countUpload("someone", "classic", { frFR: 5 }, now);
+    expect(await countToday(now)).toMatchObject({ day: "2026-10-19", installs: 2, sharing: 1, sharers: 1, uploads: 2, facts: 35 });
+    expect(await today(now)).toMatchObject({ installs: 2, facts: 35 });
+    expect(await today(new Date("2026-10-20T00:05:00Z"))).toBeNull();
+  });
+
+  test("the unique downloaders: checked, into the history without moving its snapshot, the periods kept", async () => {
+    expect(readUnique({ days: { "2026-10-18": { Yonder: { downloads: 5, unique: -1 } } }, periods: {} })).toBeNull();
+    expect(readUnique({ days: { yesterday: {} }, periods: {} })).toBeNull();
+    expect(readUnique({ days: {}, periods: { "365": {} } })).toBeNull();
+    await record({ "2026-10-18": { merged: { forever: { uploads: 1, newFacts: 2 } }, downloads: { Yonder: { curseforge: 100 } } } });
+    const updated = (await history()).updated;
+    const body = { days: { "2026-10-17": { Yonder: { downloads: 46, unique: 30 } }, "2026-10-18": { Yonder: { downloads: 50, unique: 33 } } }, periods: { "7": { Yonder: { downloads: 359, unique: 217 } } } };
+    expect((await app.request("/api/inbox/unique", { method: "POST", body: JSON.stringify(body) })).status).toBe(401);
+    const res = await app.request("/api/inbox/unique", { method: "POST", headers: { authorization: "Bearer t0ken" }, body: JSON.stringify(body) });
+    expect(await res.json()).toEqual({ days: 2, through: "2026-10-18" });
+    const h = await history();
+    expect(h.updated).toBe(updated);
+    expect(h.days["2026-10-18"]).toEqual({ merged: { forever: { uploads: 1, newFacts: 2 } }, downloads: { Yonder: { curseforge: 100 } }, unique: { Yonder: { downloads: 50, unique: 33 } } });
+    expect(await uniquePeriods()).toMatchObject({ through: "2026-10-18", periods: { "7": { Yonder: { downloads: 359, unique: 217 } } } });
+    expect(seriesOf(h).unique.Yonder).toEqual([30, 33]);
+    const html = dashboard(h, { unique: await uniquePeriods() });
+    expect(html).toContain("<b>217</b><span>of 359</span>");
+    expect(html).toContain("<b>217</b> 7 d");
   });
 });
 

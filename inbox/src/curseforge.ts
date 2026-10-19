@@ -1,6 +1,6 @@
 import * as events from "./events";
 import * as push from "./push";
-import { ADDONS } from "./stats";
+import { ADDONS, github, wago } from "./stats";
 import * as store from "./store";
 
 /**
@@ -10,7 +10,10 @@ import * as store from "./store";
  * its downloads as they come; their sum is the addon's total, cfwidget's
  * number). Kept:
  *   downloads/<day>.json   the day's readings: each addon's total, each look
- *                          (14 days kept: the dashboard's last 48 hours)
+ *                          (14 days kept: the dashboard's last 48 hours),
+ *                          with Wago's counts and, once an hour (each look
+ *                          with GITHUB_TOKEN), GitHub's: the dashboard's
+ *                          totals move during the day, not at the daily job
  *   releases/latest.json   each addon's releases (version, date, downloads)
  *   releases/seen.json     every release id ever seen, by addon (an addon
  *                          can have more releases than the dashboard keeps)
@@ -19,7 +22,7 @@ import * as store from "./store";
  * learns what is there.
  */
 export type Release = { id: number; version: string; at: string; downloads: number; type: number };
-export type Reading = [at: string, totals: Record<string, number>];
+export type Reading = [at: string, totals: Record<string, number>, others?: Record<string, { wago?: number; github?: number }>];
 
 type FetchFn = (input: string, init?: RequestInit) => Promise<Response>;
 let fetchImpl: FetchFn = (input, init) => fetch(input, init);
@@ -99,11 +102,20 @@ export async function look(now = new Date()): Promise<{ addons: number; live: st
     const kept_ = all.filter((e) => e.kind !== "release");
     if (kept_.length !== all.length) await events.replace(kept_);
   }
+  // (the other stores beside: Wago each look, GitHub once an hour without a token)
+  const others: NonNullable<Reading[2]> = {};
+  const withGitHub = !!process.env.GITHUB_TOKEN || now.getUTCMinutes() < 10;
+  await Promise.all(
+    ADDONS.map(async ([name, , slug, wid, repo]) => {
+      const [w, g] = await Promise.all([slug && wid ? wago(slug, wid).catch(() => undefined) : undefined, withGitHub ? github(repo).catch(() => undefined) : undefined]);
+      if (w !== undefined || g !== undefined) others[name] = { ...(w !== undefined && { wago: w }), ...(g !== undefined && { github: g }) };
+    }),
+  );
   // (the day's readings, one each look; the oldest days dropped)
-  if (Object.keys(totals).length) {
+  if (Object.keys(totals).length || Object.keys(others).length) {
     const iso = now.toISOString();
     const day = await readings(iso.slice(0, 10));
-    day.push([iso, totals]);
+    day.push(Object.keys(others).length ? [iso, totals, others] : [iso, totals]);
     await store.write(dayFile(iso), JSON.stringify({ readings: day }));
     const cut = `downloads/${new Date(now.getTime() - KEEP_DAYS * 86_400_000).toISOString().slice(0, 10)}`;
     await store.remove((await store.all("downloads/")).filter((n) => n < cut));

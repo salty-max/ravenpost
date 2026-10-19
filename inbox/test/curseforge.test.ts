@@ -6,17 +6,25 @@ import { latest, look, readings, releasesOf, setCurseForgeFetch } from "../src/c
 import { hourlyOf } from "../src/dashboard";
 import { digestOf } from "../src/digest";
 import * as events from "../src/events";
+import { setStatsFetch } from "../src/stats";
 
 let files: Record<number, { id: number; displayName: string; dateCreated: string; totalDownloads: number; releaseType: number }[]> = {};
 beforeEach(() => {
   process.env.INBOX_DIR = mkdtempSync(path.join(tmpdir(), "cf-"));
   files = { 1728396: [{ id: 1, displayName: "v0.10.1", dateCreated: "2026-10-14T15:56:51Z", totalDownloads: 43, releaseType: 1 }] };
   setCurseForgeFetch(async (url) => Response.json({ data: files[Number(url.match(/mods\/(\d+)\//)![1])] ?? [] }));
+  // (the other stores: Yonder's Wago page, Ravenpost's GitHub releases; nothing else answers)
+  setStatsFetch(async (url) => {
+    if (url.includes("addons.wago.io/addons/yonder")) return new Response('{"id":"ZKbq5y61","download_count":42}');
+    if (url.includes("api.github.com/repos/salty-max/ravenpost/")) return Response.json([{ assets: [{ download_count: 7 }] }]);
+    return new Response("", { status: 404 });
+  });
 });
 afterEach(() => {
   rmSync(process.env.INBOX_DIR!, { recursive: true, force: true });
   delete process.env.INBOX_DIR;
   setCurseForgeFetch((input, init) => fetch(input, init));
+  setStatsFetch((input, init) => fetch(input, init));
 });
 
 describe("CurseForge's releases and downloads", () => {
@@ -32,6 +40,14 @@ describe("CurseForge's releases and downloads", () => {
       ["2026-10-15T10:30:00.000Z", 45],
     ]);
     expect(digestOf({ days: {} }, await events.recent()).lines).toContain("Live on CurseForge: Yonder v0.11.0.");
+  });
+
+  test("each look reads Wago's counts beside, GitHub's once an hour", async () => {
+    await look(new Date("2026-10-15T10:05:00Z"));
+    await look(new Date("2026-10-15T10:25:00Z"));
+    const [first, second] = await readings("2026-10-15");
+    expect(first[2]).toEqual({ Yonder: { wago: 42 }, Ravenpost: { github: 7 } });
+    expect(second[2]).toEqual({ Yonder: { wago: 42 } });
   });
 
   test("an addon with more releases than the dashboard keeps: none told twice, its name not in the version", async () => {

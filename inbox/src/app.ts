@@ -8,9 +8,10 @@ import * as curseforge from "./curseforge";
 import { dashboard, signinPage } from "./dashboard";
 import { digestOf } from "./digest";
 import * as events from "./events";
+import * as github from "./github";
 import * as push from "./push";
 import * as store from "./store";
-import { collect, countUpload, history, ping, readPing, record, type Day } from "./stats";
+import { collect, countToday, countUpload, history, ping, readPing, readUnique, record, recordUnique, today, uniquePeriods, type Day } from "./stats";
 import { account, authorizeUrl, sharer, sign, subOf, tokenFor, verify } from "./auth";
 import { flatten } from "./facts";
 import { passportFor } from "./passport";
@@ -144,6 +145,16 @@ app.post("/api/inbox/stats", async (c) => {
   return c.json({ days: Object.keys(h.days).length });
 });
 
+// Each addon's downloads and unique downloaders, CurseForge's own statistics,
+// brought from the owner's computer (bin/curseforge-unique.ts: they sit behind
+// the owner's CurseForge session, which never leaves that computer).
+app.post("/api/inbox/unique", bodyLimit({ maxSize: 512 * 1024, onError: (c) => c.json({ error: "too large" }, 413) }), async (c) => {
+  const u = readUnique(await c.req.json().catch(() => null));
+  if (!u) return c.json({ error: "days: { YYYY-MM-DD: { addon: { downloads, unique } } }, periods: { 7|30|90: … }" }, 400);
+  await recordUnique(u);
+  return c.json({ days: Object.keys(u.days).length, through: u.through });
+});
+
 // ── Ravenpost's daily ping (anonymous: a hash of its random install id) ──────
 app.post("/api/ping", bodyLimit({ maxSize: 4096 }), async (c) => {
   const p = readPing(await c.req.json().catch(() => null));
@@ -193,18 +204,24 @@ app.get("/stats", async (c) => {
   const tag = owner(c);
   c.header("Cache-Control", "private, no-store");
   if (!tag) return c.html(signinPage());
-  const today = new Date().toISOString().slice(0, 10);
+  const day = new Date().toISOString().slice(0, 10);
   const yday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
-  const [h, ev, devices, r0, r1, releases, threads] = await Promise.all([
+  // (the problems GitHub has seen settled since, asked as the page is made: a few seconds at most)
+  const settled = events.recent().then(async (ev) => [ev, await github.settle(ev).catch(() => ({}))] as const);
+  const [h, [ev, resolved], devices, r0, r1, releases, threads, now, unique] = await Promise.all([
     history(),
-    events.recent(),
+    settled,
     push.devices(),
     curseforge.readings(yday),
-    curseforge.readings(today),
+    curseforge.readings(day),
     curseforge.latest(),
     recentThreads(),
+    today(),
+    uniquePeriods(),
   ]);
-  return c.html(dashboard(h, { viewer: tag, events: ev, pushKey: push.vapid()?.publicKey ?? null, devices, readings: [...r0, ...r1], releases, threads }));
+  return c.html(
+    dashboard(h, { viewer: tag, events: ev, pushKey: push.vapid()?.publicKey ?? null, devices, readings: [...r0, ...r1], releases, threads, resolved, today: now, unique }),
+  );
 });
 app.get("/", (c) => c.redirect("/stats"));
 
@@ -260,12 +277,16 @@ app.get("/api/cron/digest", async (c) => {
   return c.json({ ...d, ...told });
 });
 
-// ── CurseForge, every 10 minutes (Vercel Cron): the players' comments, the
-// releases live, each addon's downloads ───────────────────────────────────────
+// ── every 10 minutes (Vercel Cron): CurseForge's comments, its releases live,
+// each addon's downloads (Wago's beside, GitHub's hourly), today's installs
+// and facts so far, the problems GitHub has seen settled ──────────────────────
 app.get("/api/cron/curseforge", async (c) => {
   const ok = [process.env.CRON_SECRET, process.env.INBOX_TOKEN].some((t) => bearer(c, t));
   if (!ok) return c.json({ error: "unauthorized" }, 401);
-  return c.json({ comments: await watch(), releases: await curseforge.look() });
+  const comments = await watch();
+  const releases = await curseforge.look();
+  const [t, resolved] = await Promise.all([countToday(), events.recent().then((ev) => github.settle(ev, { wait: 20_000 }))]);
+  return c.json({ comments, releases, today: t, resolved: Object.keys(resolved).length });
 });
 
 // ── Wowhead's pages, from a Wowhead tab (wow-data's bin/wowhead-tab.js) ──────

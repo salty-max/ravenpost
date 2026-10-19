@@ -2,7 +2,8 @@ import { REPO_NAMES } from "./digest";
 import type { Thread } from "./comments";
 import type { Reading, Release } from "./curseforge";
 import type { Event } from "./events";
-import type { Day, History } from "./stats";
+import type { Resolution } from "./github";
+import type { Day, History, Today, UniquePeriods } from "./stats";
 
 /**
  * The dashboard (/stats), in Ravenpost's window's look (its theme: night
@@ -20,9 +21,11 @@ const DAY = 86_400_000;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const short = (d: string) => `${Number(d.slice(8))} ${MONTHS[Number(d.slice(5, 7)) - 1]}`;
 const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+const signed = (n: number) => `${n < 0 ? "−" : "+"}${fmt(Math.abs(n))}`;
 
-/** A view of the history with the latest CurseForge counts, retaining the
- * other stores' most recent counts. The daily history stays untouched. */
+/** A view of the history with the ten-minute looks' latest counts (CurseForge,
+ * Wago, GitHub), retaining each store's most recent count. The daily history
+ * stays untouched. */
 export function withDownloadReadings(h: History, readings: Reading[]): History {
   const days = { ...h.days };
   const known: Record<string, { day: string; at?: string; channels: NonNullable<Day["downloads"]>[string] }> = {};
@@ -31,13 +34,18 @@ export function withDownloadReadings(h: History, readings: Reading[]): History {
       known[addon] = { day, at: h.days[day].downloadsAt, channels: { ...known[addon]?.channels, ...channels } };
     }
   }
-  for (const [at, totals] of [...readings].sort((a, b) => a[0].localeCompare(b[0]))) {
+  const fine = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n) && n >= 0;
+  for (const [at, totals, others] of [...readings].sort((a, b) => a[0].localeCompare(b[0]))) {
     if (!Number.isFinite(Date.parse(at))) continue;
     const day = at.slice(0, 10);
-    for (const [addon, count] of Object.entries(totals)) {
-      if (!Number.isFinite(count) || count < 0 || (known[addon] && day < known[addon].day)) continue;
+    const fresh: Record<string, NonNullable<Day["downloads"]>[string]> = {};
+    for (const [addon, count] of Object.entries(totals)) if (fine(count)) fresh[addon] = { curseforge: count };
+    for (const [addon, o] of Object.entries(others ?? {}))
+      for (const ch of ["wago", "github"] as const) if (fine(o?.[ch])) fresh[addon] = { ...fresh[addon], [ch]: o[ch] };
+    for (const [addon, f] of Object.entries(fresh)) {
+      if (known[addon] && day < known[addon].day) continue;
       if (known[addon]?.at && Date.parse(at) <= Date.parse(known[addon].at!)) continue;
-      const channels = { ...known[addon]?.channels, curseforge: count };
+      const channels = { ...known[addon]?.channels, ...f };
       known[addon] = { day, at, channels };
       days[day] = { ...days[day], downloads: { ...days[day]?.downloads, [addon]: channels } };
     }
@@ -50,6 +58,8 @@ type N = number | null;
 export type Series = {
   days: string[];
   downloads: { addons: string[]; daily: Record<string, N[]>; since: (string | null)[]; totals: Record<string, number>; channels: Record<string, NonNullable<Day["downloads"]>[string]>; week: Record<string, number | null> };
+  /** Different people a day by addon (CurseForge's own count, a day or two behind). */
+  unique: Record<string, N[]>;
   installs: N[];
   facts: N[];
   sharers: N[];
@@ -105,10 +115,13 @@ export function seriesOf(h: History): Series {
     week[a] = base && last && base !== last ? totals[a] - countedTotals.get(base)! : null;
   }
   addons.sort((a, b) => (totals[b] ?? 0) - (totals[a] ?? 0));
+  const uniqueAddons = [...new Set(days.flatMap((d) => Object.keys(at(d)?.unique ?? {})))];
+  const unique = Object.fromEntries(uniqueAddons.map((a) => [a, days.map((d) => (at(d)?.unique ? (at(d)!.unique![a]?.unique ?? 0) : null))]));
   const siteNames = [...new Set(days.flatMap((d) => Object.keys(at(d)?.traffic ?? {})))];
   return {
     days,
     downloads: { addons, daily, since, totals, channels, week },
+    unique,
     installs: days.map((d) => at(d)?.ravenpost?.installs ?? null),
     facts: days.map((d) => at(d)?.sharing?.facts ?? null),
     sharers: days.map((d) => at(d)?.sharing?.sharers ?? null),
@@ -168,7 +181,7 @@ body::before{content:"";position:fixed;inset:0 0 auto 0;height:env(safe-area-ins
 .brand{display:flex;align-items:center;gap:12px;padding:0 8px 22px}.brand img{width:40px;height:40px;border-radius:9px;box-shadow:0 0 14px rgb(242 193 78/.25)}
 .brand .title{font-size:18px;line-height:1.1}.brand small{display:block;color:var(--faint);font-size:12px}
 .nav{display:flex;flex-direction:column;gap:2px}.nav a{display:flex;align-items:center;gap:12px;padding:8px 12px;border-radius:9px;color:var(--dim);transition:background .15s,color .15s}
-.nav a:hover{background:rgb(255 255 255/.04);color:var(--parchment)}.nav a.on{background:rgb(242 193 78/.1);color:var(--gold)}
+.nav a:hover{background:rgb(255 255 255/.04);color:var(--parchment)}#fresh{color:var(--faint)}.nav a.on{background:rgb(242 193 78/.1);color:var(--gold)}
 .side-foot{margin-top:auto;padding:0 10px;font-size:12px;color:var(--faint)}.side-foot p{margin:6px 0 0}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--faint);flex:none}.dot.ok{background:var(--ok)}.dot.blood{background:var(--blood)}.dot.gold{background:var(--gold)}
 .pulse{animation:pulse 2s ease-in-out infinite}@keyframes pulse{50%{opacity:.35}}
@@ -201,7 +214,7 @@ section{margin-bottom:22px}.sh{display:flex;align-items:baseline;justify-content
 .i.merged{background:rgb(111 208 140/.12);color:var(--ok)}.i.failed{background:rgb(224 99 79/.14);color:var(--blood)}.i.waiting,.i.test{background:rgb(242 193 78/.12);color:var(--gold)}.i.digest{background:rgb(108 180 238/.12);color:#6cb4ee}.i.comment{background:rgb(181 140 240/.14);color:#b58cf0}.i.release{background:rgb(242 193 78/.12);color:var(--gold)}
 .feed .c{flex:1;min-width:0}.feed .t{display:flex;align-items:baseline;justify-content:space-between;gap:10px}.feed .t b{font-weight:600}.feed .t time{color:var(--faint);font-size:12px;white-space:nowrap}
 .feed .b{color:var(--dim);font-size:13px;white-space:pre-line;margin-top:2px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}.feed .b.open{display:block}
-.feed .m{display:flex;gap:6px;align-items:center;margin-top:6px}.feed .m a{color:var(--gold);font-size:12px}
+.feed .m{display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap}.feed .m a{color:var(--gold);font-size:12px}.feed li.done .i{filter:grayscale(1);opacity:.55}.feed li.done .t b{color:var(--dim)}
 .more{display:block;width:100%;border:0;border-top:1px solid rgb(255 255 255/.045);background:none;color:var(--dim);font:500 13px var(--sans);padding:11px;cursor:pointer;border-radius:0 0 12px 12px}.more:hover{color:var(--gold)}
 .empty{color:var(--faint);padding:18px;margin:0;font-size:13px}
 .thread{padding:14px 18px;border-top:1px solid rgb(255 255 255/.045)}.thread:first-child{border-top:0}
@@ -212,6 +225,9 @@ section{margin-bottom:22px}.sh{display:flex;align-items:baseline;justify-content
 
 /* the charts */
 .card{padding:16px 18px}.card h3{margin:0;font:600 13px var(--sans);color:var(--parchment)}
+body.dl-u [data-mode=all],body:not(.dl-u) [data-mode=unique]{display:none!important}
+.periods{display:grid;grid-template-columns:minmax(0,1fr) repeat(3,auto);max-width:620px;margin-top:10px;font-size:12px}.periods>*{padding:8px 0;border-top:1px solid rgb(255 255 255/.045)}.periods .h,.periods .c{padding-left:18px}.periods .h{color:var(--faint);border-top:0;padding-top:0;text-align:right}.periods .h:first-child{text-align:left}
+.periods .n{color:var(--parchment);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.periods .c{text-align:right;font-variant-numeric:tabular-nums}.periods .c b{display:block;color:var(--parchment);font-weight:600;font-size:13px}.periods .c span{color:var(--faint)}
 .chart{position:relative;height:220px;margin-top:12px;touch-action:pan-y}.chart svg{display:block;width:100%;height:100%;overflow:visible}
 .chart .grid line{stroke:rgb(255 255 255/.06)}.chart text{fill:var(--faint);font:11px var(--sans)}
 .tip{position:absolute;top:0;pointer-events:none;min-width:130px;padding:8px 10px;border-radius:8px;border:1px solid var(--edge-gold);background:rgb(18 19 25/.96);box-shadow:0 8px 24px rgb(0 0 0/.5);font-size:12px;opacity:0;transition:opacity .12s;z-index:2}
@@ -311,16 +327,19 @@ function ago(iso: string, now = Date.now()): string {
   return `${Math.round(h / 24)} days ago`;
 }
 
-function feed(list: Event[]): string {
+const SETTLED: Record<Resolution["how"], string> = { merged: "Merged", closed: "Closed", passed: "Passed since" };
+
+function feed(list: Event[], resolved: Record<string, Resolution> = {}): string {
   if (!list.length) return `<p class="empty">Nothing yet. The data jobs report here each morning, then the digest.</p>`;
   const rows = list
     .slice(0, 60)
     .map((e, i) => {
       const k = KIND[e.kind];
-      return `<li data-group="${k.group}"${i >= 8 ? " hidden data-more" : ""}><span class="i ${e.kind}">${icon(k.icon)}</span><div class="c">
+      const done = (e.kind === "failed" || e.kind === "waiting") && e.url ? resolved[e.url] : undefined;
+      return `<li data-group="${k.group}" data-at="${esc(e.at)}"${done ? ' class="done"' : ""}${i >= 8 ? " hidden data-more" : ""}><span class="i ${e.kind}">${icon(k.icon)}</span><div class="c">
 <div class="t"><b>${esc(e.title)}</b><time datetime="${esc(e.at)}" title="${esc(e.at.slice(0, 16).replace("T", " "))} UTC">${ago(e.at)}</time></div>
 ${e.body ? `<div class="b">${esc(e.body)}</div>` : ""}
-<div class="m">${e.repo ? `<span class="tag">${esc(cap(REPO_NAMES[e.repo] ?? e.repo))}</span>` : ""}${e.url ? `<a href="${esc(e.url)}" target="_blank" rel="noopener">${e.url.includes("/pull/") ? "Pull request" : e.url.includes("/actions/") ? "The run" : e.url.includes("curseforge.com") ? "Answer on CurseForge" : "Open"} ↗</a>` : ""}</div>
+<div class="m">${done ? `<span class="tag ok" title="${esc(done.at.slice(0, 16).replace("T", " "))} UTC">${SETTLED[done.how]} ${ago(done.at)}</span>` : ""}${e.repo ? `<span class="tag">${esc(cap(REPO_NAMES[e.repo] ?? e.repo))}</span>` : ""}${e.url ? `<a href="${esc(e.url)}" target="_blank" rel="noopener">${e.url.includes("/pull/") ? "Pull request" : e.url.includes("/actions/") ? "The run" : e.url.includes("curseforge.com") ? "Answer on CurseForge" : "Open"} ↗</a>` : ""}</div>
 </div></li>`;
     })
     .join("");
@@ -367,6 +386,18 @@ function releasesCard(releases: Record<string, Release[]>): string {
     .join("");
 }
 
+/** Each addon's unique downloaders on CurseForge over 7, 30 and 90 days: different people, beside its downloads. */
+function uniqueCard(u: UniquePeriods | null | undefined): string {
+  const p = u?.periods ?? {};
+  const names = [...new Set(Object.values(p).flatMap((c) => Object.keys(c)))].sort((a, b) => (p["30"]?.[b]?.unique ?? 0) - (p["30"]?.[a]?.unique ?? 0));
+  if (!u || !names.length)
+    return `<p class="empty" style="padding:12px 0 0">Not brought yet. CurseForge counts them behind your sign-in: <code>bun bin/curseforge-unique.ts</code> on your computer brings them.</p>`;
+  const cell = (c?: { downloads: number; unique: number }) => `<span class="c">${c ? `<b>${fmt(c.unique)}</b><span>of ${fmt(c.downloads)}</span>` : "–"}</span>`;
+  return `<div class="periods"><span class="h">Addon</span><span class="h">7 days</span><span class="h">30 days</span><span class="h">90 days</span>
+${names.map((n) => `<span class="n">${esc(n)}</span>${cell(p["7"]?.[n])}${cell(p["30"]?.[n])}${cell(p["90"]?.[n])}`).join("")}</div>
+<p class="sub" style="margin-top:10px">Different people, of the downloads, to ${u.through ? short(u.through) : "the last day CurseForge had"}. A player with two addons counts in each. Brought ${ago(u.at)}.</p>`;
+}
+
 /** The addons' latest comment threads: who wrote, the replies (the owner's set apart), whether one waits for an answer. */
 function threadsList(threads: Thread[]): string {
   if (!threads.length) return `<p class="empty">No comments yet. They show here, and on your phone, within ten minutes.</p>`;
@@ -381,13 +412,30 @@ ${t.replies.map((r) => `<div class="r${r.owner ? " me" : ""}"><b>${esc(r.author)
     .join("");
 }
 
-/** How things stand, from the day's events: a failure first, a pull request waiting, else quiet. */
-function standing(events: Event[], now = Date.now()) {
-  const recent = events.filter((e) => now - Date.parse(e.at) < 36 * 3600_000);
-  const failed = recent.filter((e) => e.kind === "failed");
-  const waiting = recent.filter((e) => e.kind === "waiting");
+/**
+ * How things stand: a failure first, then a pull request waiting, else quiet.
+ * A problem GitHub has seen settled (merged, closed, passed since: github.ts)
+ * is none; one GitHub can say nothing of lasts 36 hours, one it can a week
+ * while still open. A job failing again, or a pull request told each day,
+ * counts once.
+ */
+export function standing(events: Event[], resolved: Record<string, Resolution> = {}, now = Date.now()) {
+  const open = (kind: Event["kind"]) => {
+    const seen = new Set<string>();
+    return events.filter((e) => {
+      if (e.kind !== kind || (e.url && resolved[e.url])) return false;
+      const checked = !!e.url && /^https:\/\/github\.com\/salty-max\/[\w.-]+\/(pull|actions\/runs)\/\d+$/.test(e.url);
+      if (now - Date.parse(e.at) > (checked ? 7 * DAY : 36 * 3600_000)) return false;
+      const key = kind === "waiting" && e.url ? e.url : `${e.repo}|${e.title}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+  const failed = open("failed");
+  const waiting = open("waiting");
   if (failed.length) return { tone: "blood", icon: "x", title: failed.length > 1 ? `${failed.length} jobs failed` : "A job failed", line: failed.map((e) => e.title).join(" · ") };
-  if (waiting.length) return { tone: "gold", icon: "clock", title: "Something waits for you", line: waiting.map((e) => e.title).join(" · ") };
+  if (waiting.length) return { tone: "gold", icon: "clock", title: waiting.length > 1 ? `${waiting.length} things wait for you` : "Something waits for you", line: waiting.map((e) => e.title).join(" · ") };
   const last = events.find((e) => e.kind !== "digest");
   return { tone: "ok", icon: "check", title: "All quiet", line: last ? `Last word ${ago(last.at, now)}: ${last.title}` : "The data jobs report here each morning." };
 }
@@ -399,11 +447,25 @@ const lastOf = (xs: N[]) => {
 
 export function dashboard(
   h: History,
-  opts: { viewer?: string; events?: Event[]; pushKey?: string | null; devices?: number; readings?: Reading[]; releases?: Record<string, Release[]>; threads?: Thread[] } = {},
+  opts: {
+    viewer?: string;
+    events?: Event[];
+    pushKey?: string | null;
+    devices?: number;
+    readings?: Reading[];
+    releases?: Record<string, Release[]>;
+    threads?: Thread[];
+    resolved?: Record<string, Resolution>;
+    today?: Today | null;
+    unique?: UniquePeriods | null;
+    now?: number;
+  } = {},
 ): string {
   const s = seriesOf(withDownloadReadings(h, opts.readings ?? []));
   const events = opts.events ?? [];
-  const st = standing(events);
+  const resolved = opts.resolved ?? {};
+  const st = standing(events, resolved, opts.now);
+  const td = opts.today ?? null;
   const total = Object.values(s.downloads.totals).reduce((a, b) => a + b, 0);
   const weeks = Object.values(s.downloads.week).filter((v): v is number => v !== null);
   const week = weeks.length ? weeks.reduce((a, b) => a + b, 0) : null;
@@ -435,7 +497,7 @@ export function dashboard(
       return `<div class="row"><span class="n"><i class="dotc" style="display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:8px;background:var(--c${k % 7})"></i>${esc(a)}</span>
 <span class="tot">${fmt(t)}</span>
 <span class="sp"><span class="split">${parts.map((x) => `<i style="width:${(100 * (c[x] ?? 0)) / (t || 1)}%;background:${CH[x][1]}"></i>`).join("")}</span><span class="split-l">${parts.map((x) => `<span>${CH[x][0]} ${fmt(c[x])}</span>`).join("")}</span></span>
-<span class="wk">${s.downloads.week[a] === null ? "–" : `<b>+${fmt(s.downloads.week[a])}</b> 7 d`}</span></div>`;
+<span class="wk" data-mode="all">${s.downloads.week[a] === null ? "–" : `<b>${signed(s.downloads.week[a]!)}</b> 7 d`}</span><span class="wk" data-mode="unique"${opts.unique?.periods["7"]?.[a] ? ` title="${fmt(opts.unique.periods["7"][a].unique)} different people in 7 days, CurseForge's count">` : ">"}${opts.unique?.periods["7"]?.[a] ? `<b>${fmt(opts.unique.periods["7"][a].unique)}</b> 7 d` : "–"}</span></div>`;
     })
     .join("");
   const kpi = (id: string, ic: string, label: string, value: string, line: string) =>
@@ -446,9 +508,10 @@ export function dashboard(
     ["downloads", "download", "Downloads"],
     ["players", "users", "Players"],
     ["sites", "globe", "Sites"],
-    ["notifications", "bell", "Notifications"],
     ["comments", "comment", "Comments"],
+    ["notifications", "bell", "Notifications"],
   ];
+  const PHONE = ["overview", "activity", "downloads", "players", "comments"];
   const hourly = hourlyOf(opts.readings ?? []);
   const downloadsChecked = [...(opts.readings ?? [])].map(([at]) => at).sort().at(-1);
   const threads = opts.threads ?? [];
@@ -462,20 +525,20 @@ export function dashboard(
   };
   return `${head("Ravenpost")}<body>
 <aside class="side"><div class="brand"><img src="/icon-192.png" alt=""><div><p class="title">Ravenpost</p><small>The inbox</small></div></div>
-<nav class="nav">${NAV.map(([id, ic, label]) => `<a href="#${id}" data-nav="${id}">${icon(ic)}<span style="flex:1">${label}</span>${id === "comments" && toAnswer ? `<span class="tag gold" style="height:18px">${toAnswer}</span>` : ""}</a>`).join("")}</nav>
-<div class="side-foot"><p style="display:flex;align-items:center;gap:8px;color:var(--dim)"><span class="dot ${st.tone} pulse"></span>${esc(st.title)}</p><p id="daily-snapshot">${h.updated ? `Daily snapshot of ${esc(h.updated.slice(0, 10))}, ${esc(h.updated.slice(11, 16))} UTC` : "No daily snapshot yet"}</p>${opts.viewer ? `<p>${esc(opts.viewer)}</p>` : ""}</div></aside>
-<nav class="tabs">${[...NAV.slice(0, 4), NAV[NAV.length - 1]].map(([id, ic, label]) => `<a href="#${id}" data-nav="${id}">${icon(ic)}${label}</a>`).join("")}</nav>
+<nav class="nav">${NAV.map(([id, ic, label]) => `<a href="#${id}" data-nav="${id}">${icon(ic)}<span style="flex:1">${label}</span>${id === "comments" ? `<span id="nav-answer">${toAnswer ? `<span class="tag gold" style="height:18px">${toAnswer}</span>` : ""}</span>` : ""}</a>`).join("")}</nav>
+<div class="side-foot"><p id="side-standing" style="display:flex;align-items:center;gap:8px;color:var(--dim)"><span class="dot ${st.tone} pulse"></span>${esc(st.title)}</p><p id="daily-snapshot">${h.updated ? `Daily snapshot of ${esc(h.updated.slice(0, 10))}, ${esc(h.updated.slice(11, 16))} UTC` : "No daily snapshot yet"}</p>${opts.viewer ? `<p>${esc(opts.viewer)}</p>` : ""}</div></aside>
+<nav class="tabs">${NAV.filter(([id]) => PHONE.includes(id)).map(([id, ic, label]) => `<a href="#${id}" data-nav="${id}">${icon(ic)}${label}</a>`).join("")}</nav>
 <main>
-<div class="top" id="overview"><div class="brandm"><img src="/icon-192.png" alt=""><div><h1 class="title">Overview</h1><p>${lastDay ? `To ${short(lastDay)}` : "No numbers yet"}</p></div></div>
+<div class="top" id="overview"><div class="brandm"><img src="/icon-192.png" alt=""><div><h1 class="title">Overview</h1><p><span id="to-day">${lastDay ? `To ${short(lastDay)}` : "No numbers yet"}</span><span id="fresh"></span></p></div></div>
 <div class="tools"><div class="seg" role="group" aria-label="Range"><button data-range="30" class="on">30 d</button><button data-range="90">90 d</button><button data-range="0">All</button></div><button class="btn btn-ghost refresh" id="refresh" aria-label="Refresh" title="Refresh">${icon("refresh")}</button></div></div>
 <div class="pull" id="pull" aria-hidden="true">${icon("refresh")}</div>
 
-<div class="panel hero"><div class="raven"><img src="/icon-192.png" alt=""><span class="badge ${st.tone}">${icon(st.icon)}</span></div><div class="grow"><h2 class="title">${esc(st.title)}</h2><p>${esc(st.line)}</p></div></div>
+<div class="panel hero" id="hero"><div class="raven"><img src="/icon-192.png" alt=""><span class="badge ${st.tone}">${icon(st.icon)}</span></div><div class="grow"><h2 class="title">${esc(st.title)}</h2><p>${esc(st.line)}</p></div></div>
 
 <div class="kpis">
-${kpi("k-dl", "download", "Downloads", fmt(total), [hourly.today !== null ? `<b>+${fmt(hourly.today)}</b> today` : "", week !== null ? `+${fmt(week)} in 7 days` : ""].filter(Boolean).join(" · ") || "every addon, every store")}
-${kpi("k-in", "users", "Ravenpost installs", fmt(rp?.installs), rp ? `${fmt(rp.sharing)} sharing · yesterday` : "pinged yesterday")}
-${kpi("k-fa", "send", "Facts shared", fmt(sh?.facts), sh ? `${fmt(sh.sharers)} player${sh.sharers === 1 ? "" : "s"} · yesterday` : "yesterday")}
+${kpi("k-dl", "download", "Downloads", fmt(total), [hourly.today !== null ? `<b>+${fmt(hourly.today)}</b> today` : "", week !== null ? `${signed(week)} in 7 days` : ""].filter(Boolean).join(" · ") || "every addon, every store")}
+${kpi("k-in", "users", "Ravenpost installs", fmt(rp?.installs), ["yesterday", td ? `<b>${fmt(td.installs)}</b> today so far` : ""].filter(Boolean).join(" · "))}
+${kpi("k-fa", "send", "Facts shared", fmt(sh?.facts), ["yesterday", td ? `<b>${fmt(td.facts)}</b> today so far` : ""].filter(Boolean).join(" · "))}
 ${kpi("k-vi", "globe", "Site visitors", fmt(lastOf(visitors)), Object.keys(s.sites).length ? Object.keys(s.sites).join(" · ") : "Web Analytics")}
 </div>
 
@@ -488,12 +551,16 @@ ${kpi("k-vi", "globe", "Site visitors", fmt(lastOf(visitors)), Object.keys(s.sit
   ]
     .map(([k, l], i) => `<button class="chip${i ? "" : " on"}" data-filter="${k}">${l}</button>`)
     .join("")}</div></div>
-<div class="panel" id="feed">${feed(events)}</div></section>
+<div class="panel" id="feed">${feed(events, resolved)}</div></section>
 
-<section id="downloads"><div class="sh"><h2 class="title">Downloads</h2><p>New downloads a day, by addon</p></div>
-<div class="panel card"><div class="chart" id="c-dl"></div><div class="legend" id="l-dl"></div>
+<section id="downloads"><div class="sh"><h2 class="title">Downloads</h2><div class="seg" role="group" aria-label="Count"><button data-dl="all" class="on">All</button><button data-dl="unique">Unique</button></div></div>
+<div class="panel card"><h3 data-mode="all">New downloads a day, by addon</h3><h3 data-mode="unique">Different people a day, by addon</h3>
+<p class="sub" data-mode="all">Download events on every store: one player downloading twice counts twice.</p>
+<p class="sub" data-mode="unique" id="unique-through">${s.days.some((d) => h.days[d]?.unique) ? `CurseForge's own count, to ${short(s.days.filter((d) => h.days[d]?.unique).at(-1)!)}: Wago and GitHub don't count people.` : "CurseForge's own count, not brought yet (bin/curseforge-unique.ts on your computer)."}</p>
+<div class="chart" id="c-dl"></div><div class="legend" id="l-dl"></div>
 <div class="rows" id="download-rows" style="margin-top:14px">${rows || `<p class="empty">Nothing yet.</p>`}</div>
-<p class="sub" id="downloads-checked" style="margin-top:10px">Download events, not players. CurseForge counts update every ten minutes${downloadsChecked ? `, last checked ${esc(downloadsChecked.slice(0, 10))} at ${esc(downloadsChecked.slice(11, 16))} UTC` : ""}. Wago and GitHub counts update daily.</p></div>
+<p class="sub" id="downloads-checked" style="margin-top:10px">Download events, not players: Unique counts people. CurseForge and Wago are read every ten minutes, GitHub every hour${downloadsChecked ? `, last ${esc(downloadsChecked.slice(0, 10))} at ${esc(downloadsChecked.slice(11, 16))} UTC` : ""}.</p></div>
+<div class="panel card" id="download-unique" style="margin-top:12px"><h3>Unique on CurseForge</h3><p class="sub">Different people who downloaded each addon, beside its downloads</p>${uniqueCard(opts.unique)}</div>
 <div class="grid2" style="margin-top:12px;align-items:start">
 <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
 <div class="panel card"><h3>The last 48 hours</h3><p class="sub">New CurseForge downloads an hour, read every ten minutes</p><div class="chart" id="c-hr" style="height:170px"></div></div>
@@ -514,10 +581,6 @@ ${kpi("k-vi", "globe", "Site visitors", fmt(lastOf(visitors)), Object.keys(s.sit
 <section id="sites"><div class="sh"><h2 class="title">Sites</h2><p>Visitors a day</p></div>
 <div class="panel card">${Object.keys(s.sites).length ? `<div class="chart" id="c-vi"></div><div class="legend" id="l-vi"></div>` : `<p class="empty" style="padding:4px 0">No traffic numbers yet. Web Analytics feeds them once its token is set.</p>`}</div></section>
 
-<section id="notifications"><div class="sh"><h2 class="title">Notifications</h2><p>${opts.devices ? `${fmt(opts.devices)} device${opts.devices === 1 ? "" : "s"} told` : "No device told yet"}</p></div>
-<div class="panel notif"><div class="grow"><b>This device</b><p id="push-state">…</p></div><button class="btn btn-ghost" id="push-test" hidden>Send a test</button><button class="switch" id="push-switch" role="switch" aria-checked="false" aria-label="Notifications on this device" disabled></button></div>
-<p class="sub" style="margin:10px 4px 0">The data jobs as they finish, and a digest each morning. On a phone: add this page to the Home Screen, open Ravenpost from there, sign in, then turn them on.</p></section>
-
 <section id="comments"><div class="sh"><h2 class="title">Comments</h2><div class="chips" role="group" aria-label="Show">${[
     ["open", `To answer${toAnswer ? ` (${toAnswer})` : ""}`],
     ["all", "All"],
@@ -525,6 +588,10 @@ ${kpi("k-vi", "globe", "Site visitors", fmt(lastOf(visitors)), Object.keys(s.sit
     .map(([k, l], i) => `<button class="chip${(toAnswer ? i === 0 : i === 1) ? " on" : ""}" data-threads="${k}">${l}</button>`)
     .join("")}</div></div>
 <div class="panel" id="threads">${threadsList(threads)}<p class="empty" id="no-open" hidden>Nothing to answer: every comment has your reply.</p></div></section>
+
+<section id="notifications"><div class="sh"><h2 class="title">Notifications</h2><p id="notif-count">${opts.devices ? `${fmt(opts.devices)} device${opts.devices === 1 ? "" : "s"} told` : "No device told yet"}</p></div>
+<div class="panel notif"><div class="grow"><b>This device</b><p id="push-state">…</p></div><button class="btn btn-ghost" id="push-test" hidden>Send a test</button><button class="switch" id="push-switch" role="switch" aria-checked="false" aria-label="Notifications on this device" disabled></button></div>
+<p class="sub" style="margin:10px 4px 0">The data jobs as they finish, and a digest each morning. On a phone: add this page to the Home Screen, open Ravenpost from there, sign in, then turn them on.</p></section>
 </main>
 <script type="application/json" id="data">${JSON.stringify(data).replace(/</g, "\\u003c")}</script>
 ${SW}${SCRIPT(opts.pushKey ?? null)}</body></html>`;
@@ -603,7 +670,9 @@ readSeries();
 function draw(){
   spark($("k-dl"),dlTotal,C[0]);spark($("k-in"),D.installs,C[1]);spark($("k-fa"),D.facts,C[2]);spark($("k-vi"),D.visitors,C[4]);
   const on=addons.filter(a=>!a.off);
-  chart($("c-dl"),{type:"bars",series:on,labels:D.labels,since:D.since});legend($("l-dl"),addons,(k)=>{addons[k].off=!addons[k].off;remember("hiddenAddons",addons.filter(a=>a.off).map(a=>a.name));draw()});
+  // (all the downloads, or the different people: CurseForge's own count)
+  const dl=mode==="unique"?on.map(a=>({...a,values:D.unique[a.name]||D.days.map(()=>null)})):on;
+  chart($("c-dl"),{type:"bars",series:dl,labels:D.labels,since:mode==="unique"?null:D.since});legend($("l-dl"),addons,(k)=>{addons[k].off=!addons[k].off;remember("hiddenAddons",addons.filter(a=>a.off).map(a=>a.name));draw()});
   chart($("c-in"),{type:"bars",series:[{name:"Installs",color:C[1],values:D.installs}],labels:D.labels});
   const fa=[{name:"Facts",color:C[2],values:D.facts},{name:"New observations archived",color:C[0],values:D.newFacts}];
   chart($("c-fa"),{type:"area",series:fa,labels:D.labels});legend($("l-fa"),fa,()=>{});
@@ -611,52 +680,63 @@ function draw(){
   const hl=D.hourly.hours.map(h=>new Date(h).toLocaleString("en-GB",{weekday:"short",hour:"2-digit",minute:"2-digit",hour12:false}));
   chart($("c-hr"),{type:"bars",whole:true,series:addons.filter(a=>!a.off&&D.hourly.series[a.name]).map(a=>({...a,values:D.hourly.series[a.name]})),labels:hl});
 }
+let mode=prefs.downloads==="unique"?"unique":"all";
+const setMode=(m)=>{mode=m;document.body.classList.toggle("dl-u",m==="unique");document.querySelectorAll("[data-dl]").forEach(b=>b.classList.toggle("on",b.dataset.dl===m))};
+setMode(mode);document.querySelectorAll("[data-dl]").forEach(b=>b.onclick=()=>{setMode(b.dataset.dl);remember("downloads",mode);draw()});
 document.querySelectorAll("[data-range]").forEach(b=>{b.classList.toggle("on",+b.dataset.range===range);b.onclick=()=>{range=+b.dataset.range;remember("range",range);document.querySelectorAll("[data-range]").forEach(x=>x.classList.toggle("on",x===b));draw()}});
 let t;new ResizeObserver(()=>{clearTimeout(t);t=setTimeout(draw,60)}).observe(document.querySelector("main"));draw();
 
 // The activity: its filters, more of it, a long word opened.
-let filter=["all","data","problems","comments","digests"].includes(prefs.activity)?prefs.activity:"all";const items=[...document.querySelectorAll(".feed li")];let all=false;
+let filter=["all","data","problems","comments","digests"].includes(prefs.activity)?prefs.activity:"all";let items=[];let all=false;const opened=new Set();
 const apply=()=>{document.querySelectorAll("[data-filter]").forEach(b=>b.classList.toggle("on",b.dataset.filter===filter));let shown=0;for(const li of items){const ok=filter==="all"||li.dataset.group===filter;const show=ok&&(all||shown<8);li.hidden=!show;if(ok)shown++}const m=$("feed-more");if(m)m.hidden=all||items.filter(li=>filter==="all"||li.dataset.group===filter).length<=8};
 document.querySelectorAll("[data-filter]").forEach(b=>b.onclick=()=>{filter=b.dataset.filter;remember("activity",filter);apply()});
-if($("feed-more"))$("feed-more").onclick=()=>{all=true;apply()};
-document.querySelectorAll(".feed .b").forEach(b=>b.onclick=()=>b.classList.toggle("open"));apply();
+function bindFeed(){
+  items=[...document.querySelectorAll(".feed li")];
+  if($("feed-more"))$("feed-more").onclick=()=>{all=true;apply()};
+  document.querySelectorAll(".feed .b").forEach(b=>{const at=b.closest("li").dataset.at;if(opened.has(at))b.classList.add("open");b.onclick=()=>{b.classList.toggle("open");b.classList.contains("open")?opened.add(at):opened.delete(at)}});
+  apply();
+}
+bindFeed();
 
 // The comments: the ones to answer, or all.
-const showThreads=(k)=>{let shown=0;document.querySelectorAll(".thread").forEach(t=>{t.hidden=k==="open"&&t.dataset.open!=="1";if(!t.hidden)shown++});
+let threadsShown=null;
+const showThreads=(k)=>{threadsShown=k;let shown=0;document.querySelectorAll(".thread").forEach(t=>{t.hidden=k==="open"&&t.dataset.open!=="1";if(!t.hidden)shown++});
   document.querySelectorAll("[data-threads]").forEach(b=>b.classList.toggle("on",b.dataset.threads===k));
   if($("no-open"))$("no-open").hidden=!(k==="open"&&!shown&&document.querySelector(".thread"))};
-document.querySelectorAll("[data-threads]").forEach(b=>b.onclick=()=>{remember("threads",b.dataset.threads);showThreads(b.dataset.threads)});
-const firstOn=document.querySelector("[data-threads].on");if(firstOn)showThreads(["open","all"].includes(prefs.threads)?prefs.threads:firstOn.dataset.threads);
-
-// Keep the visible numbers current without interrupting a comment or a filter.
-let refreshing=false;
-async function refreshNumbers(){
-  if(refreshing||document.visibilityState!=="visible")return;
-  refreshing=true;const abort=new AbortController();const timeout=setTimeout(()=>abort.abort(),15000);
-  try{
-    const res=await fetch(location.pathname+location.search,{cache:"no-store",signal:abort.signal});if(!res.ok)return;
-    const page=new DOMParser().parseFromString(await res.text(),"text/html");const data=page.getElementById("data");if(!data)return;
-    const next=JSON.parse(data.textContent);
-    for(const selector of [".kpis","#overview .brandm p","#daily-snapshot","#download-rows","#downloads-checked","#download-popularity","#download-releases","#players","#sites"]){
-      const before=document.querySelector(selector),after=page.querySelector(selector);if(before&&after)before.innerHTML=after.innerHTML;
-    }
-    D=next;readSeries();draw();
-  }catch{}finally{clearTimeout(timeout);refreshing=false}
+function bindThreads(){
+  document.querySelectorAll("[data-threads]").forEach(b=>b.onclick=()=>{remember("threads",b.dataset.threads);showThreads(b.dataset.threads)});
+  const firstOn=document.querySelector("[data-threads].on");if(firstOn)showThreads(threadsShown??(["open","all"].includes(prefs.threads)?prefs.threads:firstOn.dataset.threads));
 }
-setInterval(refreshNumbers,60000);
+bindThreads();
 
-// The app on a phone comes back as it was left (iOS keeps it, never reloads
-// it, and has no pull to refresh): the page is fetched again when it's shown
-// after a minute away, on a pull at the top, and with the refresh button.
-const loadedAt=Date.now();
-const reload=()=>{if($("refresh"))$("refresh").classList.add("busy");location.reload()};
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&Date.now()-loadedAt>60000)reload()});
-addEventListener("pageshow",(e)=>{if(e.persisted)reload()});
-if($("refresh"))$("refresh").onclick=reload;
+// Everything kept current in place, the page never reloaded: every half
+// minute while it's shown, at once when it comes back (the app on a phone:
+// iOS keeps it as it was left), on a pull at the top and with the refresh
+// button. A comment being read, a filter, a word opened stay as they were.
+const PARTS=["#hero","#side-standing","#nav-answer",".kpis","#to-day","#daily-snapshot","#feed","#threads","#comments .chips","#download-rows","#downloads-checked","#unique-through","#download-popularity","#download-unique","#download-releases","#players","#sites","#notif-count"];
+let refreshing=false,freshAt=Date.now();
+const fresh=()=>{const s=Math.round((Date.now()-freshAt)/1000);if($("fresh"))$("fresh").textContent=" · updated "+(s<20?"just now":s<90?s+" s ago":Math.round(s/60)+" min ago")};
+setInterval(fresh,10000);fresh();
+async function refresh(by){
+  if(refreshing||(!by&&document.visibilityState!=="visible"))return;
+  refreshing=true;const spin=[$("refresh"),$("pull")].filter(Boolean);spin.forEach(x=>x.classList.add("busy"));
+  const abort=new AbortController();const timeout=setTimeout(()=>abort.abort(),15000);
+  try{
+    const res=await fetch(location.pathname+location.search,{cache:"no-store",signal:abort.signal});
+    const page=new DOMParser().parseFromString(await res.text(),"text/html");const data=page.getElementById("data");
+    if(!res.ok||!data){if(by)location.reload();return} // (signed out: the page says so)
+    for(const selector of PARTS){const before=document.querySelector(selector),after=page.querySelector(selector);if(before&&after&&before.innerHTML!==after.innerHTML)before.innerHTML=after.innerHTML}
+    D=JSON.parse(data.textContent);readSeries();draw();bindFeed();bindThreads();freshAt=Date.now();fresh();
+  }catch{if(by==="button")location.reload()}finally{clearTimeout(timeout);refreshing=false;spin.forEach(x=>x.classList.remove("busy"))}
+}
+setInterval(()=>refresh(),30000);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&Date.now()-freshAt>10000)refresh("focus")});
+addEventListener("pageshow",(e)=>{if(e.persisted)refresh("focus")});
+if($("refresh"))$("refresh").onclick=()=>refresh("button");
 {const pull=$("pull");let y0=null,dy=0;
   addEventListener("touchstart",(e)=>{y0=scrollY<=0&&e.touches.length===1?e.touches[0].clientY:null;dy=0},{passive:true});
   addEventListener("touchmove",(e)=>{if(y0===null)return;dy=Math.max(0,e.touches[0].clientY-y0);pull.classList.add("held");pull.style.transform="translateY("+(Math.min(dy,110)*0.7-60)+"px) rotate("+dy*2+"deg)";pull.classList.toggle("ready",dy>90)},{passive:true});
-  addEventListener("touchend",()=>{if(y0===null)return;pull.classList.remove("held");pull.style.transform="";pull.classList.remove("ready");if(dy>90)reload();y0=null;dy=0})}
+  addEventListener("touchend",()=>{if(y0===null)return;pull.classList.remove("held");pull.style.transform="";pull.classList.remove("ready");if(dy>90)refresh("button");y0=null;dy=0})}
 
 // The nav: where the page is (the last part whose top has passed a third of
 // the screen, the last part once at the bottom); a part clicked stays marked

@@ -16,7 +16,13 @@ import * as store from "./store";
  *   curseforge each addon's standing there: its rank among every WoW addon
  *              by popularity, its favorites and thumbs up (CurseForge's
  *              official API, when CURSEFORGE_API_KEY is set)
+ *   unique     each addon's CurseForge downloads that day and its unique
+ *              downloaders (different people), CurseForge's own statistics:
+ *              behind the owner's session, so brought from their computer
+ *              (bin/curseforge-unique.ts, POST /api/inbox/unique), a day or
+ *              two behind
  * The day's pings and counts are dropped once counted: only the sums stay.
+ * Today's so far are counted at each ten-minute look (stats/today.json).
  */
 export type Day = {
   downloads?: Record<string, { curseforge?: number; wago?: number; github?: number }>;
@@ -26,6 +32,7 @@ export type Day = {
   merged?: Record<string, { uploads: number; newFacts: number }>;
   traffic?: Record<string, { pageviews: number; visitors: number }>;
   curseforge?: Record<string, { rank?: number; favorites?: number; likes?: number }>;
+  unique?: Record<string, { downloads: number; unique: number }>;
 };
 export type History = { updated?: string; days: Record<string, Day> };
 
@@ -125,7 +132,7 @@ async function curseforge(id: number): Promise<number | undefined> {
   return r.ok ? ((await r.json()) as { downloads?: { total?: number } }).downloads?.total : undefined;
 }
 
-async function wago(slug: string, id: string): Promise<number | undefined> {
+export async function wago(slug: string, id: string): Promise<number | undefined> {
   const r = await fetchImpl(`https://addons.wago.io/addons/${slug}`, { headers: UA, signal: AbortSignal.timeout(20_000) });
   if (!r.ok) return undefined;
   const page = (await r.text()).replace(/&quot;/g, '"');
@@ -134,7 +141,7 @@ async function wago(slug: string, id: string): Promise<number | undefined> {
   return m ? Number(m[1]) : undefined;
 }
 
-async function github(repo: string): Promise<number | undefined> {
+export async function github(repo: string): Promise<number | undefined> {
   let total = 0;
   for (let page = 1; page < 10; page++) {
     const r = await fetchImpl(`https://api.github.com/repos/salty-max/${repo}/releases?per_page=100&page=${page}`, {
@@ -217,6 +224,88 @@ async function standing(): Promise<Day["curseforge"]> {
     if (m) out[name] = { rank: m.gamePopularityRank, favorites: m.favoriteCount, likes: m.thumbsUpCount };
   }
   return out;
+}
+
+// ── today so far (the ten-minute look) ───────────────────────────────────────
+export type Today = { at: string; day: string; installs: number; sharing: number; sharers: number; uploads: number; facts: number };
+const TODAY = "stats/today.json";
+
+/** Today's pings and uploads so far, before the daily job sums them: counted and kept for the dashboard. */
+export async function countToday(now = new Date()): Promise<Today> {
+  const day = dayOf(now);
+  const t: Today = { at: now.toISOString(), day, installs: 0, sharing: 0, sharers: 0, uploads: 0, facts: 0 };
+  const [pings, counts] = await Promise.all([store.all(`pings/${day}/`), store.all(`counts/${day}/`)]);
+  t.installs = pings.length;
+  await Promise.all([
+    ...pings.map(async (name) => {
+      const p = JSON.parse((await store.read(name)) ?? "null") as Omit<Ping, "id"> | null;
+      if (p && p.sharing > 0) t.sharing++;
+    }),
+    ...counts.map(async (name) => {
+      const c = JSON.parse((await store.read(name)) ?? "null") as Count | null;
+      if (!c) return;
+      t.sharers++;
+      t.uploads += c.uploads;
+      t.facts += c.facts;
+    }),
+  ]);
+  await store.write(TODAY, JSON.stringify(t));
+  return t;
+}
+
+/** Today's numbers as last counted, or null when they're another day's. */
+export async function today(now = new Date()): Promise<Today | null> {
+  const t = JSON.parse((await store.read(TODAY)) ?? "null") as Today | null;
+  return t && t.day === dayOf(now) ? t : null;
+}
+
+// ── unique downloaders (CurseForge's own statistics, from the owner's computer) ─
+export type UniqueCounts = Record<string, { downloads: number; unique: number }>;
+/** The latest periods: each addon's downloads and different people over the last 7, 30 and 90 days, to the day CurseForge had. */
+export type UniquePeriods = { at: string; through: string | null; periods: Record<string, UniqueCounts> };
+const UNIQUE = "stats/unique.json";
+const PERIODS = ["7", "30", "90"];
+
+const counts = (v: unknown): UniqueCounts | null => {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+  const out: UniqueCounts = {};
+  for (const [addon, c] of Object.entries(v as Record<string, { downloads?: unknown; unique?: unknown }>)) {
+    const ok = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= 0 && (n as number) < 1e9;
+    if (addon.length > 60 || !c || !ok(c.downloads) || !ok(c.unique)) return null;
+    out[addon] = { downloads: c.downloads, unique: c.unique };
+  }
+  return out;
+};
+
+/** What bin/curseforge-unique.ts sends, checked: its days, its periods. */
+export function readUnique(body: unknown): { days: Record<string, UniqueCounts>; periods: Record<string, UniqueCounts>; through: string | null } | null {
+  const b = body as { days?: unknown; periods?: unknown } | null;
+  if (!b || !b.days || typeof b.days !== "object" || !b.periods || typeof b.periods !== "object") return null;
+  const days: Record<string, UniqueCounts> = {};
+  for (const [d, v] of Object.entries(b.days)) {
+    const c = counts(v);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || !c) return null;
+    days[d] = c;
+  }
+  const periods: Record<string, UniqueCounts> = {};
+  for (const [p, v] of Object.entries(b.periods)) {
+    const c = counts(v);
+    if (!PERIODS.includes(p) || !c) return null;
+    periods[p] = c;
+  }
+  return { days, periods, through: Object.keys(days).sort().at(-1) ?? null };
+}
+
+export async function recordUnique(u: NonNullable<ReturnType<typeof readUnique>>, now = new Date()): Promise<void> {
+  // (into the history without touching its daily snapshot's time)
+  const h = await history();
+  for (const [d, c] of Object.entries(u.days)) h.days[d] = { ...h.days[d], unique: c };
+  await store.write(HISTORY, JSON.stringify(h));
+  await store.write(UNIQUE, JSON.stringify({ at: now.toISOString(), through: u.through, periods: u.periods } satisfies UniquePeriods));
+}
+
+export async function uniquePeriods(): Promise<UniquePeriods | null> {
+  return JSON.parse((await store.read(UNIQUE)) ?? "null") as UniquePeriods | null;
 }
 
 // ── the daily job ────────────────────────────────────────────────────────────

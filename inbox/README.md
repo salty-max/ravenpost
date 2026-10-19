@@ -50,19 +50,35 @@ with Battle.net in the browser (a signed cookie, 30 days). Its history,
   its search is closed to this key);
 - traffic: hearthtale.app's and wow-locker.app's page views and visitors
   from Vercel Web Analytics' API (`STATS_SITES`, `VERCEL_TEAM_ID`, and
-  `VERCEL_ANALYTICS_TOKEN`: a Vercel token; without it, a link to Vercel).
+  `VERCEL_ANALYTICS_TOKEN`: a Vercel token; without it, a link to Vercel);
+- unique: each addon's CurseForge downloads and its unique downloaders
+  (different people) that day, CurseForge's own statistics, with their 7, 30
+  and 90 days in `stats/unique.json`. They sit behind the owner's CurseForge
+  session, which never leaves their computer: `bun bin/curseforge-unique.ts`
+  there reads them (the authors site's Downloads statistics queries, the
+  cookie in `~/.config/wow-addons/curseforge-cookie`, addon-kit's store.ts's)
+  and hands them over (`POST /api/inbox/unique`, `INBOX_TOKEN` or
+  `~/.config/wow-addons/inbox-token`). A day or two behind; Wago and GitHub
+  count no people. The Downloads section's All and Unique switch the chart
+  and the rows between download events and people.
 
 The dashboard combines the daily history with the latest ten-minute
-CurseForge readings for its download total, per-addon counts and charts.
-Wago and GitHub keep their latest daily counts when a fresh CurseForge
-reading arrives. A failed source keeps its last available count. Every
+readings for its download total, per-addon counts and charts: CurseForge's
+and Wago's every look, GitHub's once an hour (each look with
+`GITHUB_TOKEN`). A failed source keeps its last available count. Every
 public release page contributes to the CurseForge total, even though the
-dashboard shows only the twenty newest releases.
+dashboard shows only the twenty newest releases. Today's Ravenpost installs
+and facts shared so far are counted at each look too (`stats/today.json`),
+beside yesterday's whole day.
 
-While visible, the page checks for new numbers once a minute without
-reloading the comments or resetting filters. Comments are the last section,
-with a shortcut kept in the phone's navigation. Date range, activity and
-comment filters, and hidden addon/site chart series save automatically in
+Nothing on the page waits for a reload: every half minute while it's shown,
+at once when it comes back (the app on a phone), on a pull at the top and
+with the refresh button, every part is fetched again and put in place (the
+activity, the comments, the numbers, how things stand), a filter, a comment
+being read or a word opened kept as they were; the top says when it last
+did. Comments come before the notifications, with a shortcut kept in the
+phone's navigation. Date range, activity and comment filters, the downloads'
+All or Unique, and hidden addon/site chart series save automatically in
 the browser's local storage (`ravenpost.dashboard.preferences`). The key
 stays the same across releases. These choices belong to that browser or
 installed app on that device. When storage is unavailable, the controls
@@ -89,7 +105,14 @@ for:
   wow-data's `bin/tell.ts`): an addon's game data merged by itself (what
   changed, in words: `bin/describe-data.ts`), the pins moved, a job failed,
   a pull request waiting for a hand (players' facts). Kept in
-  `events/recent.json` (60 days), the dashboard's Activity;
+  `events/recent.json` (60 days), the dashboard's Activity. A problem is
+  one until GitHub says otherwise (`src/github.ts`, asked as the page is
+  made and at each ten-minute look): a pull request merged or closed, a
+  failed run passed on a re-run or followed by a passing run of its
+  workflow, settles it (`events/resolved.json`), told on its line in the
+  Activity and gone from how things stand. GitHub answers 60 requests an
+  hour without `GITHUB_TOKEN` (a fine-grained token, public repositories
+  read only, is enough); unanswered, a problem stays as it was;
 - CurseForge every 10 minutes (`/api/cron/curseforge`): a release live
   (`src/curseforge.ts`: the site's own JSON of each addon's public releases,
   `www.curseforge.com/api/v1/mods/<id>/files`; one not seen before passed the

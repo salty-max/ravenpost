@@ -78,11 +78,25 @@ describe("the dashboard's current downloads", () => {
     expect(h.series.Keyring.filter((n) => n !== null).reduce((a, b) => a + b, 0)).toBe(5);
   });
 
-  test("comments are last, with a shortcut still available on mobile", () => {
+  test("the other stores' counts from the ten-minute look move the totals too", () => {
+    const current = withDownloadReadings(history, [["2026-10-15T10:30:00Z", { Yonder: 125 }, { Yonder: { wago: 44 }, Ravenpost: { github: 9 } }]]);
+    expect(current.days["2026-10-15"].downloads?.Yonder).toEqual({ curseforge: 125, wago: 44, github: 12 });
+    expect(seriesOf(current).downloads.totals.Ravenpost).toBe(9);
+  });
+
+  test("today's installs and facts so far beside yesterday's", () => {
+    const html = dashboard(history, { today: { at: "2026-10-15T10:00:00Z", day: "2026-10-15", installs: 3, sharing: 1, sharers: 1, uploads: 2, facts: 40 } });
+    expect(html).toContain("yesterday · <b>3</b> today so far");
+    expect(html).toContain("yesterday · <b>40</b> today so far");
+  });
+
+  test("comments come before the notifications, with a shortcut still available on mobile", () => {
     const html = dashboard(history);
     const main = html.slice(html.indexOf("<main>"), html.indexOf("</main>"));
     const sections = [...main.matchAll(/<section id="([^"]+)"/g)].map((m) => m[1]);
-    expect(sections).toEqual(["activity", "downloads", "players", "sites", "notifications", "comments"]);
+    expect(sections).toEqual(["activity", "downloads", "players", "sites", "comments", "notifications"]);
+    const side = html.match(/<nav class="nav">([\s\S]*?)<\/nav>/)![1];
+    expect([...side.matchAll(/data-nav="([^"]+)"/g)].map((m) => m[1]).slice(-2)).toEqual(["comments", "notifications"]);
     const mobile = html.match(/<nav class="tabs">([\s\S]*?)<\/nav>/)![1];
     expect(mobile).toContain('href="#comments"');
     expect([...mobile.matchAll(/data-nav="([^"]+)"/g)].at(-1)?.[1]).toBe("comments");
