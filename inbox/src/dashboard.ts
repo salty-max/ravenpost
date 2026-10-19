@@ -494,7 +494,7 @@ export function dashboard(
       const c = s.downloads.channels[a] ?? {};
       const t = s.downloads.totals[a] ?? 0;
       const parts = (Object.keys(CH) as (keyof typeof CH)[]).filter((x) => c[x]);
-      return `<div class="row"><span class="n"><i class="dotc" style="display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:8px;background:var(--c${k % 7})"></i>${esc(a)}</span>
+      return `<div class="row"><span class="n"><i class="dotc" style="display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:8px;background:var(--c${k % 10})"></i>${esc(a)}</span>
 <span class="tot">${fmt(t)}</span>
 <span class="sp"><span class="split">${parts.map((x) => `<i style="width:${(100 * (c[x] ?? 0)) / (t || 1)}%;background:${CH[x][1]}"></i>`).join("")}</span><span class="split-l">${parts.map((x) => `<span>${CH[x][0]} ${fmt(c[x])}</span>`).join("")}</span></span>
 <span class="wk" data-mode="all">${s.downloads.week[a] === null ? "–" : `<b>${signed(s.downloads.week[a]!)}</b> 7 d`}</span><span class="wk" data-mode="unique"${opts.unique?.periods["7"]?.[a] ? ` title="${fmt(opts.unique.periods["7"][a].unique)} different people in 7 days, CurseForge's count">` : ">"}${opts.unique?.periods["7"]?.[a] ? `<b>${fmt(opts.unique.periods["7"][a].unique)}</b> 7 d` : "–"}</span></div>`;
@@ -601,7 +601,7 @@ ${SW}${SCRIPT(opts.pushKey ?? null)}</body></html>`;
 const SCRIPT = (key: string | null) => `<script>
 (()=>{
 let D=JSON.parse(document.getElementById("data").textContent);
-const C=["#f2c14e","#6cb4ee","#6fd08c","#e0634f","#b58cf0","#ece3cf","#5fd3c4"];
+const C=["#f2c14e","#6cb4ee","#6fd08c","#e0634f","#b58cf0","#ece3cf","#5fd3c4","#f08a4b","#ef7fb6","#b9d65a"];
 C.forEach((c,i)=>document.documentElement.style.setProperty("--c"+i,c));
 const $=(id)=>document.getElementById(id);
 const nf=(v)=>v==null?"–":Math.round(v).toLocaleString("en-GB");
@@ -662,9 +662,9 @@ function spark(box,values,color){if(!box)return;box.innerHTML="";const v=cut(val
 const legend=(box,series,onToggle)=>{if(!box)return;box.innerHTML=series.map((s,k)=>"<span data-k=\\""+k+"\\" style=\\"cursor:pointer;opacity:"+(s.off?.35:1)+"\\"><i style=\\"background:"+s.color+"\\"></i>"+s.name+"</span>").join("");box.querySelectorAll("span").forEach(sp=>sp.onclick=()=>onToggle(+sp.dataset.k))};
 let addons,dlTotal,sites;
 function readSeries(){
-  addons=D.downloads.addons.map((a,k)=>({name:a,color:C[k%7],values:D.downloads.daily[a],off:hidden("hiddenAddons").includes(a)}));
+  addons=D.downloads.addons.map((a,k)=>({name:a,color:C[k%C.length],values:D.downloads.daily[a],off:hidden("hiddenAddons").includes(a)}));
   dlTotal=D.days.map((_,i)=>{let t=null;for(const a of addons){const v=a.values[i];if(v!=null)t=(t||0)+v}return t});
-  sites=Object.entries(D.sites).map(([s,v],k)=>({name:s,color:C[(k+1)%7],values:v.visitors,off:hidden("hiddenSites").includes(s)}));
+  sites=Object.entries(D.sites).map(([s,v],k)=>({name:s,color:C[(k+1)%C.length],values:v.visitors,off:hidden("hiddenSites").includes(s)}));
 }
 readSeries();
 function draw(){
