@@ -12,6 +12,8 @@ export const REPO_NAMES: Record<string, string> = {
   yonder: "Yonder",
   "second-wind": "Second Wind",
   keyring: "Keyring",
+  palaver: "Palaver",
+  mealbook: "Mealbook",
   "wow-data": "wow-data",
   ravenpost: "Ravenpost",
 };

@@ -110,6 +110,8 @@ export const ADDONS: [name: string, curseforge: number | null, wagoSlug: string 
   ["WoWLocker", 1724925, "wowlocker", "YK9x886L", "wow-locker"],
   ["Keyring", 1739386, "keyring", "ANz7JV64", "keyring"],
   ["Second Wind", 1739380, "second-wind", "XKqEjbKy", "second-wind"],
+  ["Palaver", 1754439, "palaver", "ZKbqbO61", "palaver"],
+  ["Mealbook", 1754441, "mealbook", "YK9xja6L", "mealbook"],
   ["Ravenpost", null, null, null, "ravenpost"],
 ];
 
