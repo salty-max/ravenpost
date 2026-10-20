@@ -25,7 +25,7 @@ facts players share. salty-max/ravenpost. Read the family's CLAUDE.md
 
 ```bash
 bash scripts/check.sh                                # what CI checks: the window, bindings, gofmt, vet (macOS, Windows), tests, the inbox
-bun ../addon-kit/q.ts check -- bash scripts/check.sh # the same, quiet, stamping the tree for the push (harness.check)
+bun "$(git rev-parse --path-format=absolute --git-common-dir)/../../addon-kit/q.ts" check -- bash scripts/check.sh # the same, quiet, stamping the tree for the push (harness.check)
 scripts/bindings.sh                                  # after a change to the service
 cd frontend && bun run dev                           # the window in a browser: http://127.0.0.1:9245/?mock (&fresh, &lang=fr_FR)
 go build -tags server                                # the real core in a browser (localhost:8080)
