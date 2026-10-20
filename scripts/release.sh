@@ -36,9 +36,9 @@ git rev-parse -q --verify "refs/tags/$TAG" >/dev/null && die "$TAG already exist
 echo "release $TAG: $current → $VERSION"
 
 perl -pi -e "s/^var version = \".*\"/var version = \"$VERSION\"/" main.go
-test -z "$(gofmt -l .)" || die "gofmt: $(gofmt -l .)"
-(cd frontend && bun install --frozen-lockfile && bun run build)
-go vet ./... && GOOS=windows go vet ./... && go test ./...
+# The whole check on the bumped tree, the one pushed: q stamps it, and the
+# pre-push hook refuses a tree without a stamp (harness.check: scripts/check.sh).
+bun "$(git rev-parse --path-format=absolute --git-common-dir)/../../addon-kit/q.ts" check -- bash scripts/check.sh
 
 git add -A
 git diff --cached --quiet || git commit -q -m "chore(release): $TAG"
