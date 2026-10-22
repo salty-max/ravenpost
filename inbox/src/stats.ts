@@ -7,7 +7,10 @@ import * as store from "./store";
  *   downloads  each addon's totals on CurseForge (its own JSON, else cfwidget), Wago and GitHub, Ravenpost's
  *              releases (totals as of that day: download events, not players)
  *   ravenpost  the installs that pinged that day (one anonymous ping a day:
- *              a hash of a random install id, its version, system, links)
+ *              a hash of a random install id, its version, system, links),
+ *              and the different installs over 7 and 30 days and since
+ *              counting began (stats/installs.json: each install's hash with
+ *              its first and last day)
  *   sharing    that day's uploads of facts: sharers, uploads, facts, by game
  *              and language (counted as they come, by the sharer's hash)
  *   merged     observations newly archived by wow-data, not database gaps filled
@@ -21,13 +24,14 @@ import * as store from "./store";
  *              behind the owner's session, so brought from their computer
  *              (bin/curseforge-unique.ts, POST /api/unique), a day or
  *              two behind
- * The day's pings and counts are dropped once counted: only the sums stay.
+ * The day's pings and counts are dropped once counted: only the sums stay,
+ * and each install's hash with its first and last day.
  * Today's so far are counted at each ten-minute look (stats/today.json).
  */
 export type Day = {
   downloads?: Record<string, { curseforge?: number; wago?: number; github?: number }>;
   downloadsAt?: string;
-  ravenpost?: { installs: number; versions: Record<string, number>; os: Record<string, number>; linked: Record<string, number>; sharing: number };
+  ravenpost?: { installs: number; versions: Record<string, number>; os: Record<string, number>; linked: Record<string, number>; sharing: number; distinct?: Distinct };
   sharing?: { sharers: number; uploads: number; facts: number; games: Record<string, number>; locales: Record<string, number> };
   merged?: Record<string, { uploads: number; newFacts: number }>;
   traffic?: Record<string, { pageviews: number; visitors: number }>;
@@ -67,6 +71,45 @@ export function readPing(body: unknown): Ping | null {
 export async function ping(p: Ping, now = new Date()): Promise<void> {
   const { id, ...rest } = p;
   await store.write(`pings/${dayOf(now)}/${key(`install:${id}`)}.json`, JSON.stringify(rest));
+}
+
+// ── different installs (each ping's file named by its install's hash) ───────
+/** Each install's first and last day seen, by its hash (never its id), since counting began. */
+type Seen = { since: string; installs: Record<string, { first: string; last: string }> };
+/** Different installs to a day: over its 7 and 30 days (and how many of them new), and since counting began. */
+export type Distinct = { week: number; month: number; ever: number; newWeek: number; newMonth: number; since: string };
+const INSTALLS = "stats/installs.json";
+const daysBefore = (day: string, n: number) => dayOf(new Date(Date.parse(day) - n * 86_400_000));
+
+async function seen(): Promise<Seen | null> {
+  return JSON.parse((await store.read(INSTALLS)) ?? "null") as Seen | null;
+}
+
+/** A day's pings (their files' names) onto each install's first and last day. */
+function see(s: Seen | null, day: string, pings: string[]): Seen | null {
+  if (!pings.length) return s;
+  const out: Seen = { since: s && s.since < day ? s.since : day, installs: { ...s?.installs } };
+  for (const name of pings) {
+    const h = name.slice(name.lastIndexOf("/") + 1).replace(/\.json$/, "");
+    const was = out.installs[h];
+    out.installs[h] = { first: was && was.first < day ? was.first : day, last: was && was.last > day ? was.last : day };
+  }
+  return out;
+}
+
+export function distinctOf(s: Seen, day: string): Distinct {
+  const week = daysBefore(day, 6);
+  const month = daysBefore(day, 29);
+  const d: Distinct = { week: 0, month: 0, ever: 0, newWeek: 0, newMonth: 0, since: s.since };
+  for (const { first, last } of Object.values(s.installs)) {
+    if (first > day) continue;
+    d.ever++;
+    if (last >= week) d.week++;
+    if (last >= month) d.month++;
+    if (first >= week) d.newWeek++;
+    if (first >= month) d.newMonth++;
+  }
+  return d;
 }
 
 // ── a day's uploads, by sharer ───────────────────────────────────────────────
@@ -229,15 +272,18 @@ async function standing(): Promise<Day["curseforge"]> {
 }
 
 // ── today so far (the ten-minute look) ───────────────────────────────────────
-export type Today = { at: string; day: string; installs: number; sharing: number; sharers: number; uploads: number; facts: number };
+export type Today = { at: string; day: string; installs: number; sharing: number; sharers: number; uploads: number; facts: number; distinct?: Distinct };
 const TODAY = "stats/today.json";
 
 /** Today's pings and uploads so far, before the daily job sums them: counted and kept for the dashboard. */
 export async function countToday(now = new Date()): Promise<Today> {
   const day = dayOf(now);
   const t: Today = { at: now.toISOString(), day, installs: 0, sharing: 0, sharers: 0, uploads: 0, facts: 0 };
-  const [pings, counts] = await Promise.all([store.all(`pings/${day}/`), store.all(`counts/${day}/`)]);
+  const [pings, counts, before, s] = await Promise.all([store.all(`pings/${day}/`), store.all(`counts/${day}/`), store.all(`pings/${yesterday(now)}/`), seen()]);
   t.installs = pings.length;
+  // (different installs to today: yesterday's pings too, should the daily job not have counted them yet)
+  const known = see(see(s, yesterday(now), before), day, pings);
+  if (known) t.distinct = distinctOf(known, day);
   await Promise.all([
     ...pings.map(async (name) => {
       const p = JSON.parse((await store.read(name)) ?? "null") as Omit<Ping, "id"> | null;
@@ -325,6 +371,9 @@ export async function collect(now = new Date()): Promise<History> {
     for (const l of p.linked) bump(ravenpost.linked, l);
     if (p.sharing > 0) ravenpost.sharing++;
   }
+  const known = see(await seen(), day, pings);
+  if (known) ravenpost.distinct = distinctOf(known, day);
+  if (pings.length) await store.write(INSTALLS, JSON.stringify(known));
   const counts = await store.all(`counts/${day}/`);
   const sharing: NonNullable<Day["sharing"]> = { sharers: 0, uploads: 0, facts: 0, games: {}, locales: {} };
   for (const name of counts) {

@@ -43,7 +43,12 @@ with Battle.net in the browser (a signed cookie, 30 days). Its history,
 - Ravenpost: the installs that pinged that day (`POST /api/ping`, once a
   day each: a hash of a random install id, the version, system, links),
   the dashboard's "Ravenpost in use". Releases before 0.4.0 never ping, so
-  it doesn't compare with Ravenpost's downloads (every release's, all time);
+  it doesn't compare with Ravenpost's downloads (every release's, all time).
+  Beside it, the different installs over 7 and 30 days (how many new) and
+  since counting began, each install once however many days it ran:
+  `stats/installs.json` keeps each install's hash (its random id keyed with
+  `INBOX_SECRET`) with its first and last day, nothing else, and the
+  ten-minute look counts them to today;
 - sharing: the day's sharers, uploads and facts by game and language
   (counted as they come in, by the sharer's hash);
 - merged: the new facts wow-data's merge found;
@@ -88,7 +93,8 @@ still work for the current page.
 
 The daily job (`/api/cron/stats`, Vercel Cron at 05:17 UTC with
 `CRON_SECRET`; by hand with `INBOX_TOKEN`) counts yesterday's pings and
-uploads, then drops their files: only the sums stay.
+uploads, then drops their files: only the sums stay, and each install's
+hash with its first and last day.
 
 ## The app on a phone, and its notifications
 

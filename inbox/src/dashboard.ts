@@ -3,7 +3,7 @@ import type { Thread } from "./comments";
 import type { Reading, Release } from "./curseforge";
 import type { Event } from "./events";
 import type { Resolution } from "./github";
-import type { Day, History, Today, UniquePeriods } from "./stats";
+import type { Day, Distinct, History, Today, UniquePeriods } from "./stats";
 
 /**
  * The dashboard (/stats), in Ravenpost's window's look (its theme: night
@@ -386,6 +386,15 @@ function releasesCard(releases: Record<string, Release[]>): string {
     .join("");
 }
 
+/** Different Ravenpost installs over 7 and 30 days and since counting began, to a day: each counted once, however many days it ran. */
+function installsCard(d: Distinct | undefined, through: string | undefined): string {
+  if (!d || !through) return `<p class="empty" style="padding:12px 0 0">Different installs: counted from the first pings the inbox keeps.</p>`;
+  const cell = (n: number, line: string) => `<span class="c"><b>${fmt(n)}</b><span>${line}</span></span>`;
+  return `<div class="periods"><span class="h">Different installs</span><span class="h">7 days</span><span class="h">30 days</span><span class="h">Since ${short(d.since)}</span>
+<span class="n">Ravenpost</span>${cell(d.week, `${fmt(d.newWeek)} new`)}${cell(d.month, `${fmt(d.newMonth)} new`)}${cell(d.ever, "in all")}</div>
+<p class="sub" style="margin-top:10px">Each install once, however many days it ran, to ${short(through)}. A player on two computers counts twice.</p>`;
+}
+
 /** Each addon's unique downloaders on CurseForge over 7, 30 and 90 days: different people, beside its downloads. */
 function uniqueCard(u: UniquePeriods | null | undefined): string {
   const p = u?.periods ?? {};
@@ -480,6 +489,9 @@ export function dashboard(
     return undefined;
   };
   const rp = latest("ravenpost");
+  // (different installs to today when the ten-minute look counted them, else to the daily job's last day)
+  const rpDay = Object.keys(h.days).sort().reverse().find((d) => h.days[d]?.ravenpost);
+  const [distinct, distinctTo] = td?.distinct ? [td.distinct, td.day] : [rp?.distinct, rp?.distinct ? rpDay : undefined];
   const sh = latest("sharing");
   const shares = (m: Record<string, number> | undefined, empty: string) => {
     const e = Object.entries(m ?? {}).sort((a, b) => b[1] - a[1]);
@@ -572,7 +584,8 @@ ${kpi("k-vi", "globe", "Site visitors", fmt(lastOf(visitors)), Object.keys(s.sit
 <section id="players"><div class="sh"><h2 class="title">Players</h2><p>Ravenpost and the shared facts</p></div>
 <div class="grid2">
 <div class="panel card"><h3>Ravenpost in use</h3><p class="sub">The installs running that day, one anonymous ping each (0.4.0 and later: earlier releases never ping)</p><div class="chart" id="c-in" style="height:170px"></div>
-<div class="grid2" style="gap:14px;margin-top:6px"><div><p class="sub">Versions</p>${shares(rp?.versions, "–")}</div><div><p class="sub">Systems</p>${shares(rp?.os, "–")}</div></div>
+${installsCard(distinct, distinctTo)}
+<div class="grid2" style="gap:14px;margin-top:14px"><div><p class="sub">Versions</p>${shares(rp?.versions, "–")}</div><div><p class="sub">Systems</p>${shares(rp?.os, "–")}</div></div>
 <p class="sub" style="margin-top:12px">Linked</p>${shares(rp?.linked, "None yet.")}</div>
 <div class="panel card"><h3>Facts shared</h3><p class="sub">A day, and the ones new to the database</p><div class="chart" id="c-fa" style="height:170px"></div><div class="legend" id="l-fa"></div>
 <div class="grid2" style="gap:14px;margin-top:6px"><div><p class="sub">Games</p>${shares(sh?.games, "–")}</div><div><p class="sub">Languages</p>${shares(sh?.locales, "–")}</div></div></div>

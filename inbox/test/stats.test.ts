@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { app } from "../src/app";
@@ -49,6 +49,7 @@ describe("the numbers", () => {
       os: { darwin: 1, windows: 1 },
       linked: { hearthtale: 1, shared: 1 },
       sharing: 1,
+      distinct: { week: 2, month: 2, ever: 2, newWeek: 2, newMonth: 2, since: "2026-10-15" },
     });
     expect(h.days["2026-10-15"].sharing).toEqual({ sharers: 2, uploads: 3, facts: 21, games: { forever: 17, classic: 4 }, locales: { enUS: 12, deDE: 5, frFR: 4 } });
     expect(h.days["2026-10-16"].downloads!.Yonder).toEqual({ curseforge: 100, wago: 42, github: 10 });
@@ -67,6 +68,34 @@ describe("the numbers", () => {
     const again = await collect(next);
     expect(again.days["2026-10-15"].ravenpost!.installs).toBe(2);
     expect(again.days["2026-10-15"].sharing!.facts).toBe(21);
+  });
+
+  test("different installs: each counted once over 7 and 30 days and since counting began, only hashes kept", async () => {
+    const at = (day: string) => new Date(`${day}T12:00:00Z`);
+    const morning = (day: string) => new Date(Date.parse(`${day}T05:17:00Z`) + 86_400_000);
+    const pinged = (c: string, day: string) => ping(readPing({ id: c.repeat(32), version: "0.4.1", os: "windows", arch: "amd64", linked: [], sharing: 0 })!, at(day));
+    // (a: the first day only; b: the first day and three weeks on; c: new three weeks on; d: new 40 days on)
+    await pinged("a", "2026-10-01");
+    await pinged("b", "2026-10-01");
+    expect((await collect(morning("2026-10-01"))).days["2026-10-01"].ravenpost!.distinct).toEqual({ week: 2, month: 2, ever: 2, newWeek: 2, newMonth: 2, since: "2026-10-01" });
+    // (a day nobody ran it: no pings, the installs still counted over their days)
+    expect((await collect(morning("2026-10-05"))).days["2026-10-05"].ravenpost).toMatchObject({ installs: 0, distinct: { week: 2, month: 2, ever: 2 } });
+    await pinged("b", "2026-10-22");
+    await pinged("c", "2026-10-22");
+    expect((await collect(morning("2026-10-22"))).days["2026-10-22"].ravenpost!.distinct).toEqual({ week: 2, month: 3, ever: 3, newWeek: 1, newMonth: 3, since: "2026-10-01" });
+    await pinged("d", "2026-11-10");
+    const h = await collect(morning("2026-11-10"));
+    expect(h.days["2026-11-10"].ravenpost!.distinct).toEqual({ week: 1, month: 3, ever: 4, newWeek: 1, newMonth: 2, since: "2026-10-01" });
+    // Run again: the same numbers, the pings gone; what's kept says nothing but hashes and days.
+    expect((await collect(morning("2026-11-10"))).days["2026-11-10"].ravenpost!.distinct).toEqual(h.days["2026-11-10"].ravenpost!.distinct!);
+    const kept = readFileSync(path.join(process.env.INBOX_DIR!, "stats", "installs.json"), "utf8");
+    expect(kept).not.toContain("a".repeat(32));
+    expect(Object.keys(JSON.parse(kept).installs)).toHaveLength(4);
+    expect(Object.values(JSON.parse(kept).installs)).toContainEqual({ first: "2026-10-01", last: "2026-10-22" });
+    const html = dashboard(h);
+    expect(html).toContain("Since 1 Oct");
+    expect(html).toContain("<b>3</b><span>2 new</span>");
+    expect(html).toContain("<b>4</b><span>in all</span>");
   });
 
   test("an upload counts on its sharer's line for the day", async () => {
@@ -155,6 +184,9 @@ describe("today so far, and the unique downloaders", () => {
     await countUpload("someone", "forever", { enUS: 30 }, now);
     await countUpload("someone", "classic", { frFR: 5 }, now);
     expect(await countToday(now)).toMatchObject({ day: "2026-10-19", installs: 2, sharing: 1, sharers: 1, uploads: 2, facts: 35 });
+    // (different installs to today: yesterday's c, not yet counted by the daily job, among them)
+    expect((await countToday(now)).distinct).toEqual({ week: 3, month: 3, ever: 3, newWeek: 3, newMonth: 3, since: "2026-10-18" });
+    expect(dashboard({ days: {} }, { today: await today(now) })).toContain("to 19 Oct");
     expect(await today(now)).toMatchObject({ installs: 2, facts: 35 });
     expect(await today(new Date("2026-10-20T00:05:00Z"))).toBeNull();
   });
