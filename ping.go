@@ -14,21 +14,36 @@ import (
 // only a hash of it), Ravenpost's version, the system, which links are made
 // and how many addons share. Nothing about the player, their characters or
 // their files.
-const pingEvery = 24 * time.Hour
+//
+// It looks every quarter of an hour whether today's went through (the
+// inbox's day, UTC): a ping that failed, the network not up yet at login,
+// goes again at the next look instead of a day later, and a computer asleep
+// most of the day still counts each day it's awake (a 24-hour timer counts
+// only the hours awake).
+var (
+	pingFirst = time.Minute // (the first look a minute after the start)
+	pingLook  = 15 * time.Minute
+)
 
 func (a *App) pingDaily(ctx context.Context) {
-	timer := time.NewTimer(time.Minute) // (the first a minute after the start)
+	timer := time.NewTimer(pingFirst)
 	defer timer.Stop()
+	sent, told := "", "" // (the day the ping went through, the day a failure was logged)
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-timer.C:
 		}
-		if err := a.ping(ctx); err != nil {
-			log.Printf("ping: %v", err)
+		if day := time.Now().UTC().Format(time.DateOnly); day != sent {
+			if err := a.ping(ctx); err == nil {
+				sent = day
+			} else if told != day {
+				log.Printf("ping: %v", err)
+				told = day
+			}
 		}
-		timer.Reset(pingEvery)
+		timer.Reset(pingLook)
 	}
 }
 

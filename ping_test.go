@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"sync"
 	"testing"
+	"time"
 )
 
 func TestTheDailyPingSaysNothingOfThePlayer(t *testing.T) {
@@ -49,5 +51,37 @@ func TestTheDailyPingSaysNothingOfThePlayer(t *testing.T) {
 	_ = r.app.ping(context.Background())
 	if got["id"] != first {
 		t.Fatal("a new id each ping")
+	}
+}
+
+func TestAFailedPingGoesAgainAtTheNextLookThenOnceADay(t *testing.T) {
+	r := testApp(t)
+	var mu sync.Mutex
+	calls := 0
+	inbox := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		calls++
+		if calls == 1 { // (the network not up yet at login)
+			http.Error(w, `{"error":"down"}`, http.StatusBadGateway)
+			return
+		}
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer inbox.Close()
+	_ = r.app.store.SetLink(Shared, Link{Server: inbox.URL})
+	first, look := pingFirst, pingLook
+	pingFirst, pingLook = time.Millisecond, 5*time.Millisecond
+	defer func() { pingFirst, pingLook = first, look }()
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { r.app.pingDaily(ctx); close(done) }()
+	time.Sleep(200 * time.Millisecond) // (forty looks)
+	cancel()
+	<-done
+	mu.Lock()
+	defer mu.Unlock()
+	if calls != 2 {
+		t.Fatalf("%d pings: want the failed one, then one that went through, then none that day", calls)
 	}
 }

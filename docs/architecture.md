@@ -49,8 +49,12 @@ stays there). The inbox: `inbox/README.md`. The icons: `assets/README.md`.
   (`POST /api/facts`), held until wow-data's daily job merges and removes
   them. Deployed with `vercel deploy --prod` from `inbox/`; `cd inbox && bun
   run check` in CI.
-- `ping.go`: once a day (a minute after the start, then every 24 h) a ping
-  to the inbox's `/api/ping` for its numbers: the install's random id
+- `ping.go`: once a day a ping to the inbox's `/api/ping` for its numbers,
+  looking every 15 minutes (the first a minute after the start) whether
+  today's, a UTC day, went through: a failed one (no network yet at login)
+  goes again at the next look, and a computer asleep most of the day still
+  counts each day (a 24-hour timer, in 0.4.0, counted only the hours
+  awake and waited a day after a failure). The install's random id
   (`InstallID` in the config; the inbox keeps a hash), the version, the
   system, the links made, how many addons share. Nothing of the player.
 - `login.go`: the one Battle.net sign-in, the way desktop apps sign in: a
