@@ -41,7 +41,9 @@ with Battle.net in the browser (a signed cookie, 30 days). Its history,
 - downloads: each addon's CurseForge (cfwidget), Wago (its page) and GitHub
   (releases) totals, Ravenpost's releases;
 - Ravenpost: the installs that pinged that day (`POST /api/ping`, once a
-  day each: a hash of a random install id, the version, system, links);
+  day each: a hash of a random install id, the version, system, links),
+  the dashboard's "Ravenpost in use". Releases before 0.4.0 never ping, so
+  it doesn't compare with Ravenpost's downloads (every release's, all time);
 - sharing: the day's sharers, uploads and facts by game and language
   (counted as they come in, by the sharer's hash);
 - merged: the new facts wow-data's merge found;

@@ -537,7 +537,7 @@ export function dashboard(
 
 <div class="kpis">
 ${kpi("k-dl", "download", "Downloads", fmt(total), [hourly.today !== null ? `<b>+${fmt(hourly.today)}</b> today` : "", week !== null ? `${signed(week)} in 7 days` : ""].filter(Boolean).join(" · ") || "every addon, every store")}
-${kpi("k-in", "users", "Ravenpost installs", fmt(rp?.installs), ["yesterday", td ? `<b>${fmt(td.installs)}</b> today so far` : ""].filter(Boolean).join(" · "))}
+${kpi("k-in", "users", "Ravenpost in use", fmt(rp?.installs), ["yesterday", td ? `<b>${fmt(td.installs)}</b> today so far` : ""].filter(Boolean).join(" · "))}
 ${kpi("k-fa", "send", "Facts shared", fmt(sh?.facts), ["yesterday", td ? `<b>${fmt(td.facts)}</b> today so far` : ""].filter(Boolean).join(" · "))}
 ${kpi("k-vi", "globe", "Site visitors", fmt(lastOf(visitors)), Object.keys(s.sites).length ? Object.keys(s.sites).join(" · ") : "Web Analytics")}
 </div>
@@ -571,7 +571,7 @@ ${kpi("k-vi", "globe", "Site visitors", fmt(lastOf(visitors)), Object.keys(s.sit
 
 <section id="players"><div class="sh"><h2 class="title">Players</h2><p>Ravenpost and the shared facts</p></div>
 <div class="grid2">
-<div class="panel card"><h3>Ravenpost installs</h3><p class="sub">Active a day: one anonymous ping each</p><div class="chart" id="c-in" style="height:170px"></div>
+<div class="panel card"><h3>Ravenpost in use</h3><p class="sub">The installs running that day, one anonymous ping each (0.4.0 and later: earlier releases never ping)</p><div class="chart" id="c-in" style="height:170px"></div>
 <div class="grid2" style="gap:14px;margin-top:6px"><div><p class="sub">Versions</p>${shares(rp?.versions, "–")}</div><div><p class="sub">Systems</p>${shares(rp?.os, "–")}</div></div>
 <p class="sub" style="margin-top:12px">Linked</p>${shares(rp?.linked, "None yet.")}</div>
 <div class="panel card"><h3>Facts shared</h3><p class="sub">A day, and the ones new to the database</p><div class="chart" id="c-fa" style="height:170px"></div><div class="legend" id="l-fa"></div>
