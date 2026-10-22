@@ -25,7 +25,7 @@ func TestTheDailyPingSaysNothingOfThePlayer(t *testing.T) {
 	defer inbox.Close()
 	_ = r.app.store.SetLink(Shared, Link{Server: inbox.URL, Token: sharedToken, BattleTag: "Max#1234"})
 	_ = r.app.store.SetLink(Hearthtale, Link{Server: "http://h", Token: "tok", BattleTag: "Max#1234"})
-	if err := r.app.ping(context.Background()); err != nil {
+	if _, err := r.app.ping(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	id, _ := got["id"].(string)
@@ -48,7 +48,7 @@ func TestTheDailyPingSaysNothingOfThePlayer(t *testing.T) {
 	}
 	// The same install, the same id, ping after ping.
 	first := id
-	_ = r.app.ping(context.Background())
+	_, _ = r.app.ping(context.Background())
 	if got["id"] != first {
 		t.Fatal("a new id each ping")
 	}
@@ -66,7 +66,7 @@ func TestAFailedPingGoesAgainAtTheNextLookThenOnceADay(t *testing.T) {
 			http.Error(w, `{"error":"down"}`, http.StatusBadGateway)
 			return
 		}
-		_, _ = w.Write([]byte(`{"ok":true}`))
+		_, _ = w.Write([]byte(`{"ok":true,"day":"` + time.Now().UTC().Format(time.DateOnly) + `"}`))
 	}))
 	defer inbox.Close()
 	_ = r.app.store.SetLink(Shared, Link{Server: inbox.URL})
@@ -83,5 +83,34 @@ func TestAFailedPingGoesAgainAtTheNextLookThenOnceADay(t *testing.T) {
 	defer mu.Unlock()
 	if calls != 2 {
 		t.Fatalf("%d pings: want the failed one, then one that went through, then none that day", calls)
+	}
+}
+
+func TestTheInboxsDayNotThisClocks(t *testing.T) {
+	// (an inbox still on yesterday, this clock ahead: pinged again at each look until the inbox's day turns)
+	r := testApp(t)
+	var mu sync.Mutex
+	calls := 0
+	inbox := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		calls++
+		_, _ = w.Write([]byte(`{"ok":true,"day":"` + time.Now().UTC().AddDate(0, 0, -1).Format(time.DateOnly) + `"}`))
+	}))
+	defer inbox.Close()
+	_ = r.app.store.SetLink(Shared, Link{Server: inbox.URL})
+	first, look := pingFirst, pingLook
+	pingFirst, pingLook = time.Millisecond, 5*time.Millisecond
+	defer func() { pingFirst, pingLook = first, look }()
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { r.app.pingDaily(ctx); close(done) }()
+	time.Sleep(100 * time.Millisecond)
+	cancel()
+	<-done
+	mu.Lock()
+	defer mu.Unlock()
+	if calls < 3 {
+		t.Fatalf("%d pings: the inbox's day not yet today, it should go again", calls)
 	}
 }

@@ -51,7 +51,8 @@ stays there). The inbox: `inbox/README.md`. The icons: `assets/README.md`.
   run check` in CI.
 - `ping.go`: once a day a ping to the inbox's `/api/ping` for its numbers,
   looking every 15 minutes (the first a minute after the start) whether
-  today's, a UTC day, went through: a failed one (no network yet at login)
+  today's went through (the inbox's UTC day, which it answers with, not
+  this clock's): a failed one (no network yet at login)
   goes again at the next look, and a computer asleep most of the day still
   counts each day (a 24-hour timer, in 0.4.0, counted only the hours
   awake and waited a day after a failure). The install's random id

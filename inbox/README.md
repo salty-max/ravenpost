@@ -45,7 +45,8 @@ with Battle.net in the browser (a signed cookie, 30 days). Its history,
   the dashboard's "Ravenpost in use". Releases before 0.4.0 never ping, so
   it doesn't compare with Ravenpost's downloads (every release's, all time).
   Beside it, the different installs over 7 and 30 days (how many new) and
-  since counting began, each install once however many days it ran:
+  since counting began, each install once however many days it ran (how
+  many new only once the window starts after the first day counted):
   `stats/installs.json` keeps each install's hash (its random id keyed with
   `INBOX_SECRET`) with its first and last day, nothing else, and the
   ten-minute look counts them to today;

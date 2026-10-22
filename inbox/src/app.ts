@@ -149,8 +149,8 @@ app.post("/api/inbox/stats", async (c) => {
 app.post("/api/ping", bodyLimit({ maxSize: 4096 }), async (c) => {
   const p = readPing(await c.req.json().catch(() => null));
   if (!p) return c.json({ error: "not a ping" }, 400);
-  await ping(p);
-  return c.json({ ok: true });
+  // (the day it's filed under: Ravenpost keeps it, not its own clock's)
+  return c.json({ ok: true, day: await ping(p) });
 });
 
 // ── the daily job (Vercel Cron, CRON_SECRET; or by hand with INBOX_TOKEN) ─────

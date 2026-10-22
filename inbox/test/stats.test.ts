@@ -49,7 +49,7 @@ describe("the numbers", () => {
       os: { darwin: 1, windows: 1 },
       linked: { hearthtale: 1, shared: 1 },
       sharing: 1,
-      distinct: { week: 2, month: 2, ever: 2, newWeek: 2, newMonth: 2, since: "2026-10-15" },
+      distinct: { week: 2, month: 2, ever: 2, newWeek: null, newMonth: null, since: "2026-10-15" },
     });
     expect(h.days["2026-10-15"].sharing).toEqual({ sharers: 2, uploads: 3, facts: 21, games: { forever: 17, classic: 4 }, locales: { enUS: 12, deDE: 5, frFR: 4 } });
     expect(h.days["2026-10-16"].downloads!.Yonder).toEqual({ curseforge: 100, wago: 42, github: 10 });
@@ -77,12 +77,12 @@ describe("the numbers", () => {
     // (a: the first day only; b: the first day and three weeks on; c: new three weeks on; d: new 40 days on)
     await pinged("a", "2026-10-01");
     await pinged("b", "2026-10-01");
-    expect((await collect(morning("2026-10-01"))).days["2026-10-01"].ravenpost!.distinct).toEqual({ week: 2, month: 2, ever: 2, newWeek: 2, newMonth: 2, since: "2026-10-01" });
+    expect((await collect(morning("2026-10-01"))).days["2026-10-01"].ravenpost!.distinct).toEqual({ week: 2, month: 2, ever: 2, newWeek: null, newMonth: null, since: "2026-10-01" });
     // (a day nobody ran it: no pings, the installs still counted over their days)
     expect((await collect(morning("2026-10-05"))).days["2026-10-05"].ravenpost).toMatchObject({ installs: 0, distinct: { week: 2, month: 2, ever: 2 } });
     await pinged("b", "2026-10-22");
     await pinged("c", "2026-10-22");
-    expect((await collect(morning("2026-10-22"))).days["2026-10-22"].ravenpost!.distinct).toEqual({ week: 2, month: 3, ever: 3, newWeek: 1, newMonth: 3, since: "2026-10-01" });
+    expect((await collect(morning("2026-10-22"))).days["2026-10-22"].ravenpost!.distinct).toEqual({ week: 2, month: 3, ever: 3, newWeek: 1, newMonth: null, since: "2026-10-01" });
     await pinged("d", "2026-11-10");
     const h = await collect(morning("2026-11-10"));
     expect(h.days["2026-11-10"].ravenpost!.distinct).toEqual({ week: 1, month: 3, ever: 4, newWeek: 1, newMonth: 2, since: "2026-10-01" });
@@ -109,7 +109,9 @@ describe("the numbers", () => {
 
   test("the routes: a ping from anyone, the job and the merge's numbers behind their tokens", async () => {
     expect((await app.request("/api/ping", { method: "POST", body: "{}" })).status).toBe(400);
-    expect((await app.request("/api/ping", { method: "POST", body: JSON.stringify({ id: "c".repeat(32), os: "linux" }) })).status).toBe(200);
+    const pinged = await app.request("/api/ping", { method: "POST", body: JSON.stringify({ id: "c".repeat(32), os: "linux" }) });
+    expect(pinged.status).toBe(200);
+    expect(await pinged.json()).toEqual({ ok: true, day: new Date().toISOString().slice(0, 10) });
     expect((await app.request("/api/cron/stats")).status).toBe(401);
     expect((await app.request("/api/cron/stats", { headers: { authorization: "Bearer t0ken" } })).status).toBe(200);
     const merged = { days: { "2026-10-15": { merged: { forever: { uploads: 3, newFacts: 12 } } } } };
@@ -185,8 +187,11 @@ describe("today so far, and the unique downloaders", () => {
     await countUpload("someone", "classic", { frFR: 5 }, now);
     expect(await countToday(now)).toMatchObject({ day: "2026-10-19", installs: 2, sharing: 1, sharers: 1, uploads: 2, facts: 35 });
     // (different installs to today: yesterday's c, not yet counted by the daily job, among them)
-    expect((await countToday(now)).distinct).toEqual({ week: 3, month: 3, ever: 3, newWeek: 3, newMonth: 3, since: "2026-10-18" });
-    expect(dashboard({ days: {} }, { today: await today(now) })).toContain("to 19 Oct");
+    expect((await countToday(now)).distinct).toEqual({ week: 3, month: 3, ever: 3, newWeek: null, newMonth: null, since: "2026-10-18" });
+    // (new unknown while the window starts before counting began: every install was first seen then)
+    const page = dashboard({ days: {} }, { today: await today(now) });
+    expect(page).toContain("to 19 Oct");
+    expect(page).toContain("<b>3</b><span>–</span>");
     expect(await today(now)).toMatchObject({ installs: 2, facts: 35 });
     expect(await today(new Date("2026-10-20T00:05:00Z"))).toBeNull();
   });

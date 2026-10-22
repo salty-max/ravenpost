@@ -69,9 +69,9 @@ you open it.
   a line naming another player, nor your chat.
 
 - **Once a day**, Ravenpost tells its inbox it's running: a random number
-  made for this install (the inbox keeps only a hash of it), its version,
-  your system and which links are made. That's how many use it is counted,
-  nothing about you or your characters.
+  made for this install (the inbox keeps only a hash of it, with the first
+  and last day it ran), its version, your system and which links are made.
+  That's how many use it is counted, nothing about you or your characters.
 
 Ravenpost sends no other file and reads no other addon. You can leave out a
 character or a whole game account in the window. If you remove a book from

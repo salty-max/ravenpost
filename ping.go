@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -36,8 +37,9 @@ func (a *App) pingDaily(ctx context.Context) {
 		case <-timer.C:
 		}
 		if day := time.Now().UTC().Format(time.DateOnly); day != sent {
-			if err := a.ping(ctx); err == nil {
-				sent = day
+			if filed, err := a.ping(ctx); err == nil {
+				// (the day the inbox filed it under, should this clock be off)
+				sent = cmp.Or(filed, day)
 			} else if told != day {
 				log.Printf("ping: %v", err)
 				told = day
@@ -64,7 +66,8 @@ func (a *App) installID() string {
 	return id
 }
 
-func (a *App) ping(ctx context.Context) error {
+// ping: the day the inbox filed it under (none from an inbox before it said).
+func (a *App) ping(ctx context.Context) (string, error) {
 	cfg := a.store.Get()
 	linked := []string{}
 	for _, id := range []string{WoWLocker, Hearthtale, Shared} {
@@ -82,5 +85,9 @@ func (a *App) ping(ctx context.Context) error {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	return call(ctx, "POST", cfg.LinkFor(Shared).Server, "/api/ping", "", body, nil)
+	var res struct {
+		Day string `json:"day"`
+	}
+	err := call(ctx, "POST", cfg.LinkFor(Shared).Server, "/api/ping", "", body, &res)
+	return res.Day, err
 }

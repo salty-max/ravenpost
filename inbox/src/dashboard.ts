@@ -391,7 +391,7 @@ function installsCard(d: Distinct | undefined, through: string | undefined): str
   if (!d || !through) return `<p class="empty" style="padding:12px 0 0">Different installs: counted from the first pings the inbox keeps.</p>`;
   const cell = (n: number, line: string) => `<span class="c"><b>${fmt(n)}</b><span>${line}</span></span>`;
   return `<div class="periods"><span class="h">Different installs</span><span class="h">7 days</span><span class="h">30 days</span><span class="h">Since ${short(d.since)}</span>
-<span class="n">Ravenpost</span>${cell(d.week, `${fmt(d.newWeek)} new`)}${cell(d.month, `${fmt(d.newMonth)} new`)}${cell(d.ever, "in all")}</div>
+<span class="n">Ravenpost</span>${cell(d.week, d.newWeek === null ? "–" : `${fmt(d.newWeek)} new`)}${cell(d.month, d.newMonth === null ? "–" : `${fmt(d.newMonth)} new`)}${cell(d.ever, "in all")}</div>
 <p class="sub" style="margin-top:10px">Each install once, however many days it ran, to ${short(through)}. A player on two computers counts twice.</p>`;
 }
 

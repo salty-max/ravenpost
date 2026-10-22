@@ -67,17 +67,19 @@ export function readPing(body: unknown): Ping | null {
   };
 }
 
-/** One file an install a day (a ping again the same day replaces it). */
-export async function ping(p: Ping, now = new Date()): Promise<void> {
+/** One file an install a day (a ping again the same day replaces it); the day it was filed under. */
+export async function ping(p: Ping, now = new Date()): Promise<string> {
   const { id, ...rest } = p;
-  await store.write(`pings/${dayOf(now)}/${key(`install:${id}`)}.json`, JSON.stringify(rest));
+  const day = dayOf(now);
+  await store.write(`pings/${day}/${key(`install:${id}`)}.json`, JSON.stringify(rest));
+  return day;
 }
 
 // ── different installs (each ping's file named by its install's hash) ───────
 /** Each install's first and last day seen, by its hash (never its id), since counting began. */
 type Seen = { since: string; installs: Record<string, { first: string; last: string }> };
-/** Different installs to a day: over its 7 and 30 days (and how many of them new), and since counting began. */
-export type Distinct = { week: number; month: number; ever: number; newWeek: number; newMonth: number; since: string };
+/** Different installs to a day: over its 7 and 30 days (and how many of them new: null while the window starts before counting began, every install then first seen), and since counting began. */
+export type Distinct = { week: number; month: number; ever: number; newWeek: number | null; newMonth: number | null; since: string };
 const INSTALLS = "stats/installs.json";
 const daysBefore = (day: string, n: number) => dayOf(new Date(Date.parse(day) - n * 86_400_000));
 
@@ -100,15 +102,20 @@ function see(s: Seen | null, day: string, pings: string[]): Seen | null {
 export function distinctOf(s: Seen, day: string): Distinct {
   const week = daysBefore(day, 6);
   const month = daysBefore(day, 29);
-  const d: Distinct = { week: 0, month: 0, ever: 0, newWeek: 0, newMonth: 0, since: s.since };
+  let newWeek = 0;
+  let newMonth = 0;
+  const d: Distinct = { week: 0, month: 0, ever: 0, newWeek: null, newMonth: null, since: s.since };
   for (const { first, last } of Object.values(s.installs)) {
     if (first > day) continue;
     d.ever++;
     if (last >= week) d.week++;
     if (last >= month) d.month++;
-    if (first >= week) d.newWeek++;
-    if (first >= month) d.newMonth++;
+    if (first >= week) newWeek++;
+    if (first >= month) newMonth++;
   }
+  // (new only once the window starts after the first day counted: that day, every install was first seen)
+  if (week > s.since) d.newWeek = newWeek;
+  if (month > s.since) d.newMonth = newMonth;
   return d;
 }
 
