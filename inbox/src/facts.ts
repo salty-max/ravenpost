@@ -11,8 +11,10 @@
  *
  * Flattened into facts, each checked (a known game, language and kind, ids as
  * numbers, texts of a sensible length, positions on a map); anything else is
- * left out. The player's own name, class and race are already the game's
- * tokens ($N, $C, $R): the collector never keeps them.
+ * left out. The player's own name is already the game's token ($N): the
+ * collector never keeps it. A word that is their class or race comes marked
+ * ($C{Hunter}, $c{hunter}, $R{Night Elf}), kept as it is: wow-data's
+ * players' facts resolve it (resolveMarks).
  */
 export type Fact = { game: string; locale: string; kind: string; entity: string; field: string; value: string; build: string | null };
 
