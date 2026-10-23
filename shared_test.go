@@ -224,7 +224,7 @@ func TestSharesInPiecesAndRetries(t *testing.T) {
 		fmt.Fprintf(&quests, "[%d] = { [\"title\"] = \"Quest %d\", [\"details\"] = %q, [\"b\"] = \"70003\" },\n", id+100, id, long)
 	}
 	content := "YonderCollect = { [\"share\"] = true, [\"game\"] = \"forever\", [\"facts\"] = { [\"deDE\"] = { [\"quest\"] = {\n" + quests.String() + "} } } }\n"
-	root, file := fakeShared(t, "_classic_beta_", content)
+	root, file := fakeShared(t, "_forever_", content)
 	site := &factSite{httpCode: http.StatusBadGateway}
 	srv := site.server(t)
 	defer srv.Close()

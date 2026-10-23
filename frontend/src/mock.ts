@@ -38,16 +38,16 @@ export function mockState(): State {
               { name: "ALT#2", dir: "/a/ALT", files: {} },
             ],
           },
-          { path: "/Applications/World of Warcraft/_anniversary_", flavour: "_anniversary_", label: "World of Warcraft: Forever", accounts: [{ name: "MAXIME", dir: "/b/MAXIME", files: { hearthtale: ["w"] } }] },
+          { path: "/Applications/World of Warcraft/_forever_", flavour: "_forever_", label: "World of Warcraft: Forever", accounts: [{ name: "MAXIME", dir: "/b/MAXIME", files: { hearthtale: ["w"] } }] },
         ],
     characters: fresh
       ? []
       : [
-          { service: "hearthtale", guid: "Player-1-0001", name: "Brannok", realm: "Nightslayer", class: "HUNTER", level: 9, account: "MAXIME", install: "Classic Era", excluded: false, status: "saved", events: 0, chapters: 3, lastSeen: min(4) },
-          { service: "wowlocker", guid: "Player-1-0001", name: "Brannok", realm: "Nightslayer", class: "HUNTER", level: 9, account: "MAXIME", install: "Classic Era", excluded: false, status: "synced", events: 12, chapters: 0, lastSeen: min(4) },
-          { service: "hearthtale", guid: "Player-1-0003", name: "Pippa", realm: "Soulseeker", class: "MAGE", level: 6, account: "MAXIME", install: "Classic Era", excluded: false, status: "unlinked", events: 0, chapters: 0, lastSeen: min(180) },
-          { service: "wowlocker", guid: "Player-1-0002", name: "Grashnak", realm: "Firemaw", class: "WARRIOR", level: 24, account: "MAXIME", install: "Classic Era", excluded: true, status: "", events: 0, chapters: 0, lastSeen: min(60 * 26) },
-          { service: "hearthtale", guid: "Player-1-0004", name: "Sylvaine", realm: "Zephras", class: "DRUID", level: 31, account: "MAXIME", install: "Forever", excluded: false, status: "saved", events: 0, chapters: 14, lastSeen: min(60 * 50) },
+          { service: "hearthtale", guid: "Player-1-0001", name: "Brannok", realm: "Nightslayer", class: "HUNTER", level: 9, account: "MAXIME", install: "Classic Era · Hardcore · Season", excluded: false, status: "saved", events: 0, chapters: 3, lastSeen: min(4) },
+          { service: "wowlocker", guid: "Player-1-0001", name: "Brannok", realm: "Nightslayer", class: "HUNTER", level: 9, account: "MAXIME", install: "Classic Era · Hardcore · Season", excluded: false, status: "synced", events: 12, chapters: 0, lastSeen: min(4) },
+          { service: "hearthtale", guid: "Player-1-0003", name: "Pippa", realm: "Soulseeker", class: "MAGE", level: 6, account: "MAXIME", install: "Classic Era · Hardcore · Season", excluded: false, status: "unlinked", events: 0, chapters: 0, lastSeen: min(180) },
+          { service: "wowlocker", guid: "Player-1-0002", name: "Grashnak", realm: "Firemaw", class: "WARRIOR", level: 24, account: "MAXIME", install: "Classic Era · Hardcore · Season", excluded: true, status: "", events: 0, chapters: 0, lastSeen: min(60 * 26) },
+          { service: "hearthtale", guid: "Player-1-0004", name: "Sylvaine", realm: "Zephras", class: "DRUID", level: 31, account: "MAXIME", install: "World of Warcraft: Forever", excluded: false, status: "saved", events: 0, chapters: 14, lastSeen: min(60 * 50) },
         ],
     gone: fresh ? 0 : 1,
     lastSync: fresh ? undefined : min(4),
@@ -58,7 +58,7 @@ export function mockState(): State {
     sharing: fresh
       ? []
       : [
-          { addon: "Yonder", account: "MAXIME", install: "World of Warcraft: Forever (beta)", seen: 1874, waiting: 0, at: min(4) },
+          { addon: "Yonder", account: "MAXIME", install: "World of Warcraft: Forever", seen: 1874, waiting: 0, at: min(4) },
           { addon: "Lorekeeper's Codex", account: "MAXIME", install: "Classic Era · Hardcore · Season", seen: 312, waiting: 26, at: min(60 * 26) },
         ],
     activity: fresh

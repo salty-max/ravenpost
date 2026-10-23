@@ -50,6 +50,7 @@ var flavourLabels = map[string]string{
 	"_retail_":          "Retail",
 	"_classic_era_ptr_": "Classic Era PTR",
 	"_classic_ptr_":     "Classic PTR",
+	"_forever_":         "World of Warcraft: Forever",
 	"_classic_beta_":    "World of Warcraft: Forever (beta)",
 }
 
