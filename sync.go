@@ -367,8 +367,10 @@ func (s *Syncer) processWoWLocker(ctx context.Context, path string, f *fileState
 	var uploaded []UploadedCharacter
 	var told []Activity
 	gone := map[string]bool{}
+	retry := false // a new character, not on Battle.net's list yet: sent again after a sign-in
 	for _, r := range res.Characters {
 		gone[r.GUID] = r.Status == "gone"
+		retry = retry || r.Status == "unknown"
 		if ch := s.characters[WoWLocker+"|"+r.GUID]; ch != nil {
 			ch.Status, ch.Events, ch.SyncedAt, ch.ID = r.Status, r.Events, now, r.CharacterID
 			ch.Gone = gone[r.GUID]
@@ -388,7 +390,9 @@ func (s *Syncer) processWoWLocker(ctx context.Context, path string, f *fileState
 	}
 	log.Printf("uploaded %s to WoWLocker: %s", path, strings.Join(synced, ", "))
 	return s.store.Update(func(c *Config) {
-		c.Uploaded[path] = hash
+		if !retry {
+			c.Uploaded[path] = hash
+		}
 		c.Gone = updateGone(c.Gone, gone)
 	})
 }
@@ -478,6 +482,11 @@ func (s *Syncer) processHearthtale(ctx context.Context, path string, f *fileStat
 	s.done(uploaded)
 	s.record(sentOrRefused(Hearthtale, name, status, 0, chapters))
 	log.Printf("uploaded %s to Hearthtale: %s", path, status)
+	// A character the site doesn't know yet (Battle.net's list is from the
+	// last sign-in) is not "done": signing in again sends it.
+	if status == "unlinked" {
+		return nil
+	}
 	return s.store.Update(func(c *Config) { c.Uploaded[path] = hash })
 }
 

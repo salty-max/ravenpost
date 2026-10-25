@@ -53,6 +53,19 @@ export function Characters() {
           <span className="select-text">{e}</span>
         </p>
       ))}
+      {[
+        { site: "hearthtale", link: "shared", label: t.characters.refresh.button },
+        { site: "wowlocker", link: "wowlocker", label: t.characters.refresh.buttonLocker },
+      ].map(({ site, link, label }) =>
+        rows.some((r) => !r.excluded && r.sites.some((x) => x.service === site && (x.status === "unknown" || x.status === "unlinked"))) ? (
+          <p key={site} className="panel flex items-center justify-between gap-4 px-4 py-3 text-sm text-dim">
+            <span>{t.characters.refresh.text}</span>
+            <button type="button" className="btn btn-bnet shrink-0" onClick={() => run(() => api.Link(link))}>
+              {label}
+            </button>
+          </p>
+        ) : null,
+      )}
       {rows.length === 0 ? (
         <p className="panel p-6 text-center text-dim">{t.characters.empty}</p>
       ) : (

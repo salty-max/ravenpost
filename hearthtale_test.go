@@ -10,6 +10,7 @@ import (
 	"sort"
 	"sync"
 	"testing"
+	"time"
 )
 
 // A character's saved file as the Hearthtale addon writes it: its records
@@ -223,5 +224,45 @@ func TestARevokedLinkIsDropped(t *testing.T) {
 	}
 	if l := s.store.Get().LinkFor(WoWLocker); l.Server == "" {
 		t.Fatal("the other site is untouched")
+	}
+}
+
+// A new character Battle.net's list (from the last sign-in) doesn't hold yet
+// is refused, but not marked as sent: once the site knows it (a new sign-in),
+// the same file goes through without the player playing again.
+func TestARefusedNewCharacterIsSentAgainAfterASignIn(t *testing.T) {
+	root, character := fakeWoW(t)
+	site := &fakeSite{status: "unlinked"}
+	srv := site.server(t)
+	defer srv.Close()
+	s := syncerFor(t, srv.URL, root)
+	s.process(context.Background(), character)
+	if len(site.uploads) != 1 {
+		t.Fatalf("uploads: %d", len(site.uploads))
+	}
+
+	// Refused is not retried by itself: the file hasn't changed.
+	s.scannedAt = time.Now()
+	s.tick(context.Background())
+	if len(site.uploads) != 1 {
+		t.Fatalf("a refused, unchanged file was retried by the poll (%d uploads)", len(site.uploads))
+	}
+
+	site.mu.Lock()
+	site.status = "saved"
+	site.mu.Unlock()
+	s.SyncNow(false)
+	s.process(context.Background(), character)
+	if len(site.uploads) != 2 {
+		t.Fatalf("not sent again after the sign-in (%d uploads)", len(site.uploads))
+	}
+	if ch := s.characters[Hearthtale+"|Player-6113-0B4A2201"]; ch.Status != "saved" {
+		t.Fatalf("status %q", ch.Status)
+	}
+	// Sent: now it stays sent.
+	s.SyncNow(false)
+	s.process(context.Background(), character)
+	if len(site.uploads) != 2 {
+		t.Fatalf("a sent file was sent again (%d uploads)", len(site.uploads))
 	}
 }
