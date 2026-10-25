@@ -43,9 +43,16 @@ restore() {
   [ "$code" = 0 ] || [ "$pushed" = 1 ] && return
   # (a push whose answer the client lost may have landed all the same: then
   # it's out, and nothing is put back)
-  if [ "$pushing" = 1 ] && [ -n "$(git ls-remote origin "refs/tags/$TAG" 2>/dev/null)" ]; then
-    echo "release: the push failed on this side, but $TAG is on origin: published, nothing put back" >&2
-    exit "$code"
+  if [ "$pushing" = 1 ]; then
+    local remote
+    if ! remote=$(git ls-remote origin "refs/tags/$TAG" 2>/dev/null); then
+      echo "release: the push failed and origin can't be asked whether $TAG reached it: nothing put back (look at origin; if it isn't there, git tag -d $TAG and git reset --hard origin/main)" >&2
+      exit "$code"
+    fi
+    if [ -n "$remote" ]; then
+      echo "release: the push failed on this side, but $TAG is on origin: published, nothing put back" >&2
+      exit "$code"
+    fi
   fi
   echo "release: stopped before the push, nothing published: putting the repository back" >&2
   git tag -d "$TAG" >/dev/null 2>&1 || true
