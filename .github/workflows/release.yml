@@ -18,6 +18,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # (no token left in git's config for the build to read: the repository is public)
+          persist-credentials: false
           fetch-depth: 0
       # checkout leaves the tag lightweight: fetch it again for its message.
       - run: git fetch --force --tags
@@ -39,6 +41,7 @@ jobs:
           [ -s notes.md ] || { echo "::error::tag $TAG has no message (release notes)"; exit 1; }
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" dist/* --clobber
+            gh release edit "$TAG" --draft=false
           else
             gh release create "$TAG" --title "$TAG" --notes-file notes.md dist/*
           fi

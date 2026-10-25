@@ -37,10 +37,16 @@ git rev-parse -q --verify "refs/tags/$TAG" >/dev/null && die "$TAG already exist
 echo "release $TAG: $current → $VERSION"
 
 # From here, a stop before the push puts everything back.
-pushed=0
+pushed=0 pushing=0
 restore() {
   local code=$?
   [ "$code" = 0 ] || [ "$pushed" = 1 ] && return
+  # (a push whose answer the client lost may have landed all the same: then
+  # it's out, and nothing is put back)
+  if [ "$pushing" = 1 ] && [ -n "$(git ls-remote origin "refs/tags/$TAG" 2>/dev/null)" ]; then
+    echo "release: the push failed on this side, but $TAG is on origin: published, nothing put back" >&2
+    exit "$code"
+  fi
   echo "release: stopped before the push, nothing published: putting the repository back" >&2
   git tag -d "$TAG" >/dev/null 2>&1 || true
   git reset -q --hard "$FETCHED"
@@ -60,6 +66,7 @@ git diff --cached --quiet || git commit -q -m "chore(release): $TAG"
 # origin's main still the one checked (an atomic push: main and the tag, or neither)
 [ "$(git ls-remote origin refs/heads/main | cut -f1)" = "$FETCHED" ] || die "origin/main moved while the check ran: run the release again"
 git tag -a "$TAG" --cleanup=verbatim -F "$NOTES"
+pushing=1
 git push --atomic -q origin main "$TAG"
 pushed=1
 echo "pushed $TAG"
