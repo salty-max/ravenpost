@@ -115,3 +115,37 @@ func TestANewCharacterOfAnOldNameReplacesIt(t *testing.T) {
 		t.Fatalf("two files: listed %+v, %d gone", snap.Characters, snap.Gone)
 	}
 }
+
+// A character WoWLocker doesn't know yet (its list is from the pairing) is
+// refused as "unknown", not marked as sent: after a relink the same file goes
+// through, and once synced it stays sent.
+func TestAnUnknownCharacterIsSentAgainAfterARelink(t *testing.T) {
+	root, _ := fakeWoW(t)
+	file := filepath.Join(root, "_classic_era_", "WTF", "Account", "MAX", "SavedVariables", "WowLocker.lua")
+	if err := os.WriteFile(file, []byte(wowlockerFile), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	status, uploads := "unknown", 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		uploads++
+		_ = json.NewEncoder(w).Encode(map[string]any{"characters": []map[string]any{
+			{"guid": "Player-4703-0000AAAA", "name": "Aldric", "status": status, "events": 0},
+			{"guid": "Player-4703-0000BBBB", "name": "Oldalt", "status": "synced", "events": 0},
+		}})
+	}))
+	defer srv.Close()
+	s := syncerFor(t, srv.URL, root)
+	_ = s.store.SetLink(WoWLocker, Link{Server: srv.URL, Token: "tok"})
+
+	s.process(context.Background(), file)
+	s.process(context.Background(), file)
+	if uploads != 2 {
+		t.Fatalf("a refused file was not sent again (%d uploads)", uploads)
+	}
+	status = "synced"
+	s.process(context.Background(), file)
+	s.process(context.Background(), file)
+	if uploads != 3 {
+		t.Fatalf("after the sync: %d uploads, want 3 (sent once more, then kept)", uploads)
+	}
+}

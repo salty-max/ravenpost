@@ -27,6 +27,10 @@ export function Characters() {
     if ((c.level || 0) > (r.level || 0)) r.level = c.level;
     r.sites.push(c);
   }
+  // The sites that refused a character (not on Battle.net's list yet).
+  const refused = ["hearthtale", "wowlocker"].filter((site) =>
+    rows.some((r) => !r.excluded && r.sites.some((x) => x.service === site && (x.status === "unknown" || x.status === "unlinked"))),
+  );
   const status = (c: Character) => {
     const s = t.characters.status;
     if (c.excluded) return <span className="text-faint">{s.off}</span>;
@@ -53,18 +57,25 @@ export function Characters() {
           <span className="select-text">{e}</span>
         </p>
       ))}
-      {[
-        { site: "hearthtale", link: "shared", label: t.characters.refresh.button },
-        { site: "wowlocker", link: "wowlocker", label: t.characters.refresh.buttonLocker },
-      ].map(({ site, link, label }) =>
-        rows.some((r) => !r.excluded && r.sites.some((x) => x.service === site && (x.status === "unknown" || x.status === "unlinked"))) ? (
-          <p key={site} className="panel flex items-center justify-between gap-4 px-4 py-3 text-sm text-dim">
-            <span>{t.characters.refresh.text}</span>
-            <button type="button" className="btn btn-bnet shrink-0" onClick={() => run(() => api.Link(link))}>
-              {label}
-            </button>
-          </p>
-        ) : null,
+      {refused.length > 0 && (
+        <div className="panel flex items-center justify-between gap-4 px-4 py-3 text-sm text-dim">
+          <span>
+            {t.characters.refresh.text}
+            {refused.includes("hearthtale") && ` ${t.characters.refresh.code}`}
+          </span>
+          <span className="flex shrink-0 flex-col gap-2">
+            {refused.includes("hearthtale") && (
+              <button type="button" className="btn btn-bnet" onClick={() => run(() => api.Link("shared"))}>
+                {t.characters.refresh.button}
+              </button>
+            )}
+            {refused.includes("wowlocker") && (
+              <button type="button" className="btn btn-bnet" onClick={() => run(() => api.Link("wowlocker"))}>
+                {t.characters.refresh.buttonLocker}
+              </button>
+            )}
+          </span>
+        </div>
       )}
       {rows.length === 0 ? (
         <p className="panel p-6 text-center text-dim">{t.characters.empty}</p>
