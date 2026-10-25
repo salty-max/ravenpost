@@ -15,7 +15,6 @@ jobs:
     runs-on: macos-latest
     env:
       TAG: ${{ github.ref_name }}
-      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -30,8 +29,16 @@ jobs:
         env:
           INBOX_URL: ${{ vars.INBOX_URL }} # Ravenpost's inbox (inbox/README.md)
         run: scripts/build.sh
+      # (the token for this step alone, never the build's; a rerun after a
+      # half-done upload replaces the files instead of failing on the release)
       - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           git tag -l --format='%(contents)' "$TAG" | sed '/^-----BEGIN PGP SIGNATURE-----/,$d' > notes.md
           [ -s notes.md ] || { echo "::error::tag $TAG has no message (release notes)"; exit 1; }
-          gh release create "$TAG" --title "$TAG" --notes-file notes.md dist/*
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" --title "$TAG" --notes-file notes.md dist/*
+          fi
