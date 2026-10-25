@@ -134,5 +134,5 @@ stays there). The inbox: `inbox/README.md`. The icons: `assets/README.md`.
   machine's login items).
 - Release: `scripts/release.sh [--version X.Y.Z] NOTES.md`; Actions build on
   macOS (Go and Bun; `-tags production`) and publish `ravenpost-vX.Y.Z-macos.zip`,
-  `ravenpost-vX.Y.Z-windows-{x64,arm64}.exe` (main.go's version). WoWLocker's
+  `ravenpost-vX.Y.Z-windows-{x64,arm64}.exe` (main.go's version; a test build from a later commit is named by `git describe --tags`, `v0.4.0-19-g358ec41`). WoWLocker's
   and Hearthtale's download pages find them in the latest release.

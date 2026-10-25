@@ -4,13 +4,18 @@
 #
 #   scripts/build.sh
 #
-# dist/ (each named by its version, main.go's: ravenpost-v0.3.0-macos.zip)
+# dist/ (each named by `git describe --tags` (the release: its tag): ravenpost-v0.4.0-macos.zip on the
+# tag, ravenpost-v0.4.0-19-g358ec41-macos.zip after it, so addon-kit/status.ts
+# can tell a stale test build from a current one; the release workflow builds
+# from the tag, so a release keeps the plain version)
 #   ravenpost-vX.Y.Z-macos.zip           Ravenpost.app (universal: a window, and the menu bar)
 #   ravenpost-vX.Y.Z-windows-x64.exe     Windows (a window, and the tray), no installer
 #   ravenpost-vX.Y.Z-windows-arm64.exe
 set -euo pipefail
 cd "$(dirname "$0")/.."
 VERSION=$(sed -n 's/^var version = "\(.*\)"/\1/p' main.go)
+# (the release workflow exports TAG: a release is named by the tag that triggered it)
+NAME=${TAG:-$(git describe --tags --match 'v[0-9]*' 2>/dev/null || echo "v$VERSION")}
 WOWLOCKER=${WOWLOCKER_SERVER:-https://wow-locker.app}
 HEARTHTALE=${HEARTHTALE_SERVER:-https://hearthtale.app}
 # Ravenpost's inbox (inbox/README.md): its sign-in and the addons' database.
@@ -63,7 +68,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 codesign --force --deep --sign - "$APP" # ad hoc: not notarized
-(cd dist/tmp && ditto -c -k --keepParent Ravenpost.app "../ravenpost-v$VERSION-macos.zip")
+(cd dist/tmp && ditto -c -k --keepParent Ravenpost.app "../ravenpost-$NAME-macos.zip")
 
 # ── Windows: no console window; plain .exe downloads (nothing to unzip) ──
 # Embedded resources: icon, version info (publisher, product, version) and a
@@ -77,7 +82,7 @@ go run github.com/tc-hib/go-winres@v0.3.3 simply --arch amd64,arm64 --manifest g
 trap 'rm -f rsrc_windows_*.syso' EXIT
 for arch in amd64 arm64; do
   name=$([ $arch = amd64 ] && echo x64 || echo arm64)
-  CGO_ENABLED=0 GOOS=windows GOARCH=$arch go build -tags production -trimpath -ldflags "$LDFLAGS -H=windowsgui" -o "dist/ravenpost-v$VERSION-windows-$name.exe" .
+  CGO_ENABLED=0 GOOS=windows GOARCH=$arch go build -tags production -trimpath -ldflags "$LDFLAGS -H=windowsgui" -o "dist/ravenpost-$NAME-windows-$name.exe" .
 done
 
 rm -rf dist/tmp
