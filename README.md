@@ -52,7 +52,11 @@ Get the [latest release](https://github.com/salty-max/ravenpost/releases/latest)
   WebView2, which comes with Windows 11 and an up-to-date Windows 10.
 
 Ravenpost isn't code-signed yet, so Windows and macOS warn you the first time
-you open it.
+you open it. On Windows, SmartScreen's warning is "More info", then "Run
+anyway". On a Windows 11 PC with Smart App Control on, the file can be blocked
+outright: turn Smart App Control off in Windows Security (App & browser
+control), or [open an issue](https://github.com/salty-max/ravenpost/issues) and
+tell us which file was blocked.
 
 ## What it sends
 
