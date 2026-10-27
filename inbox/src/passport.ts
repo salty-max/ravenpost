@@ -12,7 +12,8 @@ import { DEV_PRIVATE_KEY } from "./devkey";
  *   <base64url payload>.<base64url signature>
  *   { aud: "sites", bnetId, battletag, owned: [{ region, ids }], iat, exp, jti }
  */
-export type Owned = { region: string; ids: number[] };
+/** `characters`: [id, realm slug, name] of the same characters, for the sites that keep them (WoWLocker). */
+export type Owned = { region: string; ids: number[]; characters?: [number, string, string][] };
 export type Passport = { aud: "sites"; bnetId: number; battletag: string; owned: Owned[]; iat: number; exp: number; jti: string };
 
 function key() {

@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import type { Owned } from "./passport";
 
 /**
  * Who shares: a Battle.net account, signed in through the inbox (no
@@ -79,6 +80,9 @@ export const setFetch = (f: FetchFn) => {
   fetchImpl = f;
 };
 
+/** Characters whose realm and name go in the passport. */
+const MAX_DETAILED = 100;
+
 export const REGIONS = ["us", "eu", "kr", "tw"] as const;
 
 /**
@@ -86,7 +90,7 @@ export const REGIONS = ["us", "eu", "kr", "tw"] as const;
  * characters it owns in each region (Classic Era's profile, as Hearthtale's
  * own sign-in reads it). The access token is dropped at once.
  */
-export async function account(code: string): Promise<{ id: number; battletag: string; owned: { region: string; ids: number[] }[] } | null> {
+export async function account(code: string): Promise<{ id: number; battletag: string; owned: Owned[] } | null> {
   const c = credentials();
   const res = await fetchImpl("https://oauth.battle.net/token", {
     method: "POST",
@@ -110,10 +114,22 @@ export async function account(code: string): Promise<{ id: number; battletag: st
           signal: AbortSignal.timeout(20_000),
         }).catch(() => null);
         if (!r?.ok) return { region, ids: [] as number[] };
-        const p = (await r.json()) as { wow_accounts?: { characters?: { id: number }[] }[] };
-        return { region, ids: (p.wow_accounts ?? []).flatMap((a) => (a.characters ?? []).map((ch) => ch.id)) };
+        const p = (await r.json()) as { wow_accounts?: { characters?: { id: number; name?: string; realm?: { slug?: string } }[] }[] };
+        const chars = (p.wow_accounts ?? []).flatMap((a) => a.characters ?? []);
+        return {
+          region,
+          ids: chars.map((ch) => ch.id),
+          // (compact, for the redirect's URL: WoWLocker wants each one's realm and name)
+          characters: chars.flatMap((ch): [number, string, string][] => (ch.realm?.slug && ch.name ? [[ch.id, ch.realm.slug, ch.name]] : [])),
+        };
       }),
     )
   ).filter((o) => o.ids.length);
+  // (the passport rides in a URL, and Hearthtale refuses one over 20,000 characters: details for the first 100 only, the ids stay whole)
+  let room = MAX_DETAILED;
+  for (const o of owned) {
+    o.characters = o.characters?.slice(0, room);
+    room -= o.characters?.length ?? 0;
+  }
   return { id, battletag: battletag ?? "", owned };
 }

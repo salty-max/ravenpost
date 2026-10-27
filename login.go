@@ -119,6 +119,23 @@ func (a *App) signInSites(passport string) {
 		_ = a.store.SetLink(site, Link{Server: link.Server, Token: res.Token, BattleTag: res.BattleTag})
 		a.syncer.record(Activity{Kind: "linked", Service: site, Name: res.BattleTag})
 	}
+	a.refreshWoWLocker(ctx, passport)
+}
+
+// refreshWoWLocker: the passport renews the character list WoWLocker trusts
+// (it keeps its own device-code link, so no new token): a character made since
+// the last login on the site syncs at the next upload. A refusal never drops
+// the link, it only says so in the journal.
+func (a *App) refreshWoWLocker(ctx context.Context, passport string) {
+	link := a.store.Get().LinkFor(WoWLocker)
+	if link.Token == "" {
+		return
+	}
+	err := call(ctx, "POST", link.Server, "/api/companion/refresh", link.Token, map[string]string{"passport": passport}, nil)
+	if err != nil {
+		log.Printf("sign-in (%s): %v", WoWLocker, err)
+		a.syncer.record(Activity{Kind: "failed", Service: WoWLocker, Name: link.BattleTag, Detail: err.Error()})
+	}
 }
 
 // tokenTag: the BattleTag a token names (its signature is the inbox's to check).

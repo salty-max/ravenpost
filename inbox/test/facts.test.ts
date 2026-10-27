@@ -110,7 +110,7 @@ describe("facts", () => {
     setFetch(async (url) => {
       if (url.endsWith("/token")) return Response.json({ access_token: "user-token" });
       if (url.endsWith("/userinfo")) return Response.json({ id: 4242, battletag: "Namzar#21586" });
-      if (url.startsWith("https://eu.api.blizzard.com")) return Response.json({ wow_accounts: [{ characters: [{ id: 11 }, { id: 12 }] }] });
+      if (url.startsWith("https://eu.api.blizzard.com")) return Response.json({ wow_accounts: [{ characters: [{ id: 11, name: "Ghurdil", realm: { slug: "soulseeker" } }, { id: 12 }] }] });
       if (url.startsWith("https://us.api.blizzard.com")) return Response.json({ wow_accounts: [{ characters: [{ id: 99 }] }] });
       return new Response("", { status: 404 });
     });
@@ -125,8 +125,8 @@ describe("facts", () => {
       const p = JSON.parse(Buffer.from(body, "base64url").toString());
       expect(p).toMatchObject({ aud: "sites", bnetId: 4242, battletag: "Namzar#21586" });
       expect(p.owned).toEqual([
-        { region: "us", ids: [99] },
-        { region: "eu", ids: [11, 12] },
+        { region: "us", ids: [99], characters: [] },
+        { region: "eu", ids: [11, 12], characters: [[11, "soulseeker", "Ghurdil"]] },
       ]);
       expect(p.exp - p.iat).toBe(600);
     } finally {

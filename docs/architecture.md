@@ -65,7 +65,11 @@ stays there). The inbox: `inbox/README.md`. The icons: `assets/README.md`.
   `passportSites` (Hearthtale's `/api/companion/signin`) for its own upload
   token. The inbox keeps nothing. The window's sign-in is Link("shared"); its
   Sign out unlinks the database and Hearthtale. WoWLocker keeps its own
-  device-code link until it takes the passport too.
+  device-code link and gets the passport at `/api/companion/refresh` (with that
+  link's token) to renew the characters it trusts: a character made since the
+  last login on wow-locker.app syncs without one (the passport lists Classic
+  Era's characters with realm and name; a refusal is a journal line, the link
+  stays).
 - `app.go`: pairing per site (device code: `/api/companion/pair/start`, the
   page on the site, `/pair/poll` hands the token over once) and the settings
   (`ApplySettings`).
