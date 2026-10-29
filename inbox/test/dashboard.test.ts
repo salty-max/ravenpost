@@ -187,3 +187,14 @@ test("today's downloads count from yesterday's last reading, never an older day'
   expect(hourlyOf(r, now).today).toBe(10);
   expect(hourlyOf([["2026-10-28T23:50:00Z", { Yonder: 150 }], ...r.slice(1)], now).today).toBe(20);
 });
+
+test("a release on CurseForge opens it, a comment is answered there", () => {
+  const url = "https://www.curseforge.com/wow/addons/goodwill/files/123";
+  const html = dashboard({ days: {} }, { events: [
+    { kind: "release", title: "Goodwill v0.2.0 is live on CurseForge", at: "2026-10-29T08:00:00Z", repo: "goodwill", url },
+    { kind: "comment", title: "A comment on Goodwill", at: "2026-10-29T07:00:00Z", repo: "goodwill", url: "https://www.curseforge.com/wow/addons/goodwill/comments" },
+  ] as any });
+  const feed = html.slice(html.indexOf('id="feed"'), html.indexOf('id="downloads"'));
+  expect(feed).toContain("Open on CurseForge ↗");
+  expect(feed.match(/Answer on CurseForge/g)?.length).toBe(1);
+});

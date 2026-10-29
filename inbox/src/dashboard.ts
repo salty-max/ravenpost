@@ -261,7 +261,7 @@ section{margin-bottom:22px}.sh{display:flex;align-items:baseline;justify-content
 .feed .c{flex:1;min-width:0}.feed .t{display:flex;align-items:baseline;justify-content:space-between;gap:10px}.feed .t b{font-weight:600}.feed .t time{color:var(--faint);font-size:12px;white-space:nowrap}
 .feed .b{color:var(--dim);font-size:13px;white-space:pre-line;margin-top:2px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical}.feed .b.open{display:block}
 .feed .m{display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap}.feed .m a{color:var(--gold);font-size:12px}.feed li.done .i{filter:grayscale(1);opacity:.55}.feed li.done .t b{color:var(--dim)}
-.scroll{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}.scroll.fade{-webkit-mask-image:linear-gradient(#000 calc(100% - 28px),transparent);mask-image:linear-gradient(#000 calc(100% - 28px),transparent)}.scroll.end{-webkit-mask-image:none;mask-image:none}
+.scroll{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .more{display:block;width:100%;border:0;border-top:1px solid rgb(255 255 255/.045);background:none;color:var(--dim);font:500 13px var(--sans);padding:11px;cursor:pointer;border-radius:0 0 12px 12px}.more:hover{color:var(--gold)}
 .empty{color:var(--faint);padding:18px;margin:0;font-size:13px}
 .thread{padding:14px 18px;border-top:1px solid rgb(255 255 255/.045)}.thread:first-child{border-top:0}
@@ -402,7 +402,7 @@ function feed(list: Event[], resolved: Record<string, Resolution> = {}): string 
       return `<li data-group="${k.group}" data-at="${esc(e.at)}"${done ? ' class="done"' : ""}><span class="i ${e.kind}">${icon(k.icon)}</span><div class="c">
 <div class="t"><b>${esc(e.title)}</b><time datetime="${esc(e.at)}" title="${esc(e.at.slice(0, 16).replace("T", " "))} UTC">${ago(e.at)}</time></div>
 ${e.body ? `<div class="b">${esc(e.body)}</div>` : ""}
-<div class="m">${done ? `<span class="tag ok" title="${esc(done.at.slice(0, 16).replace("T", " "))} UTC">${SETTLED[done.how]} ${ago(done.at)}</span>` : ""}${e.repo ? `<span class="tag">${esc(cap(REPO_NAMES[e.repo] ?? e.repo))}</span>` : ""}${e.url ? `<a href="${esc(e.url)}" target="_blank" rel="noopener">${e.url.includes("/pull/") ? "Pull request" : e.url.includes("/actions/") ? "The run" : e.url.includes("curseforge.com") ? "Answer on CurseForge" : "Open"} ↗</a>` : ""}</div>
+<div class="m">${done ? `<span class="tag ok" title="${esc(done.at.slice(0, 16).replace("T", " "))} UTC">${SETTLED[done.how]} ${ago(done.at)}</span>` : ""}${e.repo ? `<span class="tag">${esc(cap(REPO_NAMES[e.repo] ?? e.repo))}</span>` : ""}${e.url ? `<a href="${esc(e.url)}" target="_blank" rel="noopener">${e.url.includes("/pull/") ? "Pull request" : e.url.includes("/actions/") ? "The run" : e.url.includes("curseforge.com") ? (e.kind === "comment" ? "Answer on CurseForge" : "Open on CurseForge") : "Open"} ↗</a>` : ""}</div>
 </div></li>`;
     })
     .join("");
@@ -912,10 +912,9 @@ document.addEventListener("click",(e)=>{const b=e.target.closest("button,th");if
 ["from","to"].forEach(id=>$(id).onchange=()=>{const v=$(id).value;if(id==="from")from=v;else to=v;if(from&&to&&from>to)[from,to]=[to,from];remember("from",from);remember("to",to);draw()});
 let t;new ResizeObserver(()=>{clearTimeout(t);t=setTimeout(draw,60)}).observe(document.querySelector("main"));draw();
 
-// The scroll panels (the activity, the comments): five rows, then a peek of the sixth and a scroll.
-function fit(box,sel,k){if(!box)return;box.style.maxHeight="";box.classList.remove("fade","end");const rows=[...box.querySelectorAll(sel)].filter(r=>!r.hidden);
-  if(rows.length<=k)return;const top=box.getBoundingClientRect().top;box.style.maxHeight=Math.ceil(rows[k-1].getBoundingClientRect().bottom-top+28)+"px";box.classList.add("fade");
-  box.onscroll=()=>box.classList.toggle("end",box.scrollTop+box.clientHeight>=box.scrollHeight-4)}
+// The scroll panels (the activity, the comments): exactly five rows, the rest a scroll away.
+function fit(box,sel,k){if(!box)return;box.style.maxHeight="";const rows=[...box.querySelectorAll(sel)].filter(r=>!r.hidden);
+  if(rows.length<=k)return;box.style.maxHeight=Math.ceil(rows[k-1].getBoundingClientRect().bottom-box.getBoundingClientRect().top)+"px"}
 function fitAll(){fit($("feed-scroll"),".feed li",5);fit($("threads-scroll"),".thread",5)}
 
 // The activity: its filters, a long word opened.
