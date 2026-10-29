@@ -63,11 +63,12 @@ with Battle.net in the browser (a signed cookie, 30 days). Its history,
 - unique: each addon's CurseForge downloads and its unique downloaders
   (different people) that day, CurseForge's own statistics, with their 7, 30
   and 90 days in `stats/unique.json`. They sit behind the owner's CurseForge
-  session, which never leaves their computer: `bun bin/curseforge-unique.ts`
-  there reads them (the authors site's Downloads statistics queries, the
-  cookie in `~/.config/wow-addons/curseforge-cookie`, addon-kit's store.ts's)
-  and hands them over (`POST /api/unique` with `UNIQUE_TOKEN`, the script's
-  alone, kept there in `~/.config/wow-addons/unique-token`). CurseForge itself is a day or two behind (the page says to which day, and when it was brought); Wago and GitHub
+  session: the ten-minute cron reads them once an hour (`src/unique.ts`) with
+  `CURSEFORGE_COOKIE` set on Vercel (the authors site's cookie, the one
+  addon-kit's store.ts uses). When CurseForge turns the session down, one
+  warning is told a day and the last numbers stay: paste a fresh cookie.
+  `bun bin/curseforge-unique.ts` reads them from a computer the old way,
+  handing them over with `UNIQUE_TOKEN`. CurseForge itself is a day or two behind (the page says to which day, and when it was brought); Wago and GitHub
   count no people. The Downloads section's All and Unique switch the chart
   and the rows between download events and people.
 

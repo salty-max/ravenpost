@@ -12,6 +12,7 @@ import * as github from "./github";
 import { checks, githubLatest, lookGitHub, watch as watchLaunch } from "./launch";
 import * as push from "./push";
 import * as store from "./store";
+import { lookUnique } from "./unique";
 import { collect, countToday, countUpload, history, ping, readPing, readUnique, record, recordUnique, today, uniquePeriods, type Day } from "./stats";
 import { account, authorizeUrl, sharer, sign, subOf, tokenFor, verify } from "./auth";
 import { flatten } from "./facts";
@@ -298,7 +299,9 @@ app.get("/api/cron/curseforge", async (c) => {
   } catch (err) {
     console.error(JSON.stringify({ launch: "failed", err: String(err) }));
   }
-  return c.json({ comments, releases, today: t, resolved: Object.keys(resolved).length, watched });
+  // (CurseForge's unique downloaders, once an hour: behind the owner's session cookie)
+  const unique = new Date().getUTCMinutes() < 10 ? await lookUnique() : "not this look";
+  return c.json({ comments, releases, today: t, resolved: Object.keys(resolved).length, watched, unique });
 });
 
 // ── Wowhead's pages, from a Wowhead tab (wow-data's bin/wowhead-tab.js) ──────
