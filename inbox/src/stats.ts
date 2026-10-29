@@ -234,23 +234,26 @@ export async function traffic(day: string): Promise<Day["traffic"]> {
   const team = process.env.VERCEL_TEAM_ID;
   if (!token || !team) return undefined;
   const out: NonNullable<Day["traffic"]> = {};
-  for (const pair of (process.env.STATS_SITES ?? "").split(",").filter(Boolean)) {
-    const [name, project] = pair.split("=");
-    const q = new URLSearchParams({ teamId: team, projectId: project, since: day, until: day, by: "day" });
-    const r = await settle(
-      fetchImpl(`https://api.vercel.com/v1/query/web-analytics/visits/aggregate?${q}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        signal: AbortSignal.timeout(20_000),
-      }),
-    );
-    if (!r?.ok) {
-      // (in the function's logs: why a site's numbers are missing)
-      console.error(JSON.stringify({ traffic: name, status: r?.status ?? "no answer", body: r ? (await r.text()).slice(0, 300) : "" }));
-      continue;
-    }
-    const rows = ((await r.json()) as { data?: { pageviews: number; visitors: number }[] }).data ?? [];
-    out[name] = rows.reduce((a, x) => ({ pageviews: a.pageviews + x.pageviews, visitors: a.visitors + x.visitors }), { pageviews: 0, visitors: 0 });
-  }
+  // (the sites asked together, a slow answer given up on early: this runs at every ten-minute look)
+  await Promise.all(
+    (process.env.STATS_SITES ?? "").split(",").filter(Boolean).map(async (pair) => {
+      const [name, project] = pair.split("=");
+      const q = new URLSearchParams({ teamId: team, projectId: project, since: day, until: day, by: "day" });
+      const r = await settle(
+        fetchImpl(`https://api.vercel.com/v1/query/web-analytics/visits/aggregate?${q}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(8_000),
+        }),
+      );
+      if (!r?.ok) {
+        // (in the function's logs: why a site's numbers are missing)
+        console.error(JSON.stringify({ traffic: name, status: r?.status ?? "no answer", body: r ? (await r.text()).slice(0, 300) : "" }));
+        return;
+      }
+      const rows = ((await r.json()) as { data?: { pageviews: number; visitors: number }[] }).data ?? [];
+      out[name] = rows.reduce((a, x) => ({ pageviews: a.pageviews + x.pageviews, visitors: a.visitors + x.visitors }), { pageviews: 0, visitors: 0 });
+    }),
+  );
   return out;
 }
 
@@ -318,7 +321,7 @@ export async function today(now = new Date()): Promise<Today | null> {
   return t && t.day === dayOf(now) ? t : null;
 }
 
-// ── unique downloaders (CurseForge's own statistics, from the owner's computer) ─
+// ── unique downloaders (CurseForge's own statistics, read hourly: src/unique.ts) ─
 export type UniqueCounts = Record<string, { downloads: number; unique: number }>;
 /** The latest periods: each addon's downloads and different people over the last 7, 30 and 90 days, to the day CurseForge had. */
 export type UniquePeriods = { at: string; through: string | null; periods: Record<string, UniqueCounts> };

@@ -115,4 +115,5 @@ test("today's visitors so far reach the sites chart before the daily job sums th
   const today = { at: "2026-10-29T10:00:00Z", day: "2026-10-29", installs: 0, sharing: 0, sharers: 0, uploads: 0, facts: 0, traffic: { hearthtale: { pageviews: 9, visitors: 4 } } };
   const html = dashboard({ days: { "2026-10-28": { traffic: { hearthtale: { pageviews: 5, visitors: 2 } } } } } as any, { today, now: Date.parse("2026-10-29T10:05:00Z") });
   expect(html).toContain('"visitors":[2,4]');
+  expect(html).toContain("<b>4</b> today so far");
 });

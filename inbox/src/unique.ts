@@ -14,10 +14,13 @@ import * as launch from "./launch";
 
 const API = "https://authors.curseforge.com/_api/statistics-new/queries";
 const projects = ADDONS.filter(([, cf]) => cf).map(([name, cf]) => [name, cf!] as const);
+const PERIODS = ["7", "30", "90"];
 const nameOf = new Map(projects.map(([name, id]) => [String(id), name]));
 const ids = projects.map(([, id]) => id).join(",");
 
 export class SessionExpired extends Error {}
+/** An error whose words are safe to log: none carries the cookie. */
+class Said extends Error {}
 
 type FetchFn = (input: string, init?: RequestInit) => Promise<Response>;
 let fetchImpl: FetchFn = (input, init) => fetch(input, init);
@@ -32,16 +35,23 @@ export async function readFromCurseForge(cookie: string): Promise<{ days: Record
   const query = async <T>(n: number, body: Record<string, string>): Promise<T[]> => {
     const r = await fetchImpl(`${API}/${n}`, {
       method: "POST",
-      headers: { cookie: cookie.trim().replace(/^cookie:\s*/i, ""), accept: "application/json", "content-type": "application/json" },
+      headers: { cookie: cookie.replace(/[\r\n]+/g, "").trim().replace(/^cookie:\s*/i, ""), accept: "application/json", "content-type": "application/json" },
       body: JSON.stringify({ project_ids: ids, ...body }),
-      signal: AbortSignal.timeout(25_000),
+      redirect: "manual",
+      signal: AbortSignal.timeout(20_000),
     });
-    if (r.status === 401 || r.status === 403) throw new SessionExpired(`CurseForge said ${r.status}`);
-    if (!r.ok) throw new Error(`CurseForge said ${r.status} to query ${n}`);
+    // (a turned-down session may answer with a redirect to the sign-in page, or a page of HTML)
+    if (r.status === 401 || r.status === 403 || (r.status >= 300 && r.status < 400)) throw new SessionExpired(`CurseForge said ${r.status}`);
+    if (!r.ok) throw new Said(`CurseForge said ${r.status} to query ${n}`);
+    if (!(r.headers.get("content-type") ?? "").includes("json")) throw new SessionExpired("CurseForge answered a page, not data");
     return ((await r.json()) as { queryResult?: { data?: T[] } }).queryResult?.data ?? [];
   };
   const days: Record<string, UniqueCounts> = {};
-  const [downloads, unique] = await Promise.all([query<DayRow>(2, { days_back: "90" }), query<DayRow>(3, { days_back: "90" })]);
+  const [downloads, unique, ...rows4] = await Promise.all([
+    query<DayRow>(2, { days_back: "90" }),
+    query<DayRow>(3, { days_back: "90" }),
+    ...PERIODS.map((p) => query<{ projectId: number; total: number; unique: number }>(4, { days_back: p })),
+  ]);
   for (const [rows, field] of [
     [downloads, "downloads"],
     [unique, "unique"],
@@ -57,10 +67,10 @@ export async function readFromCurseForge(cookie: string): Promise<{ days: Record
     }
   }
   const periods: Record<string, UniqueCounts> = {};
-  for (const p of ["7", "30", "90"]) {
-    const rows = await query<{ projectId: number; total: number; unique: number }>(4, { days_back: p });
+  PERIODS.forEach((p, i) => {
+    const rows = rows4[i];
     periods[p] = Object.fromEntries(rows.filter((r) => nameOf.has(String(r.projectId))).map((r) => [nameOf.get(String(r.projectId))!, { downloads: r.total, unique: r.unique }]));
-  }
+  });
   return { days, periods };
 }
 
@@ -75,10 +85,15 @@ export async function lookUnique(now = new Date()): Promise<"read" | "skipped" |
     return "read";
   } catch (err) {
     if (err instanceof SessionExpired) {
-      await launch.watch([{ id: "unique-cookie", level: "warn", title: "CurseForge turned the session down", line: "The unique downloaders stop here until CURSEFORGE_COOKIE on Vercel is a fresh copy of the authors site's cookie." }], now);
+      try {
+        await launch.watch([{ id: "unique-cookie", level: "warn", title: "CurseForge turned the session down", line: "The unique downloaders stop here until CURSEFORGE_COOKIE on Vercel is a fresh copy of the authors site's cookie." }], now);
+      } catch (e) {
+        console.error(JSON.stringify({ unique: "told nobody", err: e instanceof Error ? e.name : "error" }));
+      }
       return "expired";
     }
-    console.error(JSON.stringify({ unique: "failed", err: String(err) }));
+    // (never String(err) of a fetch made with the cookie: a header error quotes its value)
+    console.error(JSON.stringify({ unique: "failed", err: err instanceof Said ? err.message : err instanceof Error ? err.name : "error" }));
     return "failed";
   }
 }

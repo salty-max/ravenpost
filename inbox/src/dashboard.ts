@@ -492,7 +492,10 @@ export function dashboard(
   const total = Object.values(s.downloads.totals).reduce((a, b) => a + b, 0);
   const weeks = Object.values(s.downloads.week).filter((v): v is number => v !== null);
   const week = weeks.length ? weeks.reduce((a, b) => a + b, 0) : null;
-  const visitors = s.days.map((_, i) => {
+  // (the KPI and its spark are whole days: today's visitors so far are told beside, as the other cards do)
+  const visitorsToday = td?.traffic ? Object.values(td.traffic).reduce((a, x) => a + x.visitors, 0) : null;
+  const visitors = s.days.map((d, i) => {
+    if (td?.traffic && d === td.day) return null;
     const vs = Object.values(s.sites).map((x) => x.visitors[i]).filter((v): v is number => v !== null);
     return vs.length ? vs.reduce((a, b) => a + b, 0) : null;
   });
@@ -567,7 +570,7 @@ export function dashboard(
 ${kpi("k-dl", "download", "Downloads", fmt(total), [hourly.today !== null ? `<b>+${fmt(hourly.today)}</b> today` : "", week !== null ? `${signed(week)} in 7 days` : ""].filter(Boolean).join(" · ") || "every addon, every store")}
 ${kpi("k-in", "users", "Ravenpost in use", fmt(rp?.installs), ["yesterday", td ? `<b>${fmt(td.installs)}</b> today so far` : ""].filter(Boolean).join(" · "))}
 ${kpi("k-fa", "send", "Facts shared", fmt(sh?.facts), ["yesterday", td ? `<b>${fmt(td.facts)}</b> today so far` : ""].filter(Boolean).join(" · "))}
-${kpi("k-vi", "globe", "Site visitors", fmt(lastOf(visitors)), Object.keys(s.sites).length ? Object.keys(s.sites).join(" · ") : "Web Analytics")}
+${kpi("k-vi", "globe", "Site visitors", fmt(lastOf(visitors)), [Object.keys(s.sites).length ? Object.keys(s.sites).join(" · ") : "Web Analytics", visitorsToday !== null ? `<b>${fmt(visitorsToday)}</b> today so far` : ""].filter(Boolean).join(" · "))}
 </div>
 
 <section id="activity"><div class="sh"><h2 class="title">Activity</h2><div class="chips" role="group" aria-label="Show">${[

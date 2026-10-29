@@ -258,10 +258,10 @@ app.post("/api/events", bodyLimit({ maxSize: 16 * 1024 }), async (c) => {
   return c.json({ ok: true, ...told });
 });
 
-// ── each addon's unique downloaders, CurseForge's own statistics, brought
-// from the owner's computer (bin/curseforge-unique.ts: they sit behind the
-// owner's CurseForge session, which never leaves that computer). UNIQUE_TOKEN,
-// the script's alone: it reaches nothing else ────────────────────────────────
+// ── each addon's unique downloaders, CurseForge's own statistics: read hourly
+// by /api/cron/unique (src/unique.ts, the owner's session cookie), or brought
+// from a computer (bin/curseforge-unique.ts). UNIQUE_TOKEN, the script's
+// alone: it reaches nothing else ────────────────────────────────
 app.post("/api/unique", bodyLimit({ maxSize: 512 * 1024, onError: (c) => c.json({ error: "too large" }, 413) }), async (c) => {
   if (!bearer(c, process.env.UNIQUE_TOKEN)) return c.json({ error: "unauthorized" }, 401);
   const u = readUnique(await c.req.json().catch(() => null));
@@ -299,9 +299,16 @@ app.get("/api/cron/curseforge", async (c) => {
   } catch (err) {
     console.error(JSON.stringify({ launch: "failed", err: String(err) }));
   }
-  // (CurseForge's unique downloaders, once an hour: behind the owner's session cookie)
-  const unique = new Date().getUTCMinutes() < 10 ? await lookUnique() : "not this look";
-  return c.json({ comments, releases, today: t, resolved: Object.keys(resolved).length, watched, unique });
+  return c.json({ comments, releases, today: t, resolved: Object.keys(resolved).length, watched });
+});
+
+// ── every hour (Vercel Cron, CRON_SECRET; or by hand with INBOX_TOKEN): CurseForge's
+// unique downloaders, behind the owner's session cookie, a job of its own so a
+// slow answer never costs the ten-minute look ────────────────────────────────
+app.get("/api/cron/unique", async (c) => {
+  const ok = [process.env.CRON_SECRET, process.env.INBOX_TOKEN].some((t) => bearer(c, t));
+  if (!ok) return c.json({ error: "unauthorized" }, 401);
+  return c.json({ unique: await lookUnique() });
 });
 
 // ── Wowhead's pages, from a Wowhead tab (wow-data's bin/wowhead-tab.js) ──────

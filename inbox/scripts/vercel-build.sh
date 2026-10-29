@@ -21,6 +21,6 @@ cat > "$OUT/config.json" <<JSON
     { "handle": "filesystem" },
     { "src": "^/(.*)$", "dest": "/api" }
   ],
-  "crons": [{ "path": "/api/cron/stats", "schedule": "17 5 * * *" }, { "path": "/api/cron/digest", "schedule": "15 7 * * *" }, { "path": "/api/cron/curseforge", "schedule": "*/10 * * * *" }] }
+  "crons": [{ "path": "/api/cron/stats", "schedule": "17 5 * * *" }, { "path": "/api/cron/digest", "schedule": "15 7 * * *" }, { "path": "/api/cron/curseforge", "schedule": "*/10 * * * *" }, { "path": "/api/cron/unique", "schedule": "3 * * * *" }] }
 JSON
 echo "vercel output ready"
