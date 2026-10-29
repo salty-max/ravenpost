@@ -290,10 +290,10 @@ app.get("/api/cron/curseforge", async (c) => {
   const comments = await watch();
   const releases = await curseforge.look();
   const [t, resolved] = await Promise.all([countToday(), events.recent().then((ev) => github.settle(ev, { wait: 20_000 }))]);
-  // (the launch watch: each addon's GitHub release, the day against yesterday, told once; a failed look never fails the job)
+  // (the launch watch: each addon's GitHub release, asked once an hour, the day against yesterday, told once; a failed look never fails the job)
   let watched: string[] = [];
   try {
-    const gh = process.env.GITHUB_TOKEN || new Date().getUTCMinutes() < 10 ? await lookGitHub() : await githubLatest();
+    const gh = new Date().getUTCMinutes() < 10 ? await lookGitHub() : await githubLatest();
     watched = await watchLaunch(checks(await history(), t, gh, await curseforge.latest()));
   } catch (err) {
     console.error(JSON.stringify({ launch: "failed", err: String(err) }));

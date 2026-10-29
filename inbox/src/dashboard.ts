@@ -391,13 +391,13 @@ function releasesCard(releases: Record<string, Release[]>): string {
 /** Each addon's standing across the stores and the data jobs, and what the launch watch sees right now: read only. */
 export function addonsSection(h: History, td: Today | null, gh: Record<string, GitHubRelease>, cf: Record<string, Release[]>, events: Event[], now = Date.now()): string {
   const watch = checks(h, td, gh, cf, new Date(now));
-  const dot = (l: string) => (l === "warn" ? "blood" : l === "good" ? "gold" : "ok");
+  const dot = (l: string) => (l === "warn" ? "blood" : l === "good" || l === "note" ? "gold" : "ok");
   const watchRows = watch.map((c) => `<div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-top:1px solid var(--edge)"><span class="dot ${dot(c.level)}" style="margin-top:5px"></span><div style="flex:1;min-width:0;text-align:left"><b>${esc(c.title)}</b><p class="sub" style="margin:2px 0 0">${esc(c.line)}</p></div></div>`).join("");
   const rows = ADDONS.map(([name, , , , repo]) => {
     const g = gh[name], c = cf[name]?.[0];
     const job = events.find((e) => e.repo === repo && (e.kind === "merged" || e.kind === "failed" || e.kind === "waiting"));
     const b = behind(g, cf[name], now);
-    const status = b ? `<span class="tag ${b.hours >= DRIFT_HOURS ? "blood" : "gold"}">CurseForge ${b.hours} h behind</span>` : g && c ? `<span class="tag ok">In step</span>` : `<span class="tag">–</span>`;
+    const status = b ? `<span class="tag gold">${b.hours >= DRIFT_HOURS ? "Not on CurseForge" : "CurseForge"} · ${b.hours} h</span>` : g && c ? `<span class="tag ok">In step</span>` : `<span class="tag">–</span>`;
     return `<div class="rel"><div class="rel-h"><b>${esc(name)}</b>${status}</div>
 <span class="sub">GitHub ${g ? `<a href="${esc(g.url)}" rel="noopener">${esc(g.tag)}</a>, ${ago(g.at, now)}` : "–"} · CurseForge ${c ? `${esc(c.version)}, ${ago(c.at, now)}` : cf[name] || !ADDONS.find((a) => a[4] === repo)?.[1] ? "–" : "not read yet"}${job ? ` · ${esc(job.title)}, ${ago(job.at, now)}` : ""}</span></div>`;
   }).join("");

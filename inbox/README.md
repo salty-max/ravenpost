@@ -105,8 +105,8 @@ repository at each ten-minute look, hourly without `GITHUB_TOKEN`), beside its
 newest CurseForge release and its last data job, and the launch watch's
 checks: Ravenpost's pings and the sharers' uploads against yesterday's (judged
 after 18:00 UTC), a day's installs doubling (good news), and a GitHub release
-CurseForge hasn't passed after six hours (a prerelease never counts). Each
-warning or good word is told once a day to the owner's devices
+CurseForge hasn't passed after six hours (a note on the page, never told: a release made with `--hold` waits for its stores by hand). Each
+warning (not that note) or good word is told once a day to the owner's devices
 (`alerts/told.json`), and is not an activity event: a problem there stays
 until GitHub says it's settled, and these settle by themselves. No new secret,
 no new route; the deploy is the user's go.

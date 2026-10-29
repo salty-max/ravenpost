@@ -12,16 +12,17 @@ import type { Release } from "./curseforge";
  * - `checks`: what a launch day needs watching, from numbers the inbox already
  *   has: Ravenpost's pings and the sharers' uploads against yesterday's (judged
  *   after 18:00 UTC, when a day is mostly in), a day's installs doubling (good
- *   news), a release on GitHub that CurseForge still hasn't passed after six
- *   hours (its review can take that long: a prerelease never counts, so the
- *   flip to prerelease also stops this);
+ *   news), a release on GitHub that CurseForge hasn't passed after six hours
+ *   (a note on the dashboard, never told: its review can take that long, a
+ *   release made with --hold waits for its stores by hand, and a failed
+ *   upload already has its own event);
  * - `watch`: the warnings and the good news told once to the owner's devices
  *   (alerts/told.json: each key at most once a day), not into the activity:
  *   a problem told there stays until GitHub says it's settled, and these
  *   settle by themselves.
  */
 export type GitHubRelease = { tag: string; at: string; url: string };
-export type Check = { id: string; level: "ok" | "warn" | "good"; title: string; line: string };
+export type Check = { id: string; level: "ok" | "warn" | "good" | "note"; title: string; line: string };
 
 type FetchFn = (input: string, init?: RequestInit) => Promise<Response>;
 let fetchImpl: FetchFn = (input, init) => fetch(input, init);
@@ -56,7 +57,8 @@ export async function lookGitHub(): Promise<Record<string, GitHubRelease>> {
       }
     }),
   );
-  await store.write(FILE, JSON.stringify(kept));
+  const next = JSON.stringify(kept);
+  if (next !== JSON.stringify(await githubLatest())) await store.write(FILE, next);
   return kept;
 }
 
@@ -103,7 +105,7 @@ export function checks(h: History, today: Today | null, gh: Record<string, GitHu
   for (const [name, , , , repo] of ADDONS) {
     const b = behind(gh[name], cf[name], now.getTime());
     if (b && b.hours >= DRIFT_HOURS)
-      out.push({ id: `drift-${repo}-${gh[name].tag}`, level: "warn", title: `${name} ${gh[name].tag.replace(/^v/, "")} isn't on CurseForge yet`, line: `On GitHub for ${b.hours} h: CurseForge's review is taking its time.` });
+      out.push({ id: `drift-${repo}-${gh[name].tag}`, level: "note", title: `${name} ${gh[name].tag.replace(/^v/, "")} isn't on CurseForge yet`, line: `On GitHub for ${b.hours} h: in CurseForge's review, held for the stores, or the upload failed.` });
   }
   return out;
 }
@@ -114,7 +116,7 @@ export async function watch(list: Check[], now = new Date()): Promise<string[]> 
   const cut = new Date(now.getTime() - 86_400_000).toISOString();
   const kept = Object.fromEntries(Object.entries(told).filter(([, at]) => at > cut));
   const sent: string[] = [];
-  for (const c of list.filter((c) => c.level !== "ok" && !kept[c.id])) {
+  for (const c of list.filter((c) => (c.level === "warn" || c.level === "good") && !kept[c.id])) {
     await push.notify({ title: c.title, body: c.line, url: "/stats#addons", tag: `watch-${c.id}` });
     kept[c.id] = now.toISOString();
     sent.push(c.id);
