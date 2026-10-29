@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Sidebar, type Page } from "@/components/Sidebar";
 import { Toasts } from "@/components/ui";
+import { Addons } from "@/pages/Addons";
 import { Characters } from "@/pages/Characters";
 import { Folders } from "@/pages/Folders";
 import { Overview } from "@/pages/Overview";
@@ -18,6 +19,7 @@ export function App() {
         <div key={page} className="fade-in mx-auto max-w-4xl px-8 pb-10">
           {page === "overview" && <Overview />}
           {page === "characters" && <Characters />}
+          {page === "addons" && <Addons />}
           {page === "folders" && <Folders />}
           {page === "settings" && <Settings />}
         </div>

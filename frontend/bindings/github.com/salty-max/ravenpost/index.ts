@@ -11,6 +11,7 @@ export type {
     Activity,
     Character,
     Install,
+    InstalledAddon,
     Pairing,
     Share,
     SiteState,

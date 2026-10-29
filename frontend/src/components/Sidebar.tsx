@@ -1,7 +1,7 @@
-import { FolderOpen, Home, Settings, Users } from "lucide-react";
+import { FolderOpen, Home, Puzzle, Settings, Users } from "lucide-react";
 import { useApp } from "@/lib/app";
 
-export type Page = "overview" | "characters" | "folders" | "settings";
+export type Page = "overview" | "characters" | "addons" | "folders" | "settings";
 
 /**
  * The window's left side: the raven and the name (under macOS's traffic
@@ -12,6 +12,7 @@ export function Sidebar({ page, go }: { page: Page; go: (p: Page) => void }) {
   const pages = [
     { id: "overview", label: t.nav.overview, icon: Home },
     { id: "characters", label: t.nav.characters, icon: Users, count: new Set((state.characters ?? []).map((c) => c.guid)).size },
+    { id: "addons", label: t.nav.addons, icon: Puzzle },
     { id: "folders", label: t.nav.folders, icon: FolderOpen },
     { id: "settings", label: t.nav.settings, icon: Settings },
   ] as const;

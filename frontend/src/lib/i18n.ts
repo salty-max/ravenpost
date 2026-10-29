@@ -4,7 +4,7 @@
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
 const en = {
-  nav: { overview: "Overview", characters: "Characters", folders: "Game folders", settings: "Settings" },
+  nav: { overview: "Overview", characters: "Characters", addons: "Addons", folders: "Game folders", settings: "Settings" },
   status: {
     uploading: (names: string) => `Uploading ${names}…`,
     caughtUp: "All caught up",
@@ -109,6 +109,19 @@ const en = {
     },
     level: (n: number) => `Level ${n}`,
   },
+  addons: {
+    title: "Addons",
+    intro: "The addons of the family found in each game folder you play, and whether they have saved their first file there.",
+    none: "No game folder found yet. Add yours in Game folders.",
+    empty: "No addon of the family is installed in this game folder yet.",
+    version: (v: string) => `v${v}`,
+    noVersion: "version unknown",
+    saved: "has saved its file",
+    notYet: "no file yet: start the game with it",
+    missing: (names: string) => `Not installed here: ${names}`,
+    foreverMissing: "World of Warcraft: Forever isn't found on this computer yet. Once it is installed, its folder appears here by itself.",
+    hint: "Installed means the addon's folder is in Interface/AddOns. Restart the game after installing an addon: a /reload misses a new one.",
+  },
   folders: {
     title: "Game folders",
     intro: "Ravenpost finds World of Warcraft by itself. Add a folder if yours is somewhere else, or untick an account to leave it out.",
@@ -148,7 +161,7 @@ const en = {
 export type Strings = typeof en;
 
 const fr: Strings = {
-  nav: { overview: "Accueil", characters: "Personnages", folders: "Dossiers du jeu", settings: "Réglages" },
+  nav: { overview: "Accueil", characters: "Personnages", addons: "Addons", folders: "Dossiers du jeu", settings: "Réglages" },
   status: {
     uploading: (names) => `Envoi de ${names}…`,
     caughtUp: "Tout est à jour",
@@ -251,6 +264,19 @@ const fr: Strings = {
       off: "non envoyé",
     },
     level: (n) => `Niveau ${n}`,
+  },
+  addons: {
+    title: "Addons",
+    intro: "Les addons de la famille trouvés dans chaque dossier de jeu, et s'ils y ont déjà enregistré leur premier fichier.",
+    none: "Aucun dossier de jeu trouvé. Ajoutez le vôtre dans Dossiers du jeu.",
+    empty: "Aucun addon de la famille n'est encore installé dans ce dossier de jeu.",
+    version: (v) => `v${v}`,
+    noVersion: "version inconnue",
+    saved: "a enregistré son fichier",
+    notYet: "pas encore de fichier : lancez le jeu avec lui",
+    missing: (names) => `Non installés ici : ${names}`,
+    foreverMissing: "World of Warcraft: Forever n'est pas encore trouvé sur cet ordinateur. Une fois installé, son dossier apparaît ici tout seul.",
+    hint: "Installé veut dire que le dossier de l'addon est dans Interface/AddOns. Relancez le jeu après l'installation : un /reload manque un nouvel addon.",
   },
   folders: {
     title: "Dossiers du jeu",

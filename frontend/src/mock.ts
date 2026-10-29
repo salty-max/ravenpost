@@ -37,8 +37,14 @@ export function mockState(): State {
               { name: "MAXIME", dir: "/a/MAXIME", files: { wowlocker: ["x"], hearthtale: ["y", "z"] } },
               { name: "ALT#2", dir: "/a/ALT", files: {} },
             ],
+            addons: [
+              { folder: "Hearthtale", name: "Hearthtale", version: "0.12.8", data: true },
+              { folder: "LorekeepersCodex", name: "Lorekeeper's Codex", version: "0.15.2", data: true },
+              { folder: "Yonder", name: "Yonder", version: "0.14.2", data: false },
+              { folder: "WowLocker", name: "WoWLocker", version: "", data: true },
+            ],
           },
-          { path: "/Applications/World of Warcraft/_forever_", flavour: "_forever_", label: "World of Warcraft: Forever", accounts: [{ name: "MAXIME", dir: "/b/MAXIME", files: { hearthtale: ["w"] } }] },
+          { path: "/Applications/World of Warcraft/_forever_", flavour: "_forever_", label: "World of Warcraft: Forever", accounts: [{ name: "MAXIME", dir: "/b/MAXIME", files: { hearthtale: ["w"] } }], addons: [{ folder: "Yonder", name: "Yonder", version: "0.14.2", data: true }, { folder: "Goodwill", name: "Goodwill", version: "0.2.0", data: false }] },
         ],
     characters: fresh
       ? []

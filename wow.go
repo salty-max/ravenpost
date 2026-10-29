@@ -14,6 +14,8 @@ type Install struct {
 	Flavour  string    `json:"flavour"` // the folder name
 	Label    string    `json:"label"`
 	Accounts []Account `json:"accounts"`
+	// The family's addons in its Interface/AddOns (addons.go).
+	Addons []InstalledAddon `json:"addons"`
 }
 
 type Account struct {
@@ -100,7 +102,7 @@ func Discover(roots []string) []Install {
 		if label == "" {
 			label = strings.Trim(name, "_")
 		}
-		out = append(out, Install{Path: dir, Flavour: name, Label: label, Accounts: accounts(dir)})
+		out = append(out, Install{Path: dir, Flavour: name, Label: label, Accounts: accounts(dir), Addons: installedAddons(dir, name)})
 	}
 	for _, root := range roots {
 		root = strings.TrimSpace(root)

@@ -93,6 +93,29 @@ export interface Install {
     "flavour": string;
     "label": string;
     "accounts": Account[] | null;
+
+    /**
+     * The family's addons in its Interface/AddOns (addons.go).
+     */
+    "addons": InstalledAddon[] | null;
+}
+
+/**
+ * InstalledAddon: one of the family's addons found in a game folder.
+ */
+export interface InstalledAddon {
+    "folder": string;
+    "name": string;
+
+    /**
+     * the TOC's ## Version, "" when unreadable
+     */
+    "version": string;
+
+    /**
+     * Has the addon written its saved file under any account here?
+     */
+    "data": boolean;
 }
 
 export interface Pairing {
