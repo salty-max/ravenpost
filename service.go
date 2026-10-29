@@ -49,6 +49,8 @@ type State struct {
 	Sharing      []Share             `json:"sharing"`
 	// The addons' database: linked with Battle.net or not, its sign-in under way.
 	Facts SiteState `json:"facts"`
+	// A newer Ravenpost release, if GitHub said so (update.go).
+	Update *Update `json:"update"`
 }
 
 // State: the app as it stands.
@@ -71,6 +73,7 @@ func (r *Ravenpost) State() State {
 		LastUploaded:       snap.LastUploaded,
 		Activity:           snap.Activity,
 		Sharing:            snap.Sharing,
+		Update:             r.app.Update(),
 	}
 	fl := cfg.LinkFor(Shared)
 	st.Facts = SiteState{ID: Shared, Name: "The addons' database", Server: fl.Server, Linked: fl.Token != "", BattleTag: fl.BattleTag, Pairing: r.app.Pairing(Shared)}

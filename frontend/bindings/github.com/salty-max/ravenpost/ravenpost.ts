@@ -32,6 +32,14 @@ export function ChooseFolder(): $CancellablePromise<void> {
 }
 
 /**
+ * Diagnostics: a text for an issue (what Ravenpost found, what it couldn't
+ * do), with nothing of the player in it.
+ */
+export function Diagnostics(): $CancellablePromise<string> {
+    return $Call.ByID(3337290464);
+}
+
+/**
  * Link starts linking a site: a code, and its page opened in the browser.
  */
 export function Link(site: string): $CancellablePromise<void> {

@@ -2,6 +2,8 @@ package main
 
 import (
 	"errors"
+	"os"
+	"strings"
 	"testing"
 )
 
@@ -86,5 +88,26 @@ func TestTheStateNamesEachSite(t *testing.T) {
 	}
 	if st.Activity == nil || st.Characters == nil || st.Installs == nil || st.Folders == nil {
 		t.Fatal("the window wants lists, never null")
+	}
+}
+
+func TestDiagnosticsNamesNobody(t *testing.T) {
+	r := testApp(t)
+	home, _ := os.UserHomeDir()
+	_ = r.app.store.Update(func(c *Config) {
+		c.Activity = []Activity{{Kind: "failed", Service: "hearthtale", Name: "SECRETACCOUNT", Detail: "the site didn't answer at " + home}}
+		c.Links = map[string]*Link{Hearthtale: {Token: "SECRETTOKEN", BattleTag: "Secret#1234"}}
+	})
+	out := r.Diagnostics()
+	for _, bad := range []string{"SECRETACCOUNT", "SECRETTOKEN", "Secret#1234"} {
+		if strings.Contains(out, bad) {
+			t.Fatalf("diagnostics leaks %q:\n%s", bad, out)
+		}
+	}
+	if home != "" && strings.Contains(out, home) {
+		t.Fatalf("diagnostics leaks the home folder:\n%s", out)
+	}
+	if !strings.Contains(out, "Hearthtale yes") || !strings.Contains(out, "the site didn't answer at ~") {
+		t.Fatalf("unexpected:\n%s", out)
 	}
 }

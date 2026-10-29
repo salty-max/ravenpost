@@ -109,6 +109,20 @@ const en = {
     },
     level: (n: number) => `Level ${n}`,
   },
+  update: {
+    title: (v: string) => `Ravenpost ${v} is out`,
+    why: "A newer version is ready. Download it, quit Ravenpost from its icon, and open the new one.",
+    get: "Download",
+    settings: (v: string) => `A newer version is out: ${v}`,
+  },
+  diagnostics: {
+    title: "Diagnostics",
+    why: "What Ravenpost found on this computer, for an issue on GitHub. It names no character and no account, and holds no token.",
+    show: "Show",
+    copy: "Copy",
+    copied: "Copied",
+    copyFailed: "Select the text and copy it.",
+  },
   addons: {
     title: "Addons",
     intro: "The addons of the family found in each game folder you play, and whether they have saved their first file there.",
@@ -264,6 +278,20 @@ const fr: Strings = {
       off: "non envoyé",
     },
     level: (n) => `Niveau ${n}`,
+  },
+  update: {
+    title: (v) => `Ravenpost ${v} est sortie`,
+    why: "Une nouvelle version est prête. Téléchargez-la, quittez Ravenpost depuis son icône, puis ouvrez la nouvelle.",
+    get: "Télécharger",
+    settings: (v) => `Une nouvelle version est sortie : ${v}`,
+  },
+  diagnostics: {
+    title: "Diagnostic",
+    why: "Ce que Ravenpost a trouvé sur cet ordinateur, à joindre à un ticket GitHub. Aucun personnage, aucun compte, aucun jeton.",
+    show: "Afficher",
+    copy: "Copier",
+    copied: "Copié",
+    copyFailed: "Sélectionnez le texte et copiez-le.",
   },
   addons: {
     title: "Addons",

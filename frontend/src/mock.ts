@@ -58,6 +58,7 @@ export function mockState(): State {
         ],
     gone: fresh ? 0 : 1,
     lastSync: fresh ? undefined : min(4),
+    update: new URLSearchParams(location.search).has("update") ? { version: "0.5.0", url: "https://github.com/salty-max/ravenpost/releases/latest" } : undefined,
     errors: [],
     uploading: [],
     lastUploaded: [],
@@ -114,6 +115,7 @@ export function mockApi(set: (fn: (s: State | null) => State | null) => void) {
     RemoveFolder: (path: string) => change((s) => (s.folders = (s.folders ?? []).filter((f) => f !== path))),
     SetLaunchAtLogin: (on: boolean) => change((s) => (s.launchAtLogin = on)),
     SetServer: (site: string, server: string) => change((s) => (s.sites ?? []).filter((x) => x.id === site).forEach((x) => ((x.server = server), (x.linked = false)))),
+    Diagnostics: () => Promise.resolve("Ravenpost 0.3.0 (darwin/arm64), language en_GB\nOpen at login: yes\nLinked: Battle.net yes, WoWLocker yes, Hearthtale yes\nSharing: 2 addon file(s) with the opt-in on\n\nWorld of Warcraft: Forever (_forever_)\n  ~/Applications/World of Warcraft/_forever_\n  accounts: 1, left out: 0\n  Yonder v0.14.2, file saved: yes\n  Goodwill v0.2.0, file saved: no\n"),
     Open: (url: string) => (window.open(url, "_blank"), Promise.resolve()),
   };
 }

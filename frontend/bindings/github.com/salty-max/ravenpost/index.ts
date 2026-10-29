@@ -16,5 +16,6 @@ export type {
     Share,
     SiteState,
     State,
+    Update,
     UploadedCharacter
 } from "./models.js";

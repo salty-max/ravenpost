@@ -189,6 +189,19 @@ export interface State {
      * The addons' database: linked with Battle.net or not, its sign-in under way.
      */
     "facts": SiteState;
+
+    /**
+     * A newer Ravenpost release, if GitHub said so (update.go).
+     */
+    "update": Update | null;
+}
+
+/**
+ * Update: a release newer than this one.
+ */
+export interface Update {
+    "version": string;
+    "url": string;
 }
 
 /**
