@@ -76,7 +76,8 @@ func TestAFailedPingGoesAgainAtTheNextLookThenOnceADay(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() { r.app.pingDaily(ctx); close(done) }()
-	time.Sleep(200 * time.Millisecond) // (forty looks)
+	waitFor(t, func() bool { return pings(&mu, &calls) >= 2 })
+	time.Sleep(100 * time.Millisecond) // (twenty looks more: none should go)
 	cancel()
 	<-done
 	mu.Lock()
@@ -105,12 +106,29 @@ func TestTheInboxsDayNotThisClocks(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() { r.app.pingDaily(ctx); close(done) }()
-	time.Sleep(100 * time.Millisecond)
+	waitFor(t, func() bool { return pings(&mu, &calls) >= 3 })
 	cancel()
 	<-done
 	mu.Lock()
 	defer mu.Unlock()
 	if calls < 3 {
 		t.Fatalf("%d pings: the inbox's day not yet today, it should go again", calls)
+	}
+}
+
+func pings(mu *sync.Mutex, calls *int) int {
+	mu.Lock()
+	defer mu.Unlock()
+	return *calls
+}
+
+// waitFor: a condition reached, not a sleep guessed (a slow runner may take
+// seconds for what a laptop does in milliseconds).
+func waitFor(t *testing.T, ok func() bool) {
+	t.Helper()
+	for deadline := time.Now().Add(10 * time.Second); time.Now().Before(deadline); time.Sleep(time.Millisecond) {
+		if ok() {
+			return
+		}
 	}
 }
