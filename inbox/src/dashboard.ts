@@ -57,12 +57,28 @@ export function withDownloadReadings(h: History, readings: Reading[]): History {
 
 // ── the numbers, as the page draws them ──────────────────────────────────────
 type N = number | null;
+type Store = "curseforge" | "wago" | "github";
 export type Series = {
   days: string[];
-  downloads: { addons: string[]; daily: Record<string, N[]>; since: (string | null)[]; totals: Record<string, number>; channels: Record<string, NonNullable<Day["downloads"]>[string]>; week: Record<string, number | null> };
+  downloads: {
+    addons: string[];
+    daily: Record<string, N[]>;
+    since: (string | null)[];
+    totals: Record<string, number>;
+    channels: Record<string, NonNullable<Day["downloads"]>[string]>;
+    week: Record<string, number | null>;
+    /** The days before any total was counted, filled from CurseForge's own daily count (its statistics), every other store unknown there. */
+    early: boolean[];
+    /** New downloads a day by store, every addon together. */
+    stores: Record<Store, N[]>;
+  };
   /** Different people a day by addon (CurseForge's own count, a day or two behind). */
   unique: Record<string, N[]>;
+  /** Each addon's rank among every WoW addon on CurseForge, a day. */
+  rank: Record<string, N[]>;
   installs: N[];
+  /** Different Ravenpost installs over the 7 days to each day. */
+  installsWeek: N[];
   facts: N[];
   sharers: N[];
   newFacts: N[];
@@ -85,8 +101,15 @@ export function seriesOf(h: History): Series {
   const totals: Record<string, number> = {};
   const channels: Series["downloads"]["channels"] = {};
   const week: Record<string, number | null> = {};
+  const filled: boolean[] = days.map(() => false);
+  let firstCounted = days.length;
+  const STORES: Store[] = ["curseforge", "wago", "github"];
+  const stores = Object.fromEntries(STORES.map((x) => [x, days.map((): N => null)])) as Record<Store, N[]>;
+  const add = (xs: N[], j: number, v: number) => {
+    xs[j] = (xs[j] ?? 0) + v;
+  };
   for (const a of addons) {
-    let prev: { day: string; total: number; i: number } | null = null;
+    let prev: { day: string; total: number; i: number; channels: Series["downloads"]["channels"][string] } | null = null;
     let carried: Series["downloads"]["channels"][string] = {};
     const countedTotals = new Map<string, number>();
     const out: N[] = days.map(() => null);
@@ -105,10 +128,21 @@ export function seriesOf(h: History): Series {
         for (let j = prev.i + 1; j <= i; j++) {
           out[j] = each;
           if (span > 1) since[j] = prev.day;
+          for (const x of STORES) add(stores[x], j, Math.max(0, (carried[x] ?? 0) - (prev.channels[x] ?? 0)) / span);
         }
       }
-      prev = { day: d, total, i };
+      prev = { day: d, total, i, channels: carried };
     });
+    // (before the first difference: CurseForge's own count of the day, from its statistics, where it has one)
+    const first = out.findIndex((v) => v !== null);
+    if (first >= 0) firstCounted = Math.min(firstCounted, first);
+    for (let j = 0; j < (first < 0 ? days.length : first); j++) {
+      const own = at(days[j])?.unique?.[a]?.downloads;
+      if (own === undefined) continue;
+      out[j] = own;
+      filled[j] = true;
+      add(stores.curseforge, j, own);
+    }
     daily[a] = out;
     const counted = days.filter((d) => at(d)?.downloads?.[a]);
     const last = counted[counted.length - 1];
@@ -117,14 +151,20 @@ export function seriesOf(h: History): Series {
     week[a] = base && last && base !== last ? totals[a] - countedTotals.get(base)! : null;
   }
   addons.sort((a, b) => (totals[b] ?? 0) - (totals[a] ?? 0));
+  // (CurseForge alone only before any addon's first counted difference: a newer addon's own early days sit among full ones)
+  const early = filled.map((f, j) => f && j < firstCounted);
   const uniqueAddons = [...new Set(days.flatMap((d) => Object.keys(at(d)?.unique ?? {})))];
   const unique = Object.fromEntries(uniqueAddons.map((a) => [a, days.map((d) => (at(d)?.unique ? (at(d)!.unique![a]?.unique ?? 0) : null))]));
   const siteNames = [...new Set(days.flatMap((d) => Object.keys(at(d)?.traffic ?? {})))];
   return {
     days,
-    downloads: { addons, daily, since, totals, channels, week },
+    downloads: { addons, daily, since, totals, channels, week, early, stores },
     unique,
+    rank: Object.fromEntries(
+      [...new Set(days.flatMap((d) => Object.keys(at(d)?.curseforge ?? {})))].map((a) => [a, days.map((d) => at(d)?.curseforge?.[a]?.rank ?? null)]),
+    ),
     installs: days.map((d) => at(d)?.ravenpost?.installs ?? null),
+    installsWeek: days.map((d) => at(d)?.ravenpost?.distinct?.week ?? null),
     facts: days.map((d) => at(d)?.sharing?.facts ?? null),
     sharers: days.map((d) => at(d)?.sharing?.sharers ?? null),
     newFacts: days.map((d) => (at(d)?.merged ? sum(Object.fromEntries(Object.entries(at(d)!.merged!).map(([g, m]) => [g, m.newFacts]))) : null)),

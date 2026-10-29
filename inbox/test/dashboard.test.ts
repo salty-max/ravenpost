@@ -117,3 +117,44 @@ test("today's visitors so far reach the sites chart before the daily job sums th
   expect(html).toContain('"visitors":[2,4]');
   expect(html).toContain("<b>4</b> today so far");
 });
+
+describe("the series' earlier days and stores", () => {
+  const h: History = {
+    days: {
+      "2026-10-11": { unique: { Yonder: { downloads: 7, unique: 5 }, Keyring: { downloads: 2, unique: 2 } } },
+      "2026-10-12": { unique: { Yonder: { downloads: 9, unique: 6 } } },
+      "2026-10-13": { downloads: { Yonder: { curseforge: 100, wago: 1, github: 10 } }, unique: { Yonder: { downloads: 11, unique: 8 } } },
+      "2026-10-14": { downloads: { Yonder: { curseforge: 120, wago: 2, github: 13 } }, unique: { Yonder: { downloads: 30, unique: 20 } }, curseforge: { Yonder: { rank: 300 } }, ravenpost: { installs: 3, versions: {}, os: {}, linked: {}, sharing: 0, distinct: { week: 5, month: 5, ever: 5, newWeek: null, newMonth: null, since: "2026-10-14" } } },
+      "2026-10-16": { downloads: { Yonder: { curseforge: 140, wago: 2, github: 15 } }, curseforge: { Yonder: { rank: 280 } } },
+    },
+  };
+  const s = seriesOf(h);
+
+  test("before the first counted difference, CurseForge's own daily count fills in, said early", () => {
+    expect(s.days).toEqual(["2026-10-11", "2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16"]);
+    expect(s.downloads.daily.Yonder).toEqual([7, 9, 11, 24, 11, 11]);
+    expect(s.downloads.early).toEqual([true, true, true, false, false, false]);
+  });
+
+  test("an addon with no total at all is left out, its statistics only kept for Unique", () => {
+    expect(s.downloads.addons).toEqual(["Yonder"]);
+    expect(s.unique.Keyring).toEqual([2, 0, 0, 0, null, null]);
+  });
+
+  test("each store's new downloads a day, a gap shared like the totals", () => {
+    expect(s.downloads.stores.curseforge).toEqual([7, 9, 11, 20, 10, 10]);
+    expect(s.downloads.stores.wago).toEqual([null, null, null, 1, 0, 0]);
+    expect(s.downloads.stores.github).toEqual([null, null, null, 3, 1, 1]);
+  });
+
+  test("the rank and the week's different installs, a day", () => {
+    expect(s.rank.Yonder).toEqual([null, null, null, 300, null, 280]);
+    expect(s.installsWeek).toEqual([null, null, null, 5, null, null]);
+  });
+
+  test("a newer addon's own early days don't mark the days others counted whole", () => {
+    const later = seriesOf({ days: { ...h.days, "2026-10-15": { unique: { Mealbook: { downloads: 4, unique: 4 } } }, "2026-10-16": { downloads: { ...h.days["2026-10-16"].downloads, Mealbook: { curseforge: 4 } } } } });
+    expect(later.downloads.daily.Mealbook.slice(4)).toEqual([4, null]);
+    expect(later.downloads.early.slice(3)).toEqual([false, false, false]);
+  });
+});
