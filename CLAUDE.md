@@ -18,13 +18,14 @@ facts players share. salty-max/ravenpost. Read the family's CLAUDE.md
 | The app file by file: sites, config, folders, sync, shared facts, ping, sign-in, pairing, journal, window, service, frontend, tray, parser | `docs/architecture.md` |
 | Windows builds and Smart App Control (what happened, what to do) | `docs/architecture.md` |
 | The inbox: API, Blob store, cron, events, deploys | `inbox/README.md` |
+| The page players download from (ravenpost-site.vercel.app, Astro) | `site/README.md` |
 | The icons | `assets/README.md` |
 | What the app is, for a player | `README.md` |
 
 ## Commands
 
 ```bash
-bash scripts/check.sh                                # what CI checks: the window, bindings, gofmt, vet (macOS, Windows), tests, the inbox
+bash scripts/check.sh                                # what CI checks: the window, bindings, gofmt, vet (macOS, Windows), tests, the inbox, the page
 bun "$(git rev-parse --path-format=absolute --git-common-dir)/../../addon-kit/q.ts" check -- bash scripts/check.sh # the same, quiet, stamping the tree for the push (harness.check)
 scripts/bindings.sh                                  # after a change to the service
 cd frontend && bun run dev                           # the window in a browser: http://127.0.0.1:9245/?mock (&fresh, &lang=fr_FR)
@@ -50,7 +51,9 @@ q stamps only the repository's own check.
   `RAVENPOST_NO_BROWSER` for tests and dev).
 - The inbox deploys by hand (`vercel deploy --prod` from `inbox/`, the
   user's go each time); `vercel link` writes production tokens to
-  `.env.local`, which Bun loads.
+  `.env.local`, which Bun loads. The page (`site/`) the same, from `site/`.
+- The page says what the app sends: a change to what Ravenpost sends or
+  reads changes `site/src/components/Sends.astro` with the README.
 - Before calling a change done: `scripts/check.sh` passes, and the window
   is looked at (server mode or the mock), not only built.
 - Conventional Commits, lowercase subjects, no AI trailers. Commit locally;

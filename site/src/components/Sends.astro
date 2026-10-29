@@ -1,0 +1,64 @@
+---
+import Section from "./Section.astro";
+---
+
+<Section id="what" title="What it sends, and what it never does">
+  <div class="grid gap-x-8 md:grid-cols-2 [&_h3]:mt-0 [&_ul]:list-disc [&_ul]:pl-5">
+    <div>
+      <h3>It sends</h3>
+      <ul>
+        <li>
+          <strong>To <a href="https://hearthtale.app">hearthtale.app</a></strong>: each character's name, realm, race and
+          class, the journal Hearthtale wrote at logout, and the link code if you typed one with /ht link. The addon's raw
+          records stay on your computer.
+        </li>
+        <li>
+          <strong>To <a href="https://wow-locker.app">wow-locker.app</a></strong>: the WoWLocker addon's saved file, as
+          it is.
+        </li>
+        <li>
+          <strong>When you sign in with Battle.net</strong>: your Battle.net id, your BattleTag and the characters on
+          the account, to hearthtale.app and, if you linked it, wow-locker.app. That's how they know which characters
+          are yours.
+        </li>
+        <li>
+          <strong>To the addons' shared game database, only if you say yes</strong>: with "Share what you see" ticked in
+          Hearthtale, Lorekeeper's Codex, Yonder or Second Wind, and Ravenpost linked with Battle.net, what the game
+          showed you of the world. Quest texts, creatures, what characters say, what a creature dropped. It helps the
+          addons cover World of Warcraft: Forever's new content sooner. The Battle.net link counts you as one voice when
+          players' games disagree.
+        </li>
+        <li>
+          <strong>Once a day</strong>, to its own inbox: a random number made for this install (the inbox keeps only a
+          hash of it), its version, your system and which sites you've linked. That's how Ravenpost's users are counted,
+          nothing about you or your characters.
+        </li>
+        <li>
+          <strong>Every six hours</strong>, it asks GitHub whether a newer version is out. Nothing of yours goes with the
+          question.
+        </li>
+      </ul>
+    </div>
+    <div>
+      <h3>It never</h3>
+      <ul>
+        <li>sends any file but these.</li>
+        <li>keeps your Battle.net account. The database stores only a hash of it.</li>
+        <li>sends your chat, or a line naming another player.</li>
+        <li>puts your name, class or race in what you share with the database.</li>
+        <li>
+          reads any other addon's saved files. Of the rest of the game folder, it only looks at which of these addons are
+          installed, and which accounts and characters have saved files.
+        </li>
+        <li>runs what an addon saved. Saved files are read as data, never executed.</li>
+        <li>touches the game itself, injects anything into it or reads its memory.</li>
+        <li>updates itself. When a new version is out, it tells you, and you download it.</li>
+        <li>shows system notifications. What it sent is in its own window.</li>
+      </ul>
+      <p>
+        You can leave out a character or a whole game account in its window. Its Settings page has a Diagnostics text to
+        paste into an issue: it names no character, no account and holds no token.
+      </p>
+    </div>
+  </div>
+</Section>

@@ -1,0 +1,27 @@
+---
+import Addons from "../components/Addons.astro";
+import Faq from "../components/Faq.astro";
+import Hero from "../components/Hero.astro";
+import Section from "../components/Section.astro";
+import Sends from "../components/Sends.astro";
+import Warning from "../components/Warning.astro";
+import { KOFI } from "../data";
+import Page from "../layouts/Page.astro";
+---
+
+<Page
+  title="Ravenpost"
+  description="Ravenpost sends what your World of Warcraft addons saved to hearthtale.app and wow-locker.app. What it sends and never does, and why Windows warns about it. Free, open source, for macOS and Windows."
+>
+  <Hero />
+  <Warning />
+  <Sends />
+  <Addons />
+  <Faq />
+  <Section id="support" title="Keep the ravens flying">
+    <p>
+      Ravenpost and the addons are free. If you like them, a coffee on <a href={KOFI}>Ko-fi</a> helps pay for the
+      sites the ravens fly to.
+    </p>
+  </Section>
+</Page>

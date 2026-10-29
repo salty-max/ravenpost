@@ -1,0 +1,27 @@
+---
+import { ADDONS } from "../data";
+import Section from "./Section.astro";
+---
+
+<Section id="addons" title="The addons it works with">
+  <p>
+    Ravenpost finds Classic Era, World of Warcraft: Forever and Forever's beta by itself, and shows which of these
+    addons are installed in each game.
+  </p>
+  <ul class="mb-3.5">
+    {
+      ADDONS.map(({ name, url, what }) => (
+        <li class="border-edge/60 m-0 flex flex-wrap gap-x-2.5 border-b py-2.5">
+          <a href={url} class="min-w-42 font-semibold">
+            {name}
+          </a>
+          <span class="text-dim">{what}</span>
+        </li>
+      ))
+    }
+  </ul>
+  <p class="text-dim text-[0.95rem]">
+    Ravenpost sends something only for Hearthtale, WoWLocker, and, if you share what you see, Lorekeeper's Codex,
+    Yonder and Second Wind. For the others, it just shows they're installed.
+  </p>
+</Section>

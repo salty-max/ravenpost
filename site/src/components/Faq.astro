@@ -1,0 +1,70 @@
+---
+import { GITHUB, ISSUES } from "../data";
+import Section from "./Section.astro";
+---
+
+<Section id="faq" title="Questions">
+  <div
+    class="[&_details]:border-edge/60 [&_details]:border-b [&_p]:mt-0.5 [&_summary]:cursor-pointer [&_summary]:py-3 [&_summary]:font-semibold"
+  >
+    <details>
+      <summary>Is it safe?</summary>
+      <p>
+        It reads a few files your addons already wrote in your game folder and sends them over HTTPS to the sites listed
+        above, plus your Battle.net sign-in if you make one, the daily count and the update check. Its source is <a href={GITHUB}>public</a>, every line. The
+        warning you see is about who signed the file, not about what's in it.
+      </p>
+    </details>
+    <details>
+      <summary>Does it touch the game?</summary>
+      <p>
+        No. It never runs inside the game, changes its files or reads its memory. It only reads the saved files World of
+        Warcraft writes to disk when you log out or type /reload, the same files a backup tool would copy. Blizzard's
+        rules are Blizzard's to state, and we don't speak for them.
+      </p>
+    </details>
+    <details>
+      <summary>Why isn't it signed?</summary>
+      <p>
+        A certificate Windows trusts costs money every year, and Ravenpost is one person's project. Until it's signed,
+        the steps above get you past the warning, and the source is there to check.
+      </p>
+    </details>
+    <details>
+      <summary>What does it need?</summary>
+      <p>
+        On Windows 10 or 11, Microsoft Edge WebView2 for its window. It comes with Windows 11 and with an up-to-date
+        Windows 10. On macOS, nothing beyond macOS 11. It's a small download because it uses your system's own web view
+        instead of bundling a browser.
+      </p>
+    </details>
+    <details>
+      <summary>Do I need it to use the addons?</summary>
+      <p>
+        No. Every addon works in the game without it. Ravenpost is only for reading Hearthtale's journal on your phone,
+        seeing your characters on WoWLocker, or sharing what you see.
+      </p>
+    </details>
+    <details>
+      <summary>Does it keep running when I close it?</summary>
+      <p>
+        Yes, from the menu bar on macOS or the tray on Windows, so it can send your files at your next logout. Quit it
+        from that icon. With "Open Ravenpost at login" on in its settings, it starts there quietly.
+      </p>
+    </details>
+    <details>
+      <summary>How do I remove it?</summary>
+      <p>
+        Quit it from the menu bar or the tray, then delete it: on macOS, drag Ravenpost from Applications to the Trash.
+        On Windows, delete the .exe you downloaded. If you turned on "Open Ravenpost at login", turn it off first in
+        Ravenpost's settings.
+      </p>
+    </details>
+    <details>
+      <summary>Something's wrong. Where do I tell you?</summary>
+      <p>
+        <a href={ISSUES}>Open an issue on GitHub</a>, with the Diagnostics text from Ravenpost's Settings if it starts.
+      </p>
+    </details>
+  </div>
+</Section>

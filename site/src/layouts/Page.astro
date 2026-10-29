@@ -1,0 +1,39 @@
+---
+import "../styles/global.css";
+
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0b0c10" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={new URL("/icon-192.png", Astro.site)} />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  </head>
+  <body>
+    <main class="mx-auto max-w-[46rem] px-4">
+      <slot />
+    </main>
+    <footer class="border-edge text-dim mx-auto max-w-[46rem] border-t px-4 pt-5 pb-10 text-sm">
+      <p>
+        <a href="https://github.com/salty-max/ravenpost">Source on GitHub</a> &middot; MIT licensed &middot; Not
+        affiliated with Blizzard Entertainment.
+      </p>
+    </footer>
+  </body>
+</html>

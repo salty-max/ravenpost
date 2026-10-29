@@ -1,0 +1,61 @@
+---
+import { GITHUB, ISSUES, RELEASES } from "../data";
+import Section from "./Section.astro";
+
+const card = "panel px-5 pt-1 pb-2 [&_h3]:mt-4";
+---
+
+<Section id="warning" title={'"Windows protected your PC"'}>
+  <p>
+    You will probably see this the first time you open Ravenpost. It doesn't mean Windows found anything wrong with
+    it. It means the file isn't <em>code-signed</em>: signing needs a paid certificate tied to a company or a verified
+    person, and a new app without one has no reputation with Microsoft yet. Ravenpost is made by one person in their
+    spare time, and the certificate isn't there yet.
+  </p>
+
+  <div class="my-5 grid gap-4">
+    <div class={card}>
+      <h3>Windows: SmartScreen</h3>
+      <ol class="list-decimal pl-5">
+        <li>
+          If your browser says the file isn't commonly downloaded, keep it. In Edge: the <strong>...</strong> menu next
+          to the download, <strong>Keep</strong>, <strong>Show more</strong>, <strong>Keep anyway</strong>.
+        </li>
+        <li>Open it. When Windows warns you, click <strong>More info</strong>.</li>
+        <li>Click <strong>Run anyway</strong>.</li>
+      </ol>
+      <p>Windows remembers, and won't ask again for this file.</p>
+    </div>
+    <div class={card}>
+      <h3>Windows 11: Smart App Control</h3>
+      <p>
+        If Smart App Control is on, it may block the file outright, with no "Run anyway". It judges each file through
+        Microsoft's cloud, and an unsigned file it hasn't seen before can be refused.
+      </p>
+      <p>
+        Either <a href={ISSUES}>open an issue</a> and say which file was blocked, so a new build can be made, or
+        turn Smart App Control off in Windows Security, under App &amp; browser control. Think twice about the second: it
+        protects you from other apps too, and on some versions of Windows it can't be turned back on without
+        reinstalling Windows.
+      </p>
+    </div>
+    <div class={card}>
+      <h3>macOS</h3>
+      <p>Open the zip and move Ravenpost to your Applications folder first, then open it from there.</p>
+      <p>
+        macOS says it can't check Ravenpost for malicious software. Close the message, open <strong
+          >System Settings</strong
+        > (System Preferences before macOS 13), then <strong>Privacy &amp; Security</strong>, scroll down and click <strong
+          >Open Anyway</strong
+        > next to Ravenpost. On macOS 14 or older, right-clicking the app and choosing <strong>Open</strong> does the same.
+      </p>
+    </div>
+  </div>
+
+  <h3>Check it yourself</h3>
+  <p>
+    Ravenpost's whole source is <a href={GITHUB}>on GitHub</a>, MIT licensed. Every download on this page is built by
+    GitHub Actions from that source, in public, and attached to the release by the same run. You can read what each
+    release changed on <a href={RELEASES}>its release page</a>, or build it yourself.
+  </p>
+</Section>

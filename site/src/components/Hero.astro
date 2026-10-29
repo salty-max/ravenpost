@@ -1,0 +1,27 @@
+---
+import { LATEST, RELEASES } from "../data";
+
+---
+
+<header class="pt-14 pb-10 text-center">
+  <img src="/icon-192.png" width="96" height="96" alt="" class="mx-auto rounded-[22%] shadow-xl" />
+  <h1 class="title mt-3 mb-3 text-[clamp(2.4rem,8vw,3.4rem)] leading-tight">Ravenpost</h1>
+  <p class="mx-auto mb-7 max-w-[34rem] text-lg">
+    A small app for your computer that sends what your World of Warcraft addons saved to the sites you use them with.
+    A few seconds after you log out or /reload, your character's journal is on your phone.
+  </p>
+  <div id="downloads" class="mb-4 flex flex-wrap justify-center gap-3">
+    <a class="btn btn-gold" data-asset="windows-x64" href={LATEST}>Download for Windows</a>
+    <a class="btn" data-asset="macos" href={LATEST}>Download for macOS</a>
+  </div>
+  <p class="text-dim mb-1.5 text-sm">
+    <span id="version">The latest release</span>, free and open source. <a data-asset="windows-arm64" href={LATEST}
+      >Windows on ARM</a
+    > &middot; <a href={RELEASES}>every release</a>
+  </p>
+  <p class="text-dim text-sm">macOS 11 or later (Apple silicon and Intel). Windows 10 or 11.</p>
+</header>
+
+<script>
+  import "../scripts/downloads.ts";
+</script>

@@ -68,6 +68,9 @@ tell us which file was blocked.
 ## What it sends
 
 - **WoWLocker** gets the WowLocker addon's saved file as it is.
+- **When you sign in with Battle.net**, Hearthtale (and WoWLocker, if you
+  linked it) gets your Battle.net id, your BattleTag and the characters on the
+  account, so each site knows which characters are yours.
 - **Hearthtale** gets each character's name, realm, race and class, its
   journal as the addon wrote it at logout, and a link code if you typed one
   with `/ht link CODE`. The addon's raw records stay on your computer.
