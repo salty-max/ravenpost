@@ -102,6 +102,20 @@ stays there). The inbox: `inbox/README.md`. The icons: `assets/README.md`.
   (`assets/icon-painted-*`, made by the user with GPT), rounded into
   `assets/icon-512.png` (the app, embedded for Windows' taskbar) and
   `frontend/public/icon.png` (the window): see assets/README.md.
+- `addons.go`: the family's ten addons found in a game folder's
+  Interface/AddOns (`Install.Addons`: name, the `## Version` of the TOC that
+  client loads, `_Vanilla` for Classic Era, `_Camelot` for Forever and its
+  beta, and whether the addon's saved file exists under any account). "Installed" only:
+  AddOns.txt is not read. The Addons page shows it. A new addon of the family
+  goes into `familyAddons` and the page's list.
+- `update.go`: every 6 hours GitHub's `releases/latest` (it skips
+  prereleases: a release Windows blocks is flipped to prerelease to stop the
+  nudge) tells `State.Update`: a banner on the Overview, a line in Settings and in
+  the tray's menu. Ravenpost never updates itself (unsigned builds).
+- `diagnostics.go`: `Diagnostics()`, a redacted text for an issue (no
+  characters, accounts, tokens or journal lines; the home folder as `~`).
+  Forever's beta folder (`_classic_beta_`) sends its facts on purpose
+  (`sharedGame`): only PTR folders are skipped.
 - `luasv.go`: parses SavedVariables as data (never executes it).
   `testdata/sim.{lua,json}` come from WoWLocker's addon sim
   (`WL_SV=… WL_DUMP=… luajit addon/test/sim.lua` in wow-locker).

@@ -1,7 +1,8 @@
 # Ravenpost
 
 Ravenpost is a small app for macOS and Windows, the companion of the
-addons Hearthtale, Lorekeeper's Codex, Yonder, Second Wind and WoWLocker. A
+addons Hearthtale, Lorekeeper's Codex, Yonder, Second Wind, Keyring, Palaver,
+Mealbook, Goodwill, Yours Truly and WoWLocker. A
 few seconds after you log out or use `/reload`, it carries what they saved:
 
 - **Help the addons keep up with Forever.** Tick **Share what you see** in
@@ -34,8 +35,14 @@ on macOS or the tray on Windows. With **Open Ravenpost at login** turned on in
 its settings, it starts there quietly and sends your files from your first
 logout.
 
-Ravenpost finds World of Warcraft by itself. If your game is somewhere else,
-add its folder in **Game folders**. The window is in English or French,
+Ravenpost finds World of Warcraft by itself, Classic Era, World of Warcraft:
+Forever and Forever's beta alike. The **Addons** page lists which of the
+family's addons are installed in each game folder, their versions and whether
+each has saved its first file. If your game is somewhere else, add its folder
+in **Game folders**. When a newer Ravenpost is out, the window and the menu
+say so (it doesn't update itself: you download it). **Settings** has a
+**Diagnostics** text to paste into an issue: it names no character, no account
+and holds no token. The window is in English or French,
 following your system's language.
 
 Ravenpost replaces the WoWLocker companion. Your link and settings carry over
