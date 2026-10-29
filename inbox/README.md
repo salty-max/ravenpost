@@ -69,8 +69,14 @@ with Battle.net in the browser (a signed cookie, 30 days). Its history,
   warning is told a day and the last numbers stay: paste a fresh cookie.
   `bun bin/curseforge-unique.ts` reads them from a computer the old way,
   handing them over with `UNIQUE_TOKEN`. CurseForge itself is a day or two behind (the page says to which day, and when it was brought); Wago and GitHub
-  count no people. The Downloads section's All and Unique switch the chart
-  and the rows between download events and people.
+  count no people. The same statistics give CurseForge's own downloads a
+  day, which the chart uses for the days before the first two totals (13 and
+  14 October): those bars are CurseForge's alone, paler. Wago and GitHub keep
+  only totals, Ravenpost's pings and the sharing were never kept before
+  counting began, the rank has no past: none of these can be brought back.
+  The sites' visitors can, once: `bun bin/backfill-traffic.ts [--dry]`
+  (Web Analytics' own past, to 13 October, into the history through
+  `/api/inbox/stats`).
 
 The dashboard combines the daily history with the latest ten-minute
 readings for its download total, per-addon counts and charts: CurseForge's
@@ -81,14 +87,28 @@ dashboard shows only the twenty newest releases. Today's Ravenpost installs
 and facts shared so far are counted at each look too (`stats/today.json`),
 beside yesterday's whole day.
 
+The page has one range for all of it, in a bar that stays at the top: 24
+hours (the downloads hour by hour from the ten-minute readings, CurseForge's
+alone, the daily charts their last 7 days), 7, 30, 90 days, all, or two dates.
+The Downloads section: the range's downloads against the span before, the
+different people (CurseForge's 7, 30 or 90 days, else none: a sum of days
+would count a person each day), the best day and its releases, the stores'
+shares; the chart by addon, by store or as lines (Unique: the people a day),
+the releases marked, each addon a chip to hide it; a leaderboard (the range,
+its change, people, a trend, all time, the stores) sorted by any column, six
+then all; the rank on CurseForge as a line a day; each addon's newest release
+and its downloads a day. The Activity and the Comments show five, then
+scroll. The Addons section is a table, the watch's fine checks folded.
+
 Nothing on the page waits for a reload: every half minute while it's shown,
 at once when it comes back (the app on a phone), on a pull at the top and
 with the refresh button, every part is fetched again and put in place (the
 activity, the comments, the numbers, how things stand), a filter, a comment
-being read or a word opened kept as they were; the top says when it last
+being read, a word opened or a panel scrolled kept as they were; the top says when it last
 did. Comments come before the notifications, with a shortcut kept in the
-phone's navigation. Date range, activity and comment filters, the downloads'
-All or Unique, and hidden addon/site chart series save automatically in
+phone's navigation. The range (and its two dates), activity and comment
+filters, the downloads' All or Unique, view and sort, the sites' visitors or
+page views, and hidden addon/site chart series save automatically in
 the browser's local storage (`ravenpost.dashboard.preferences`). The key
 stays the same across releases. These choices belong to that browser or
 installed app on that device. When storage is unavailable, the controls
@@ -142,7 +162,7 @@ for:
   (`src/curseforge.ts`: the site's own JSON of each addon's public releases,
   `www.curseforge.com/api/v1/mods/<id>/files`; one not seen before passed the
   review), and each addon's downloads read (`downloads/<day>.json`, 14 days:
-  the dashboard's last 48 hours, its releases' downloads in
+  the dashboard's 24 hours and their day before, its releases' downloads in
   `releases/latest.json`; the daily totals read there too, cfwidget should it
   refuse);
 - the players' comments on CurseForge (the same job; `src/comments.ts`), kept for the dashboard's Comments (`comments/recent.json`: the threads, whether the owner had the last word): the site's own JSON, what its comments page

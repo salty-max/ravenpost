@@ -174,7 +174,7 @@ export function seriesOf(h: History): Series {
   };
 }
 
-/** The last 48 hours from the ten-minute readings (curseforge.ts): new downloads an hour by addon, an hour's the rise since the reading before; and today's (UTC) so far. */
+/** The last 48 hours from the ten-minute readings (curseforge.ts): new downloads an hour by addon (the page shows the last 24, against the 24 before), an hour's the rise since the reading before; and today's (UTC) so far. */
 export function hourlyOf(readings: Reading[], now = Date.now()) {
   const start = Math.floor(now / 3600_000) * 3600_000 - 47 * 3600_000;
   const hours = Array.from({ length: 48 }, (_, i) => new Date(start + i * 3600_000).toISOString());

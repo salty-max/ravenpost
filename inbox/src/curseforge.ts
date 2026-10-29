@@ -10,7 +10,7 @@ import * as store from "./store";
  * its downloads as they come; their sum is the addon's total, cfwidget's
  * number). Kept:
  *   downloads/<day>.json   the day's readings: each addon's total, each look
- *                          (14 days kept: the dashboard's last 48 hours),
+ *                          (14 days kept: the dashboard's 24 hours and the 24 before),
  *                          with Wago's counts and, once an hour (each look
  *                          with GITHUB_TOKEN), GitHub's: the dashboard's
  *                          totals move during the day, not at the daily job
