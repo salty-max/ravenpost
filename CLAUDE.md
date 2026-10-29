@@ -44,7 +44,7 @@ q stamps only the repository's own check.
   blaming the code; signing is the user's decision.
 - Upload feedback stays inside the app: no system notifications.
 - SavedVariables are parsed as data, never executed. Nothing of the player
-  in the ping. A test realm's facts are never sent.
+  in the ping. A PTR's facts are never sent (Forever's beta's are, on purpose).
 - Tests never call `SetLaunchAtLogin` and never touch the machine's login
   items (`RAVENPOST_CONFIG_DIR`, `RAVENPOST_LEGACY_DIR`,
   `RAVENPOST_NO_BROWSER` for tests and dev).

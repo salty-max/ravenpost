@@ -101,7 +101,7 @@ hash with its first and last day.
 
 The dashboard's Addons section (`src/launch.ts`, read only): each addon's
 newest GitHub release (`releases/github.json`, `releases/latest` per
-repository at each ten-minute look, hourly without `GITHUB_TOKEN`), beside its
+repository hourly, at the first ten-minute look of the hour), beside its
 newest CurseForge release and its last data job, and the launch watch's
 checks: Ravenpost's pings and the sharers' uploads against yesterday's (judged
 after 18:00 UTC), a day's installs doubling (good news), and a GitHub release

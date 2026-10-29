@@ -58,10 +58,14 @@ func installedAddons(install string, flavour string) []InstalledAddon {
 		if !isDir(dir) {
 			continue
 		}
+		suffix := tocSuffix(flavour)
+		if suffix != "" && !loadsHere(dir, a.Folder, suffix) {
+			continue // (TOCs for other clients only: this one never loads it)
+		}
 		out = append(out, InstalledAddon{
 			Folder:  a.Folder,
 			Name:    a.Name,
-			Version: tocVersion(dir, a.Folder, tocSuffix(flavour)),
+			Version: tocVersion(dir, a.Folder, suffix),
 			Data:    hasSavedFile(install, a.Folder),
 		})
 	}
@@ -72,7 +76,7 @@ func installedAddons(install string, flavour string) []InstalledAddon {
 // any TOC of the addon (a client of a kind we don't know).
 func tocVersion(dir, folder, suffix string) string {
 	names := []string{folder + suffix + ".toc", folder + ".toc"}
-	if all, _ := filepath.Glob(filepath.Join(dir, folder+"*.toc")); len(all) > 0 {
+	if all, _ := filepath.Glob(filepath.Join(dir, folder+"*.toc")); suffix == "" && len(all) > 0 {
 		for _, p := range all {
 			names = append(names, filepath.Base(p))
 		}
@@ -83,6 +87,21 @@ func tocVersion(dir, folder, suffix string) string {
 		}
 	}
 	return ""
+}
+
+// loadsHere: false when the addon's folder holds TOCs, none of them for the
+// client's suffix (a folder with no TOC at all stays listed, version unknown).
+func loadsHere(dir, folder, suffix string) bool {
+	all, _ := filepath.Glob(filepath.Join(dir, folder+"*.toc"))
+	if len(all) == 0 {
+		return true
+	}
+	for _, n := range []string{folder + suffix + ".toc", folder + ".toc"} {
+		if _, err := os.Stat(filepath.Join(dir, n)); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 func readVersion(path string) string {

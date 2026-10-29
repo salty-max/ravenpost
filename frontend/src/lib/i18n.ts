@@ -163,7 +163,7 @@ const en = {
     source: "Source code",
     privacy: "What it sends",
     privacyText:
-      "WoWLocker gets its addon's file as it is. Hearthtale gets each character's name, realm, race and class, its journal as the addon wrote it, and a link code if you typed one. If you ticked \"Share what you see\" in one of the addons, what the game told you of the world (quests, creatures, what characters say, loot) goes to the addons' database once you sign in with Battle.net, never your name or chat. Once a day Ravenpost also says it's running: a random number made for this install, its version, your system and which links are made, for counting how many use it. Nothing else leaves this computer.",
+      "WoWLocker gets its addon's file as it is. Hearthtale gets each character's name, realm, race and class, its journal as the addon wrote it, and a link code if you typed one. If you ticked \"Share what you see\" in one of the addons, what the game told you of the world (quests, creatures, what characters say, loot) goes to the addons' database once you sign in with Battle.net, never your name or chat. Once a day Ravenpost also says it's running: a random number made for this install, its version, your system and which links are made, for counting how many use it. Every six hours it also asks GitHub whether a newer Ravenpost is out, sending nothing of yours. Nothing else leaves this computer.",
   },
   close: {
     hint: "Ravenpost keeps working from the menu bar when this window is closed.",
@@ -333,7 +333,7 @@ const fr: Strings = {
     source: "Code source",
     privacy: "Ce qu'il envoie",
     privacyText:
-      "WoWLocker reçoit le fichier de son addon tel quel. Hearthtale reçoit le nom, le royaume, la race et la classe de chaque personnage, son journal tel que l'addon l'a écrit, et un code de liaison si vous en avez tapé un. Si vous avez coché « Partager ce que vous voyez » dans un des addons, ce que le jeu vous a dit du monde (quêtes, créatures, paroles des personnages, butin) part vers la base des addons une fois connecté à Battle.net, jamais votre nom ni votre chat. Une fois par jour, Ravenpost dit aussi qu'il tourne : un nombre au hasard fait pour cette installation, sa version, votre système et les liaisons faites, pour compter combien l'utilisent. Rien d'autre ne quitte cet ordinateur.",
+      "WoWLocker reçoit le fichier de son addon tel quel. Hearthtale reçoit le nom, le royaume, la race et la classe de chaque personnage, son journal tel que l'addon l'a écrit, et un code de liaison si vous en avez tapé un. Si vous avez coché « Partager ce que vous voyez » dans un des addons, ce que le jeu vous a dit du monde (quêtes, créatures, paroles des personnages, butin) part vers la base des addons une fois connecté à Battle.net, jamais votre nom ni votre chat. Une fois par jour, Ravenpost dit aussi qu'il tourne : un nombre au hasard fait pour cette installation, sa version, votre système et les liaisons faites, pour compter combien l'utilisent. Toutes les six heures, il demande aussi à GitHub si une version plus récente existe, sans rien envoyer de vous. Rien d'autre ne quitte cet ordinateur.",
   },
   close: {
     hint: "Ravenpost continue de travailler depuis la barre des menus quand cette fenêtre est fermée.",

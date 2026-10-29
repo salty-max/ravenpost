@@ -84,6 +84,9 @@ tell us which file was blocked.
   and last day it ran), its version, your system and which links are made.
   That's how many use it is counted, nothing about you or your characters.
 
+- **Every six hours**, it asks GitHub whether a newer Ravenpost is out. Nothing
+  of yours goes with the question.
+
 Ravenpost sends no other file and reads no other addon. You can leave out a
 character or a whole game account in the window. If you remove a book from
 hearthtale.app, Ravenpost shows it as removed and only sends it again after

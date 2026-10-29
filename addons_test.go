@@ -75,3 +75,13 @@ func TestInstalledAddonsPerCharacterFile(t *testing.T) {
 		t.Fatalf("got %+v", got)
 	}
 }
+
+func TestInstalledAddonsSkipsWhatTheClientNeverLoads(t *testing.T) {
+	install := filepath.Join(t.TempDir(), "_anniversary_")
+	writeTOC(t, filepath.Join(install, "Interface", "AddOns", "Mealbook"), "Mealbook_Vanilla.toc", "0.1.0")
+	writeTOC(t, filepath.Join(install, "Interface", "AddOns", "Yonder"), "Yonder_TBC.toc", "0.14.2")
+	got := installedAddons(install, "_anniversary_")
+	if len(got) != 1 || got[0].Folder != "Yonder" {
+		t.Fatalf("got %+v", got)
+	}
+}

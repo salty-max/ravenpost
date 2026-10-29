@@ -19,7 +19,7 @@ func (r *Ravenpost) diagnostics() string {
 	home, _ := os.UserHomeDir()
 	hide := func(s string) string {
 		if home != "" {
-			s = strings.ReplaceAll(s, home, "~")
+			s = replaceFold(s, home, "~")
 		}
 		// (an account, realm and character are names: nothing past WTF/Account)
 		return underAccount.ReplaceAllString(s, "WTF/Account/…")
@@ -104,3 +104,26 @@ func excludedIn(in Install, excluded []string) int {
 // Diagnostics: a text for an issue (what Ravenpost found, what it couldn't
 // do), with nothing of the player in it.
 func (r *Ravenpost) Diagnostics() string { return r.diagnostics() }
+
+// replaceFold: every occurrence of old in s, whatever its case (Windows
+// paths differ in case from the profile folder's).
+func replaceFold(s, old, repl string) string {
+	if old == "" {
+		return s
+	}
+	low, lowOld := strings.ToLower(s), strings.ToLower(old)
+	if len(low) != len(s) || len(lowOld) != len(old) {
+		return strings.ReplaceAll(s, old, repl)
+	}
+	var b strings.Builder
+	for {
+		i := strings.Index(low, lowOld)
+		if i < 0 {
+			b.WriteString(s)
+			return b.String()
+		}
+		b.WriteString(s[:i])
+		b.WriteString(repl)
+		s, low = s[i+len(old):], low[i+len(old):]
+	}
+}
