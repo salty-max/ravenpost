@@ -246,7 +246,7 @@ section{margin-bottom:22px}.sh{display:flex;align-items:baseline;justify-content
 .kpi{padding:14px 16px 10px;display:flex;flex-direction:column;min-width:0}
 .kpi .k{display:flex;align-items:center;gap:7px;color:var(--dim);font-size:12px;font-weight:500}.kpi .k .ic{width:14px;height:14px;color:var(--gold-soft)}
 .kpi .v{font:600 26px/1.15 var(--sans);margin-top:6px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.kpi .d{font-size:12px;color:var(--faint);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.kpi .d b{color:var(--ok);font-weight:600}
+.kpi .d{font-size:12px;color:var(--faint);margin-top:2px;line-height:1.35;min-height:2.7em}.kpi .d b{color:var(--ok);font-weight:600}
 .kpi .spark{height:42px;margin:8px -6px 0}
 
 /* the activity */
@@ -255,8 +255,9 @@ section{margin-bottom:22px}.sh{display:flex;align-items:baseline;justify-content
 .feed .i{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;flex:none;margin-top:1px}
 .i.merged{background:rgb(111 208 140/.12);color:var(--ok)}.i.failed{background:rgb(224 99 79/.14);color:var(--blood)}.i.waiting,.i.test{background:rgb(242 193 78/.12);color:var(--gold)}.i.digest{background:rgb(108 180 238/.12);color:#6cb4ee}.i.comment{background:rgb(181 140 240/.14);color:#b58cf0}.i.release{background:rgb(242 193 78/.12);color:var(--gold)}
 .feed .c{flex:1;min-width:0}.feed .t{display:flex;align-items:baseline;justify-content:space-between;gap:10px}.feed .t b{font-weight:600}.feed .t time{color:var(--faint);font-size:12px;white-space:nowrap}
-.feed .b{color:var(--dim);font-size:13px;white-space:pre-line;margin-top:2px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}.feed .b.open{display:block}
+.feed .b{color:var(--dim);font-size:13px;white-space:pre-line;margin-top:2px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical}.feed .b.open{display:block}
 .feed .m{display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap}.feed .m a{color:var(--gold);font-size:12px}.feed li.done .i{filter:grayscale(1);opacity:.55}.feed li.done .t b{color:var(--dim)}
+.scroll{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}.scroll.fade{-webkit-mask-image:linear-gradient(#000 calc(100% - 28px),transparent);mask-image:linear-gradient(#000 calc(100% - 28px),transparent)}.scroll.end{-webkit-mask-image:none;mask-image:none}
 .more{display:block;width:100%;border:0;border-top:1px solid rgb(255 255 255/.045);background:none;color:var(--dim);font:500 13px var(--sans);padding:11px;cursor:pointer;border-radius:0 0 12px 12px}.more:hover{color:var(--gold)}
 .empty{color:var(--faint);padding:18px;margin:0;font-size:13px}
 .thread{padding:14px 18px;border-top:1px solid rgb(255 255 255/.045)}.thread:first-child{border-top:0}
@@ -277,14 +278,25 @@ body.dl-u [data-mode=all],body:not(.dl-u) [data-mode=unique]{display:none!import
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:12px;color:var(--dim)}.legend span{display:inline-flex;align-items:center;gap:6px}.legend i{width:9px;height:9px;border-radius:2px}
 .wait{display:grid;place-items:center;text-align:center;color:var(--faint);font-size:13px;height:100%;border:1px dashed var(--edge);border-radius:10px}
 .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.grid2>*{min-width:0}
-.rows{margin-top:6px}.row{display:grid;grid-template-columns:minmax(0,1.4fr) 90px minmax(0,1.6fr) 72px;align-items:center;gap:14px;padding:11px 0;border-top:1px solid rgb(255 255 255/.045)}.row:first-child{border-top:0}
-.row .n{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.row .tot{font-variant-numeric:tabular-nums;font-weight:600;text-align:right}.row .wk{text-align:right;font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums}.row .wk b{color:var(--ok);font-weight:600}
 .split{display:flex;height:6px;border-radius:999px;overflow:hidden;background:var(--stone-3)}.split i{display:block;height:100%}
 .split-l{display:flex;gap:10px;font-size:11px;color:var(--faint);margin-top:4px;white-space:nowrap;overflow:hidden}
-.bars{display:flex;flex-direction:column;gap:8px;margin-top:12px}.bar-r{display:grid;grid-template-columns:minmax(0,1fr) 2fr 36px;gap:10px;align-items:center;font-size:12px;color:var(--dim)}.bar-r .track{height:6px;border-radius:999px;background:var(--stone-3);overflow:hidden}.bar-r .track i{display:block;height:100%;background:var(--gold-soft);border-radius:999px}.bar-r b{color:var(--parchment);text-align:right;font-weight:500;font-variant-numeric:tabular-nums}
+.bars{display:flex;flex-direction:column;gap:8px;margin-top:12px}.bar-r{display:grid;grid-template-columns:minmax(52px,max-content) minmax(24px,1fr) auto;gap:10px;align-items:center;font-size:12px;color:var(--dim)}.bar-r .track{height:6px;border-radius:999px;background:var(--stone-3);overflow:hidden}.bar-r .track i{display:block;height:100%;background:var(--gold-soft);border-radius:999px}.bar-r b{color:var(--parchment);text-align:right;font-weight:500;font-variant-numeric:tabular-nums}
 .switch{position:relative;width:40px;height:22px;border-radius:999px;border:1px solid var(--edge);background:var(--stone-3);cursor:pointer;flex:none;transition:background .15s}.switch::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--dim);transition:transform .15s}
 .switch[aria-checked=true]{background:rgb(201 162 39/.8);border-color:var(--gold-soft)}.switch[aria-checked=true]::after{transform:translateX(18px);background:var(--night)}.switch:disabled{opacity:.4;cursor:default}
-.ad-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin-top:12px}.ad{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border:1px solid rgb(255 255 255/.07);border-radius:12px;background:rgb(255 255 255/.02);border-left:3px solid var(--edge);min-width:0}.ad.ok{border-left-color:var(--ok)}.ad.gold{border-left-color:var(--gold)}.ad-h{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}.ad-h b{font-weight:600;font-size:15px}.ad-v{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:baseline;font-size:13px}.ad-v .l{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.04em}.ad-v b{font-weight:600;font-variant-numeric:tabular-nums}.ad-v .a{color:var(--dim);font-size:12px;margin-left:6px}.ad-j{font-size:12px;color:var(--dim);border-top:1px solid rgb(255 255 255/.05);padding-top:7px}
+.ad-t{margin-top:8px}.ad-r{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) auto;gap:4px 14px;align-items:center;padding:9px 0 9px 10px;border-top:1px solid rgb(255 255 255/.045);border-left:3px solid var(--edge);font-size:13px}.ad-r:first-child{border-top:0}.ad-r.ok{border-left-color:var(--ok)}.ad-r.gold{border-left-color:var(--gold)}
+.ad-n{min-width:0}.ad-n b{font-weight:600;display:block}.ad-r .a{color:var(--faint);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}.ad-c{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ad-c .a{display:inline}.ad-c b{font-weight:600}.ad-c .l{display:none}.ad-s{justify-self:end}
+.watch{margin-top:6px}.wl{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-top:1px solid var(--edge)}.wl .dot{margin-top:6px}.wl div{flex:1;min-width:0}.wl b{font-weight:600}.wl .sub{margin:2px 0 0}
+.fine{border-top:1px solid var(--edge)}.fine summary{display:flex;align-items:center;gap:10px;padding:9px 0;color:var(--dim);cursor:pointer;list-style:none}.fine summary::-webkit-details-marker{display:none}.fine summary::after{content:"▾";margin-left:auto;color:var(--faint)}.fine[open] summary::after{content:"▴"}.fine .wl{padding-left:18px}
+.rangebar{position:sticky;top:env(safe-area-inset-top);z-index:8;display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 -8px 14px;padding:8px;border-radius:12px;background:rgb(11 12 16/.88);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}.rangebar .lab{margin-right:auto;color:var(--dim);font-size:12px;font-variant-numeric:tabular-nums}
+.custom{display:flex;align-items:center;gap:6px;color:var(--faint);font-size:12px}.custom input{height:30px;padding:0 8px;border:1px solid var(--edge);border-radius:8px;background:var(--stone-2);color:var(--parchment);font:12px var(--sans);color-scheme:dark}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:12px}.tile{padding:12px 14px;display:flex;flex-direction:column;min-width:0}.tile .k{color:var(--dim);font-size:12px;font-weight:500}.tile .v{font:600 22px/1.2 var(--sans);margin-top:4px;font-variant-numeric:tabular-nums}.tile .d{font-size:12px;color:var(--faint);margin-top:2px;line-height:1.35}.tile .d b{font-weight:600}.up{color:var(--ok)}.down{color:var(--blood)}.tile .split{height:8px;margin:9px 0 5px}
+.ctl{display:flex;align-items:flex-start;justify-content:space-between;gap:8px 12px;flex-wrap:wrap}.ctl-r{display:flex;gap:8px;flex-wrap:wrap}
+.chiprow{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}.chiprow .chip{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;flex:none}.chiprow .chip i{width:8px;height:8px;border-radius:2px}.chiprow .chip.off{opacity:.4}.chiprow .chip.on{border-color:var(--edge)}.chiprow .chip.all{color:var(--faint)}
+table.lb{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px;table-layout:auto}.lb th{color:var(--faint);font-weight:500;font-size:11px;text-align:right;padding:6px 8px;white-space:nowrap;user-select:none}.lb th[data-sort]{cursor:pointer}.lb th[data-sort]:hover{color:var(--dim)}.lb th:first-child{text-align:left;padding-left:0}.lb th.on{color:var(--gold)}
+.lb td{padding:8px;border-top:1px solid rgb(255 255 255/.045);vertical-align:middle}.lb td:first-child{padding-left:0}.lb .n{font-weight:600;white-space:nowrap;max-width:0;width:34%;overflow:hidden;text-overflow:ellipsis}.lb .n i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:8px}.lb .ver{margin-left:8px;color:var(--faint);font-weight:400;font-size:11px}
+.lb .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.lb .num b{font-weight:600}.lb .dl{display:block;font-size:11px;color:var(--faint)}.lb .tot{color:var(--dim)}.lb td.sp{width:76px;padding-top:4px;padding-bottom:4px}.lb td.sp svg{display:block}.lb td.st{width:150px}.lb .st .split-l{font-size:10px;gap:6px}.lb tr.cut{display:none}
+.rel-t{margin-top:4px}.rel-t td{padding:7px 8px}.rel-t .n{width:auto;max-width:none}
+.moves{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:10px;font-size:12px;color:var(--dim)}.moves b{color:var(--parchment);font-weight:500}
 .rel{padding:10px 0;border-top:1px solid rgb(255 255 255/.045)}.rel:first-of-type{border-top:0}.rel-h{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}.rel-h b{font-weight:600}.rel-h .sub{margin:0}
 .notif{display:flex;align-items:center;gap:14px;padding:16px 18px}
 .tools{display:flex;align-items:center;gap:6px}.refresh{width:36px;padding:0;height:36px}.refresh.busy .ic,.pull.busy .ic{animation:spin .8s linear infinite}
@@ -293,16 +305,20 @@ body.dl-u [data-mode=all],body:not(.dl-u) [data-mode=unique]{display:none!import
 .pull.held{transition:opacity .15s}.pull.ready{color:var(--gold);border-color:var(--edge-gold)}.pull .ic{width:18px;height:18px}
 @keyframes spin{to{transform:rotate(360deg)}}.notif .grow{flex:1;min-width:0}.notif p{margin:2px 0 0;color:var(--dim);font-size:13px}
 
-@media (max-width:1000px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:1000px){.kpis,.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:760px){
   .side{display:none}main{margin:0;padding:14px 12px calc(84px + env(safe-area-inset-bottom));padding-top:calc(14px + env(safe-area-inset-top))}
   .top h1{font-size:21px}.top .brandm{display:flex;align-items:center;gap:10px}.top .brandm img{width:32px;height:32px;border-radius:8px}
   .hero{padding:14px}.hero .raven,.hero .raven img{width:46px;height:46px}.hero h2{font-size:17px}
   .kpis{gap:10px}.kpi{padding:12px 12px 8px}.kpi .v{font-size:22px}
   .chart{height:190px}.card{padding:14px}
-  .row{grid-template-columns:minmax(0,1fr) auto;gap:4px 12px}.row .sp{grid-column:1/-1}.row .wk{grid-column:2;grid-row:1;display:none}
+  .tiles{gap:10px}.tile{padding:10px 12px}.tile .v{font-size:19px}
+  .rangebar{margin:0 -4px 12px;padding:6px 4px}.rangebar .lab{display:none}.rangebar .seg{flex:1;justify-content:space-between}.rangebar .seg button{padding:5px 7px}.custom{width:100%}.custom input{flex:1;min-width:0}
+  .chiprow{flex-wrap:nowrap;overflow-x:auto;margin-right:-14px;padding-right:14px;scrollbar-width:none}.chiprow::-webkit-scrollbar{display:none}
+  .lb .pp,.lb .tot,.lb .st,.lb .ver{display:none}.lb .n{width:auto}
+  .ad-r{position:relative;grid-template-columns:minmax(0,1fr) minmax(0,1fr);padding-left:8px;gap:2px 10px}.ad-n{grid-column:1/-1}.ad-r.ok .ad-n,.ad-r.gold .ad-n{padding-right:120px}.ad-c .l{display:block;color:var(--faint);font-size:10px;text-transform:uppercase;letter-spacing:.04em}.ad-s{position:absolute;right:0;top:9px}
   .tabs{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:10;justify-content:space-around;padding:6px 6px calc(6px + env(safe-area-inset-bottom));background:rgb(18 19 25/.92);backdrop-filter:blur(10px);border-top:1px solid var(--edge)}
-  .tabs a{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:var(--faint);padding:4px 8px;border-radius:8px;min-width:56px}.tabs a .ic{width:20px;height:20px}.tabs a.on{color:var(--gold)}
+  .tabs a{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:var(--faint);padding:4px 2px;border-radius:8px;min-width:52px;flex:1}.tabs a .ic{width:20px;height:20px}.tabs a.on{color:var(--gold)}
 }
 @media (min-width:761px){.top .brandm img{display:none}}
 @media (prefers-reduced-motion:reduce){.pulse{animation:none}html{scroll-behavior:auto}}
@@ -376,77 +392,83 @@ function feed(list: Event[], resolved: Record<string, Resolution> = {}): string 
   if (!list.length) return `<p class="empty">Nothing yet. The data jobs report here each morning, then the digest.</p>`;
   const rows = list
     .slice(0, 60)
-    .map((e, i) => {
+    .map((e) => {
       const k = KIND[e.kind];
       const done = (e.kind === "failed" || e.kind === "waiting") && e.url ? resolved[e.url] : undefined;
-      return `<li data-group="${k.group}" data-at="${esc(e.at)}"${done ? ' class="done"' : ""}${i >= 8 ? " hidden data-more" : ""}><span class="i ${e.kind}">${icon(k.icon)}</span><div class="c">
+      return `<li data-group="${k.group}" data-at="${esc(e.at)}"${done ? ' class="done"' : ""}><span class="i ${e.kind}">${icon(k.icon)}</span><div class="c">
 <div class="t"><b>${esc(e.title)}</b><time datetime="${esc(e.at)}" title="${esc(e.at.slice(0, 16).replace("T", " "))} UTC">${ago(e.at)}</time></div>
 ${e.body ? `<div class="b">${esc(e.body)}</div>` : ""}
 <div class="m">${done ? `<span class="tag ok" title="${esc(done.at.slice(0, 16).replace("T", " "))} UTC">${SETTLED[done.how]} ${ago(done.at)}</span>` : ""}${e.repo ? `<span class="tag">${esc(cap(REPO_NAMES[e.repo] ?? e.repo))}</span>` : ""}${e.url ? `<a href="${esc(e.url)}" target="_blank" rel="noopener">${e.url.includes("/pull/") ? "Pull request" : e.url.includes("/actions/") ? "The run" : e.url.includes("curseforge.com") ? "Answer on CurseForge" : "Open"} ↗</a>` : ""}</div>
 </div></li>`;
     })
     .join("");
-  return `<ul class="feed">${rows}</ul>${list.length > 8 ? `<button class="more" id="feed-more">Show ${Math.min(list.length, 60) - 8} more</button>` : ""}`;
+  // (five rows shown, the rest a scroll away: the page measures the fifth)
+  return `<div class="scroll" id="feed-scroll"><ul class="feed">${rows}</ul></div>`;
 }
 
-/** Each addon's standing on CurseForge: its rank (and how far it moved in 7 days), favorites, thumbs up. */
-function popularity(h: History): string {
+/** Under the rank chart: where each addon stands now and how far it moved in 7 days, the favorites and thumbs up in all. */
+function rankMoves(h: History): string {
   const days = Object.keys(h.days).filter((d) => h.days[d]?.curseforge).sort();
-  if (!days.length) return `<p class="empty" style="padding:12px 0 0">The daily numbers fill this in, once CurseForge's key is set.</p>`;
+  if (!days.length) return `<p class="sub" style="margin-top:10px">The daily numbers fill this in, once CurseForge's key is set.</p>`;
   const last = days[days.length - 1];
   const cut = new Date(Date.parse(last) - 7 * DAY).toISOString().slice(0, 10);
   const base = [...days].reverse().find((d) => d <= cut) ?? (days.length > 1 ? days[0] : undefined);
   const now = h.days[last].curseforge!;
   const was = base ? h.days[base].curseforge! : {};
-  const rows = Object.entries(now)
-    .filter(([, s]) => s.rank)
-    .sort((a, b) => a[1].rank! - b[1].rank!)
+  const list = Object.entries(now).filter(([, s]) => s.rank).sort((a, b) => a[1].rank! - b[1].rank!);
+  const moves = list
     .map(([name, s]) => {
       const moved = was[name]?.rank ? was[name].rank! - s.rank! : null;
-      const change = moved === null || moved === 0 ? `<span class="wk">–</span>` : `<span class="wk" style="color:${moved > 0 ? "var(--ok)" : "var(--blood)"}">${moved > 0 ? "▲" : "▼"} ${fmt(Math.abs(moved))}</span>`;
-      return `<div class="bar-r" style="grid-template-columns:minmax(0,1fr) 70px 64px 70px"><span style="color:var(--parchment)">${esc(name)}</span><b>#${fmt(s.rank)}</b>${change}<span style="text-align:right">♥ ${fmt(s.favorites ?? 0)} · 👍 ${fmt(s.likes ?? 0)}</span></div>`;
+      const m = moved ? ` <span style="color:${moved > 0 ? "var(--ok)" : "var(--blood)"}">${moved > 0 ? "▲" : "▼"} ${fmt(Math.abs(moved))}</span>` : "";
+      return `<span class="mv"><b>${esc(name)}</b> #${fmt(s.rank)}${m}</span>`;
     })
     .join("");
-  return `<div class="bars">${rows}</div><p class="sub" style="margin-top:10px">${base ? `Moves since ${short(base)}; a smaller rank is better.` : "Moves show from tomorrow; a smaller rank is better."}</p>`;
+  const fav = list.reduce((t, [, s]) => t + (s.favorites ?? 0), 0);
+  const likes = list.reduce((t, [, s]) => t + (s.likes ?? 0), 0);
+  return `<div class="moves">${moves}</div><p class="sub" style="margin-top:8px">${base ? `Moves since ${short(base)}` : "Moves show from tomorrow"} · ♥ ${fmt(fav)} favorites · 👍 ${fmt(likes)} in all</p>`;
 }
 
-/** Each addon's downloads by release: the newest gold, the older ones fading. */
-function releasesCard(releases: Record<string, Release[]>): string {
-  const list = Object.entries(releases).filter(([, r]) => r.length);
-  if (!list.length) return `<p class="empty" style="padding:12px 0 0">The first look at CurseForge fills this in.</p>`;
-  list.sort((a, b) => b[1].reduce((t, r) => t + r.downloads, 0) - a[1].reduce((t, r) => t + r.downloads, 0));
-  const fade = ["#f2c14e", "rgb(242 193 78/.6)", "rgb(242 193 78/.42)", "rgb(242 193 78/.3)", "rgb(242 193 78/.2)"];
-  return list
+/** Each addon's newest CurseForge release: how long it's been live, its downloads, and a day (the fastest first). */
+function releasesVelocity(releases: Record<string, Release[]>, now = Date.now()): string {
+  const list = Object.entries(releases)
+    .filter(([, r]) => r.length)
     .map(([name, rs]) => {
-      const top = rs.slice(0, 5);
-      const rest = rs.slice(5).reduce((t, r) => t + r.downloads, 0);
-      const sumAll = top.reduce((t, r) => t + r.downloads, 0) + rest || 1;
-      const latest = rs[0];
-      return `<div class="rel"><div class="rel-h"><b>${esc(name)}</b><span class="tag gold">${esc(latest.version)}</span><span class="sub">live ${ago(latest.at)} · ${fmt(latest.downloads)} downloads</span></div>
-<span class="split">${top.map((r, i) => `<i title="${esc(r.version)}: ${fmt(r.downloads)}" style="width:${(100 * r.downloads) / sumAll}%;background:${fade[i]}"></i>`).join("")}${rest ? `<i title="older: ${fmt(rest)}" style="width:${(100 * rest) / sumAll}%;background:var(--edge)"></i>` : ""}</span>
-<span class="split-l">${top.map((r) => `<span>${esc(r.version)} ${fmt(r.downloads)}</span>`).join("")}${rest ? `<span>older ${fmt(rest)}</span>` : ""}</span></div>`;
+      const r = rs[0];
+      const live = Math.max(0, (now - Date.parse(r.at)) / DAY);
+      return { name, r, live, rate: r.downloads / Math.max(1, live) };
     })
-    .join("");
+    .sort((a, b) => b.rate - a.rate);
+  if (!list.length) return `<p class="empty" style="padding:12px 0 0">The first look at CurseForge fills this in.</p>`;
+  const lived = (d: number) => (d < 1 ? `${Math.max(1, Math.round(d * 24))} h live` : `${Math.round(d)} d live`);
+  return `<table class="lb rel-t"><tbody>${list
+    .map(
+      ({ name, r, live, rate }) =>
+        `<tr><td class="n"><span class="nm">${esc(name)}</span><span class="ver">${esc(r.version)}</span></td><td class="num">${fmt(r.downloads)}<span class="dl">${lived(live)}</span></td><td class="num"><b>${fmt(Math.round(rate))}</b><span class="dl">a day</span></td></tr>`,
+    )
+    .join("")}</tbody></table>`;
 }
 
 /** Each addon's standing across the stores and the data jobs, and what the launch watch sees right now: read only. */
 export function addonsSection(h: History, td: Today | null, gh: Record<string, GitHubRelease>, cf: Record<string, Release[]>, events: Event[], now = Date.now()): string {
   const watch = checks(h, td, gh, cf, new Date(now));
   const dot = (l: string) => (l === "warn" ? "blood" : l === "good" || l === "note" ? "gold" : "ok");
-  const watchRows = watch.map((c) => `<div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-top:1px solid var(--edge)"><span class="dot ${dot(c.level)}" style="margin-top:5px"></span><div style="flex:1;min-width:0;text-align:left"><b>${esc(c.title)}</b><p class="sub" style="margin:2px 0 0">${esc(c.line)}</p></div></div>`).join("");
+  const line = (c: (typeof watch)[number]) => `<div class="wl"><span class="dot ${dot(c.level)}"></span><div><b>${esc(c.title)}</b><p class="sub">${esc(c.line)}</p></div></div>`;
+  // (what needs a look in full, the checks that are fine folded into one line)
+  const loud = watch.filter((c) => c.level !== "ok");
+  const fine = watch.filter((c) => c.level === "ok");
+  const watchRows = `${loud.map(line).join("")}${fine.length ? `<details class="fine"><summary><span class="dot ok"></span>${fine.length === 1 ? "1 check fine" : `${fine.length} checks fine`}</summary>${fine.map(line).join("")}</details>` : ""}`;
   const rows = ADDONS.map(([name, , , , repo]) => {
     const g = gh[name], c = cf[name]?.[0];
     const job = events.find((e) => e.repo === repo && (e.kind === "merged" || e.kind === "failed" || e.kind === "waiting"));
     const b = behind(g, cf[name], now);
-    const status = b ? `<span class="tag gold">${b.hours >= DRIFT_HOURS ? "Not on CurseForge" : "CurseForge"} · ${b.hours} h</span>` : g && c ? `<span class="tag ok">In step</span>` : `<span class="tag">–</span>`;
+    const status = b ? `<span class="tag gold">${b.hours >= DRIFT_HOURS ? "Not on CurseForge" : "CurseForge"} · ${b.hours} h</span>` : g && c ? `<span class="tag ok">In step</span>` : "";
     const tone = b ? "gold" : g && c ? "ok" : "";
-    const cfv = c ? `<b>${esc(c.version)}</b><span class="a">${ago(c.at, now)}</span>` : cf[name] || !ADDONS.find((a) => a[4] === repo)?.[1] ? "–" : `<span class="a" style="margin:0">not read yet</span>`;
-    return `<div class="ad ${tone}"><div class="ad-h"><b>${esc(name)}</b>${status}</div>
-<div class="ad-v"><span class="l">GitHub</span><span>${g ? `<a href="${esc(g.url)}" rel="noopener"><b>${esc(g.tag)}</b></a><span class="a">${ago(g.at, now)}</span>` : "–"}</span><span class="l">CurseForge</span><span>${cfv}</span></div>
-${job ? `<div class="ad-j">${esc(job.title)}, ${ago(job.at, now)}</div>` : ""}</div>`;
+    const cfv = c ? `<b>${esc(c.version)}</b> <span class="a">${ago(c.at, now)}</span>` : cf[name] || !ADDONS.find((a) => a[4] === repo)?.[1] ? "–" : `<span class="a">not read yet</span>`;
+    const ghv = g ? `<a href="${esc(g.url)}" rel="noopener"><b>${esc(g.tag)}</b></a> <span class="a">${ago(g.at, now)}</span>` : "–";
+    return `<div class="ad-r ${tone}"><div class="ad-n"><b>${esc(name)}</b>${job ? `<span class="a">${esc(job.title)}, ${ago(job.at, now)}</span>` : ""}</div><div class="ad-c"><span class="l">GitHub</span>${ghv}</div><div class="ad-c"><span class="l">CurseForge</span>${cfv}</div><div class="ad-s">${status}</div></div>`;
   }).join("");
-  return `<div class="panel card"><h3>Launch watch</h3><p class="sub">Checked every ten minutes. A warning is told to your devices once a day.</p><div style="margin-top:6px">${watchRows}</div></div>
-<div class="panel card" style="margin-top:12px"><h3>The addons</h3><p class="sub">Each one's newest release on GitHub and CurseForge, and its last data job</p><div class="ad-grid">${rows}</div></div>`;
+  return `<div class="panel card"><h3>Launch watch</h3><p class="sub">Checked every ten minutes. A warning is told to your devices once a day.</p><div class="watch">${watchRows}</div></div>
+<div class="panel card" style="margin-top:12px"><h3>The addons</h3><p class="sub">Each one's newest release on GitHub and CurseForge, and its last data job</p><div class="ad-t">${rows}</div></div>`;
 }
 
 /** Different Ravenpost installs over 7 and 30 days and since counting began, to a day: each counted once, however many days it ran. */
@@ -559,17 +581,28 @@ export function dashboard(
   };
   const CH = { curseforge: ["CurseForge", "#f16436"], wago: ["Wago", "#f2c14e"], github: ["GitHub", "#a39b88"] } as const;
   const listed = [...s.downloads.addons, ...ADDONS.map((a) => a[0]).filter((n) => !s.downloads.addons.includes(n))];
+  const releases = opts.releases ?? {};
+  const version = (a: string) => releases[a]?.[0]?.version ?? opts.github?.[a]?.tag.replace(/^v/, "");
+  // (the leaderboard: what doesn't move with the range here, the range's columns filled in by the page)
   const rows = listed
     .map((a, k) => {
       const c = s.downloads.channels[a] ?? {};
       const t = s.downloads.totals[a] ?? 0;
+      const counted = a in s.downloads.totals;
       const parts = (Object.keys(CH) as (keyof typeof CH)[]).filter((x) => c[x]);
-      return `<div class="row"><span class="n"><i class="dotc" style="display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:8px;background:${a in s.downloads.totals ? `var(--c${k % 10})` : "var(--edge)"}"></i>${esc(a)}</span>
-<span class="tot">${a in s.downloads.totals ? fmt(t) : "–"}</span>
-<span class="sp"><span class="split">${parts.map((x) => `<i style="width:${(100 * (c[x] ?? 0)) / (t || 1)}%;background:${CH[x][1]}"></i>`).join("")}</span><span class="split-l">${parts.map((x) => `<span>${CH[x][0]} ${fmt(c[x])}</span>`).join("")}</span></span>
-<span class="wk" data-mode="all">${s.downloads.week[a] == null ? "–" : `<b>${signed(s.downloads.week[a]!)}</b> 7 d`}</span><span class="wk" data-mode="unique"${opts.unique?.periods["7"]?.[a] ? ` title="${fmt(opts.unique.periods["7"][a].unique)} different people in 7 days, CurseForge's count">` : ">"}${opts.unique?.periods["7"]?.[a] ? `<b>${fmt(opts.unique.periods["7"][a].unique)}</b> 7 d` : "–"}</span></div>`;
+      const v = version(a);
+      return `<tr data-a="${esc(a)}" data-all="${counted ? t : -1}"><td class="n"><i style="background:${counted ? `var(--c${k % 10})` : "var(--edge)"}"></i><span class="nm">${esc(a)}</span>${v ? `<span class="ver">${esc(v)}</span>` : ""}</td>
+<td class="num rg">–</td><td class="num pp">–</td><td class="sp"></td><td class="num tot">${counted ? fmt(t) : "–"}</td>
+<td class="st"><span class="split">${parts.map((x) => `<i style="width:${(100 * (c[x] ?? 0)) / (t || 1)}%;background:${CH[x][1]}"></i>`).join("")}</span><span class="split-l">${parts.map((x) => `<span>${CH[x][0]} ${fmt(c[x])}</span>`).join("")}</span></td></tr>`;
     })
     .join("");
+  // (the releases on the chart: CurseForge's for the addons, GitHub's newest for Ravenpost)
+  const marks = [
+    ...Object.entries(releases).flatMap(([a, rs]) => rs.map((r) => ({ day: r.at.slice(0, 10), text: `${a} ${r.version}` }))),
+    ...Object.entries(opts.github ?? {})
+      .filter(([a]) => !ADDONS.find((x) => x[0] === a)?.[1])
+      .map(([a, g]) => ({ day: g.at.slice(0, 10), text: `${a} ${g.tag.replace(/^v/, "")}` })),
+  ].filter((m) => s.days.includes(m.day));
   const kpi = (id: string, ic: string, label: string, value: string, line: string) =>
     `<div class="panel kpi"><span class="k">${icon(ic)}${esc(label)}</span><span class="v">${value}</span><span class="d">${line}</span><div class="spark" id="${id}"></div></div>`;
   const NAV = [
@@ -582,7 +615,7 @@ export function dashboard(
     ["comments", "comment", "Comments"],
     ["notifications", "bell", "Notifications"],
   ];
-  const PHONE = ["overview", "activity", "downloads", "players", "comments"];
+  const PHONE = ["overview", "activity", "downloads", "addons", "players", "comments"];
   const hourly = hourlyOf(opts.readings ?? []);
   const downloadsChecked = [...(opts.readings ?? [])].map(([at]) => at).sort().at(-1);
   const threads = opts.threads ?? [];
@@ -593,7 +626,14 @@ export function dashboard(
     visitors,
     labels: s.days.map(short),
     since: s.downloads.since.map((d) => (d ? short(d) : null)),
+    periods: opts.unique?.periods ?? {},
+    marks,
+    stores: Object.entries(CH).map(([k, [name, color]]) => ({ key: k, name, color })),
   };
+  const firstCounted = s.downloads.early.indexOf(false);
+  const RANGES: [string, string][] = [["24h", "24 h"], ["7", "7 d"], ["30", "30 d"], ["90", "90 d"], ["0", "All"], ["c", "Custom"]];
+  const tile = (id: string, label: string) => `<div class="panel tile" id="${id}"><span class="k">${label}</span><span class="v">–</span><span class="d">&nbsp;</span></div>`;
+  const dailyNote = `<p class="sub daily-note" hidden>Daily numbers: the last 7 days shown.</p>`;
   return `${head("Ravenpost")}<body>
 <aside class="side"><div class="brand"><img src="/icon-192.png" alt=""><div><p class="title">Ravenpost</p><small>The inbox</small></div></div>
 <nav class="nav">${NAV.map(([id, ic, label]) => `<a href="#${id}" data-nav="${id}">${icon(ic)}<span style="flex:1">${label}</span>${id === "comments" ? `<span id="nav-answer">${toAnswer ? `<span class="tag gold" style="height:18px">${toAnswer}</span>` : ""}</span>` : ""}</a>`).join("")}</nav>
@@ -601,13 +641,15 @@ export function dashboard(
 <nav class="tabs">${NAV.filter(([id]) => PHONE.includes(id)).map(([id, ic, label]) => `<a href="#${id}" data-nav="${id}">${icon(ic)}${label}</a>`).join("")}</nav>
 <main>
 <div class="top" id="overview"><div class="brandm"><img src="/icon-192.png" alt=""><div><h1 class="title">Overview</h1><p><span id="to-day">${lastDay ? `To ${short(lastDay)}` : "No numbers yet"}</span><span id="fresh"></span></p></div></div>
-<div class="tools"><div class="seg" role="group" aria-label="Range"><button data-range="30" class="on">30 d</button><button data-range="90">90 d</button><button data-range="0">All</button></div><button class="btn btn-ghost refresh" id="refresh" aria-label="Refresh" title="Refresh">${icon("refresh")}</button></div></div>
+<div class="tools"><button class="btn btn-ghost refresh" id="refresh" aria-label="Refresh" title="Refresh">${icon("refresh")}</button></div></div>
 <div class="pull" id="pull" aria-hidden="true">${icon("refresh")}</div>
+<div class="rangebar" id="rangebar"><span class="lab" id="range-label"></span><div class="seg" role="group" aria-label="Range">${RANGES.map(([k, l]) => `<button data-range="${k}">${l}</button>`).join("")}</div>
+<div class="custom" id="custom" hidden><input type="date" id="from" aria-label="From" min="${s.days[0] ?? ""}" max="${lastDay ?? ""}"><span>to</span><input type="date" id="to" aria-label="To" min="${s.days[0] ?? ""}" max="${lastDay ?? ""}"></div></div>
 
 <div class="panel hero" id="hero"><div class="raven"><img src="/icon-192.png" alt=""><span class="badge ${st.tone}">${icon(st.icon)}</span></div><div class="grow"><h2 class="title">${esc(st.title)}</h2><p>${esc(st.line)}</p></div></div>
 
 <div class="kpis">
-${kpi("k-dl", "download", "Downloads", fmt(total), [hourly.today !== null ? `<b>+${fmt(hourly.today)}</b> today` : "", week !== null ? `${signed(week)} in 7 days` : ""].filter(Boolean).join(" · ") || "every addon, every store")}
+${kpi("k-dl", "download", "Downloads", fmt(total), [hourly.today !== null ? `<b>+${fmt(hourly.today)}</b> today` : "", `<span id="k-dl-r">${week !== null ? `${signed(week)} in 7 days` : ""}</span>`].filter(Boolean).join(" · ") || "every addon, every store")}
 ${kpi("k-in", "users", "Ravenpost in use", fmt(rp?.installs), ["yesterday", td ? `<b>${fmt(td.installs)}</b> today so far` : ""].filter(Boolean).join(" · "))}
 ${kpi("k-fa", "send", "Facts shared", fmt(sh?.facts), ["yesterday", td ? `<b>${fmt(td.facts)}</b> today so far` : ""].filter(Boolean).join(" · "))}
 ${kpi("k-vi", "globe", "Site visitors", fmt(lastOf(visitors)), [Object.keys(s.sites).length ? Object.keys(s.sites).join(" · ") : "Web Analytics", visitorsToday !== null ? `<b>${fmt(visitorsToday)}</b> today so far` : ""].filter(Boolean).join(" · "))}
@@ -624,36 +666,36 @@ ${kpi("k-vi", "globe", "Site visitors", fmt(lastOf(visitors)), [Object.keys(s.si
     .join("")}</div></div>
 <div class="panel" id="feed">${feed(events, resolved)}</div></section>
 
-<section id="downloads"><div class="sh"><h2 class="title">Downloads</h2><div class="seg" role="group" aria-label="Count"><button data-dl="all" class="on">All</button><button data-dl="unique">Unique</button></div></div>
-<div class="panel card"><h3 data-mode="all">New downloads a day, by addon</h3><h3 data-mode="unique">Different people a day, by addon</h3>
-<p class="sub" data-mode="all">Download events on every store: one player downloading twice counts twice.</p>
+<section id="downloads"><div class="sh"><h2 class="title">Downloads</h2><p id="dl-span"></p></div>
+<div class="tiles">${tile("t-dl", "Downloads")}${tile("t-pp", "Different people")}${tile("t-best", "Best day")}${tile("t-st", "Stores")}</div>
+<div class="panel card"><div class="ctl"><div><h3 data-mode="all">New downloads</h3><h3 data-mode="unique">Different people a day</h3></div>
+<div class="ctl-r"><div class="seg" role="group" aria-label="Count"><button data-dl="all" class="on">All</button><button data-dl="unique">Unique</button></div><div class="seg" role="group" aria-label="View" data-mode="all"><button data-view="addon" class="on">By addon</button><button data-view="store">By store</button><button data-view="lines">Lines</button></div></div></div>
+<p class="sub" data-mode="all" id="dl-note">Download events on every store: one player downloading twice counts twice.${firstCounted > 0 ? ` Before ${short(s.days[firstCounted])}, CurseForge's own daily count alone (paler): Wago and GitHub keep only totals.` : ""}${marks.length ? " Gold marks: releases." : ""}</p>
 <p class="sub" data-mode="unique" id="unique-through">${s.days.some((d) => h.days[d]?.unique) ? `CurseForge's own count, to ${short(s.days.filter((d) => h.days[d]?.unique).at(-1)!)}: Wago and GitHub don't count people${opts.unique?.at ? `, brought ${ago(opts.unique.at)}` : ""}.` : "CurseForge's own count, not brought yet (CURSEFORGE_COOKIE on Vercel, read hourly)."}</p>
-<div class="chart" id="c-dl"></div><div class="legend" id="l-dl"></div>
-<div class="rows" id="download-rows" style="margin-top:14px">${rows || `<p class="empty">Nothing yet.</p>`}</div>
-<p class="sub" id="downloads-checked" style="margin-top:10px">Download events, not players: Unique counts people. CurseForge and Wago are read every ten minutes, GitHub every hour${downloadsChecked ? `, last ${esc(downloadsChecked.slice(0, 10))} at ${esc(downloadsChecked.slice(11, 16))} UTC` : ""}.</p></div>
+<div class="chart" id="c-dl"></div><div class="chiprow" id="chips-dl" role="group" aria-label="Addons"></div>
+<table class="lb" id="download-rows"><thead><tr><th data-sort="name">Addon</th><th data-sort="range" id="lb-range">In range</th><th data-sort="people" class="pp">People</th><th class="sp">Trend</th><th data-sort="all" class="tot">All time</th><th class="st">Stores</th></tr></thead><tbody>${rows}</tbody></table>
+<button class="more" id="lb-more" hidden></button>
+<p class="sub" id="downloads-checked" style="margin-top:10px">Download events, not players: People is CurseForge's count over 7, 30 or 90 days, each addon's own. CurseForge and Wago are read every ten minutes, GitHub every hour${downloadsChecked ? `, last ${esc(downloadsChecked.slice(0, 10))} at ${esc(downloadsChecked.slice(11, 16))} UTC` : ""}.</p></div>
 <div class="grid2" style="margin-top:12px;align-items:start">
-<div style="display:flex;flex-direction:column;gap:12px;min-width:0">
-<div class="panel card"><h3>The last 48 hours</h3><p class="sub">New CurseForge downloads an hour, read every ten minutes</p><div class="chart" id="c-hr" style="height:170px"></div></div>
-<div class="panel card" id="download-popularity"><h3>Popularity on CurseForge</h3><p class="sub">Each addon's rank among every WoW addon, its favorites and thumbs up</p>${popularity(h)}</div>
-</div>
-<div class="panel card" id="download-releases"><h3>By release</h3><p class="sub">Each version's CurseForge downloads, the newest first</p>${releasesCard(opts.releases ?? {})}</div>
+<div class="panel card" id="download-popularity"><h3>Rank on CurseForge</h3><p class="sub">Among every WoW addon, by popularity: higher is better</p>${dailyNote}<div class="chart" id="c-rk" style="height:180px"></div>${rankMoves(h)}</div>
+<div class="panel card" id="download-releases"><h3>Newest releases</h3><p class="sub">Each addon's newest on CurseForge: its downloads since it went live, and a day</p>${releasesVelocity(releases, opts.now)}</div>
 </div></section>
 
 <section id="addons"><div class="sh"><h2 class="title">Addons</h2><p>The launch watch and the stores</p></div>
-<div id="addons-body">${addonsSection(h, td, opts.github ?? {}, opts.releases ?? {}, events, opts.now)}</div></section>
+<div id="addons-body">${addonsSection(h, td, opts.github ?? {}, releases, events, opts.now)}</div></section>
 
 <section id="players"><div class="sh"><h2 class="title">Players</h2><p>Ravenpost and the shared facts</p></div>
 <div class="grid2">
-<div class="panel card"><h3>Ravenpost in use</h3><p class="sub">The installs running that day, one anonymous ping each (0.4.0 and later: earlier releases never ping)</p><div class="chart" id="c-in" style="height:170px"></div>
+<div class="panel card"><h3>Ravenpost in use</h3><p class="sub">The installs running that day, one anonymous ping each (0.4.0 and later: earlier releases never ping), and the different ones over 7 days</p>${dailyNote}<div class="chart" id="c-in" style="height:170px"></div><div class="legend" id="l-in"></div>
 ${installsCard(distinct, distinctTo)}
 <div class="grid2" style="gap:14px;margin-top:14px"><div><p class="sub">Versions</p>${shares(rp?.versions, "–")}</div><div><p class="sub">Systems</p>${shares(rp?.os, "–")}</div></div>
 <p class="sub" style="margin-top:12px">Linked</p>${shares(rp?.linked, "None yet.")}</div>
-<div class="panel card"><h3>Facts shared</h3><p class="sub">A day, and the ones new to the database</p><div class="chart" id="c-fa" style="height:170px"></div><div class="legend" id="l-fa"></div>
+<div class="panel card"><h3>Facts shared</h3><p class="sub">A day, and the ones new to the database</p>${dailyNote}<div class="chart" id="c-fa" style="height:170px"></div><div class="legend" id="l-fa"></div>
 <div class="grid2" style="gap:14px;margin-top:6px"><div><p class="sub">Games</p>${shares(sh?.games, "–")}</div><div><p class="sub">Languages</p>${shares(sh?.locales, "–")}</div></div></div>
 </div></section>
 
-<section id="sites"><div class="sh"><h2 class="title">Sites</h2><p>Visitors a day</p></div>
-<div class="panel card">${Object.keys(s.sites).length ? `<div class="chart" id="c-vi"></div><div class="legend" id="l-vi"></div>` : `<p class="empty" style="padding:4px 0">No traffic numbers yet. Web Analytics feeds them once its token is set.</p>`}</div></section>
+<section id="sites"><div class="sh"><h2 class="title">Sites</h2>${Object.keys(s.sites).length ? `<div class="seg" role="group" aria-label="Count"><button data-site="visitors" class="on">Visitors</button><button data-site="pageviews">Page views</button></div>` : "<p>Visitors a day</p>"}</div>
+<div class="panel card">${Object.keys(s.sites).length ? `${dailyNote}<div class="chart" id="c-vi"></div><div class="legend" id="l-vi"></div>` : `<p class="empty" style="padding:4px 0">No traffic numbers yet. Web Analytics feeds them once its token is set.</p>`}</div></section>
 
 <section id="comments"><div class="sh"><h2 class="title">Comments</h2><div class="chips" role="group" aria-label="Show">${[
     ["open", `To answer${toAnswer ? ` (${toAnswer})` : ""}`],
@@ -661,7 +703,7 @@ ${installsCard(distinct, distinctTo)}
   ]
     .map(([k, l], i) => `<button class="chip${(toAnswer ? i === 0 : i === 1) ? " on" : ""}" data-threads="${k}">${l}</button>`)
     .join("")}</div></div>
-<div class="panel" id="threads">${threadsList(threads)}<p class="empty" id="no-open" hidden>Nothing to answer: every comment has your reply.</p></div></section>
+<div class="panel" id="threads"><div class="scroll" id="threads-scroll">${threadsList(threads)}</div><p class="empty" id="no-open" hidden>Nothing to answer: every comment has your reply.</p></div></section>
 
 <section id="notifications"><div class="sh"><h2 class="title">Notifications</h2><p id="notif-count">${opts.devices ? `${fmt(opts.devices)} device${opts.devices === 1 ? "" : "s"} told` : "No device told yet"}</p></div>
 <div class="panel notif"><div class="grow"><b>This device</b><p id="push-state">…</p></div><button class="btn btn-ghost" id="push-test" hidden>Send a test</button><button class="switch" id="push-switch" role="switch" aria-checked="false" aria-label="Notifications on this device" disabled></button></div>
@@ -687,88 +729,186 @@ const PREFS="ravenpost.dashboard.preferences";
 let prefs={};try{const saved=JSON.parse(localStorage.getItem(PREFS)||"{}");if(saved&&typeof saved==="object"&&!Array.isArray(saved))prefs=saved}catch{}
 const remember=(key,value)=>{prefs[key]=value;try{localStorage.setItem(PREFS,JSON.stringify(prefs))}catch{}};
 const hidden=(key)=>Array.isArray(prefs[key])?prefs[key].filter(x=>typeof x==="string"):[];
-let range=[0,30,90].includes(prefs.range)?prefs.range:30;
-const cut=(xs)=>range&&xs.length>range?xs.slice(-range):xs;
+// The range, the whole page's: 24 hours (the downloads hour by hour, the daily charts their last 7 days), 7, 30, 90 days, all, or two dates.
+const RANGES=["24h","7","30","90","0","c"];
+let range=String(prefs.range??"30");if(!RANGES.includes(range))range="30";
+let from=typeof prefs.from==="string"?prefs.from:null,to=typeof prefs.to==="string"?prefs.to:null;
+const hourly=()=>range==="24h";
+/** The days shown: [first, end) in D.days. */
+function span(){const n=D.days.length;
+  if(range==="24h")return [Math.max(0,n-7),n];
+  if(range==="c"&&from&&to){let a=D.days.findIndex(d=>d>=from);if(a<0)a=n;let b=n;while(b>0&&D.days[b-1]>to)b--;return [a,Math.max(a,b)]}
+  const r=+range;return r?[Math.max(0,n-r),n]:[0,n]}
+const cut=(xs)=>{const [a,b]=span();return xs.slice(a,b)};
+/** The span as long just before, or null where the numbers don't reach it. */
+function prior(){if(range==="0")return null;const [a,b]=span();const n=b-a;return n&&a-n>=0?[a-n,a]:null}
+const total=(xs)=>{let t=null;for(const v of xs)if(v!=null)t=(t||0)+v;return t};
+const rangeName=()=>({"24h":"24 h","7":"7 d","30":"30 d","90":"90 d","0":"all","c":"the range"})[range];
 // (a smooth line through the points: monotone, it never overshoots)
 function smooth(p){if(p.length<2)return "";const n=p.length,d=[],m=[];for(let i=0;i<n-1;i++)d.push((p[i+1][1]-p[i][1])/(p[i+1][0]-p[i][0]||1));m.push(d[0]);for(let i=1;i<n-1;i++)m.push(d[i-1]*d[i]<=0?0:(d[i-1]+d[i])/2);m.push(d[n-2]);
 for(let i=0;i<n-1;i++){if(d[i]===0){m[i]=m[i+1]=0;continue}const a=m[i]/d[i],b=m[i+1]/d[i],s=a*a+b*b;if(s>9){const t=3/Math.sqrt(s);m[i]=t*a*d[i];m[i+1]=t*b*d[i]}}
 let s="M"+p[0][0]+","+p[0][1];for(let i=0;i<n-1;i++){const h=(p[i+1][0]-p[i][0])/3;s+="C"+(p[i][0]+h)+","+(p[i][1]+m[i]*h)+" "+(p[i+1][0]-h)+","+(p[i+1][1]-m[i]*h)+" "+p[i+1][0]+","+p[i+1][1]}return s}
-/** A chart: "area" (lines, each with a soft fill) or "bars" (stacked), at its box's size, a value under the finger. */
-function chart(box,{type,series,labels,since,format=nf,whole}){
+/** A chart at its box's size, a value under the finger: "bars" (stacked: pale ones for the days CurseForge counted alone, lines laid over), "area" (lines with a soft fill), "lines"; inverted for a rank; the releases marked. */
+function chart(box,{type,series,labels,since,format=nf,whole,pale,marks,invert,trim,over=[]}){
   if(!box)return;box.innerHTML="";
-  const take=(xs)=>whole?xs:cut(xs);
-  const lab=take(labels),ser=series.map(s=>({...s,v:take(s.values)}));
+  // (trim: the days before the first number left out, for a part counted later than the downloads)
+  const [a0,b0]=whole?[0,labels.length]:span();
+  let off=a0;if(trim)while(off<b0&&![...series,...over].some(s=>s.values[off]!=null))off++;
+  const take=(xs)=>whole?xs:xs.slice(off,b0);
+  const lab=take(labels),ser=series.map(s=>({...s,v:take(s.values)})),ov=over.map(s=>({...s,v:take(s.values)})),pl=pale?take(pale):[];
   const n=lab.length,has=ser.some(s=>s.v.filter(v=>v!=null).length>(type==="bars"?0:1));
-  if(!n||!has){const w=document.createElement("div");w.className="wait";const one=ser.map(s=>s.v.filter(v=>v!=null).pop()).filter(v=>v!=null);w.innerHTML=(one.length?"<b style=\\"color:var(--parchment);font-size:18px\\">"+format(one.reduce((a,b)=>a+b,0))+"</b><br>":"")+"Collecting: the chart draws itself as the days come in.";box.appendChild(w);return}
-  const W=box.clientWidth,H=box.clientHeight,L=34,R=8,T=10,B=22,pw=W-L-R,ph=H-T-B;
+  if(!n||!has){const w=document.createElement("div");w.className="wait";const one=ser.map(s=>s.v.filter(v=>v!=null).pop()).filter(v=>v!=null);w.innerHTML=(one.length?"<b style=\\"color:var(--parchment);font-size:18px\\">"+format(one.reduce((a,b)=>a+b,0))+"</b><br>":"")+(n?"Collecting: the chart draws itself as the days come in.":"Nothing in this range.");box.appendChild(w);return}
+  const W=box.clientWidth,H=box.clientHeight,L=34,R=8,T=12,B=22,pw=W-L-R,ph=H-T-B;
   const tot=(i)=>ser.reduce((a,s)=>a+(s.v[i]||0),0);
-  let hi=0;for(let i=0;i<n;i++)hi=Math.max(hi,type==="bars"?tot(i):Math.max(0,...ser.map(s=>s.v[i]||0)));hi=nice(hi*1.08);
-  const x=type==="bars"?(i)=>L+(i+.5)*pw/n:(i)=>L+(n===1?pw/2:i*pw/(n-1)),y=(v)=>T+ph*(1-v/hi);
+  let hi=0,lo=Infinity;for(let i=0;i<n;i++){if(type==="bars")hi=Math.max(hi,tot(i));else for(const s of ser){const v=s.v[i];if(v!=null){hi=Math.max(hi,v);lo=Math.min(lo,v)}}for(const s of ov)if(s.v[i]!=null)hi=Math.max(hi,s.v[i])}
+  let y;if(invert){lo=Math.max(1,Math.floor(lo*.92));hi=Math.ceil(hi*1.05);if(hi<=lo)hi=lo+1;y=(v)=>T+ph*(v-lo)/(hi-lo)}else{hi=nice(hi*1.08);y=(v)=>T+ph*(1-v/hi)}
+  const x=type==="bars"?(i)=>L+(i+.5)*pw/n:(i)=>L+(n===1?pw/2:i*pw/(n-1));
   const svg=el("svg",{viewBox:"0 0 "+W+" "+H,role:"img"},box),defs=el("defs",{},svg);
   const g=el("g",{class:"grid"},svg);
-  for(const f of [0,.5,1]){const v=hi*f;el("line",{x1:L,x2:W-R,y1:y(v),y2:y(v),"stroke-dasharray":f?"3 4":""},g);const t=el("text",{x:L-8,y:y(v)+4,"text-anchor":"end"},svg);t.textContent=v>=1000?(v/1000).toLocaleString("en-GB",{maximumFractionDigits:1})+"k":nf(v)}
+  const short=(v)=>v>=1000?(v/1000).toLocaleString("en-GB",{maximumFractionDigits:1})+"k":nf(v);
+  for(const f of [0,.5,1]){const v=invert?lo+(hi-lo)*(1-f):hi*f;el("line",{x1:L,x2:W-R,y1:y(v),y2:y(v),"stroke-dasharray":f?"3 4":""},g);const t=el("text",{x:L-8,y:y(v)+4,"text-anchor":"end"},svg);t.textContent=(invert?"#":"")+short(v)}
   const ticks=Math.min(n,W<420?3:5);for(let k=0;k<ticks;k++){const i=ticks===1?0:Math.round(k*(n-1)/(ticks-1));const t=el("text",{x:x(i),y:H-5,"text-anchor":ticks>1&&k===0?"start":ticks>1&&k===ticks-1?"end":"middle"},svg);t.textContent=lab[i]}
+  // (the releases: a gold mark on their day)
+  const at={};for(const m of marks||[]){const i=m.i-off;if(i<0||i>=n)continue;(at[i]=at[i]||[]).push(m.text)}
+  for(const i in at){el("line",{x1:x(+i),x2:x(+i),y1:T,y2:T+ph,stroke:"#f2c14e","stroke-dasharray":"2 3",opacity:.45},svg);el("circle",{cx:x(+i),cy:T-3,r:3.2,fill:"#f2c14e"},svg)}
   if(type==="bars"){
     const bw=Math.max(2,Math.min(16,pw/n*.6));
-    for(let i=0;i<n;i++){let acc=0;ser.forEach((s,k)=>{const v=s.v[i]||0;if(!v)return;const y0=y(acc),y1=y(acc+v);acc+=v;el("rect",{x:x(i)-bw/2,y:y1,width:bw,height:Math.max(1,y0-y1),rx:Math.min(2.5,bw/4),fill:s.color,opacity:.92,stroke:"#15161c","stroke-width":bw>5?1:0},svg)})}
-  }else{
-    ser.forEach((s,k)=>{const gid="g"+box.id+k;const lg=el("linearGradient",{id:gid,x1:0,y1:0,x2:0,y2:1},defs);el("stop",{offset:"0","stop-color":s.color,"stop-opacity":.28},lg);el("stop",{offset:"1","stop-color":s.color,"stop-opacity":0},lg);
-      let run=[];const runs=[];s.v.forEach((v,i)=>{if(v==null){if(run.length)runs.push(run);run=[]}else run.push([x(i),y(v)])});if(run.length)runs.push(run);
-      for(const r of runs){if(r.length===1){el("circle",{cx:r[0][0],cy:r[0][1],r:3,fill:s.color},svg);continue}const d=smooth(r);el("path",{d:d+"L"+r[r.length-1][0]+","+(T+ph)+"L"+r[0][0]+","+(T+ph)+"Z",fill:"url(#"+gid+")"},svg);el("path",{d,fill:"none",stroke:s.color,"stroke-width":2,"stroke-linejoin":"round","stroke-linecap":"round"},svg)}})
+    for(let i=0;i<n;i++){let acc=0;ser.forEach((s)=>{const v=s.v[i]||0;if(!v)return;const y0=y(acc),y1=y(acc+v);acc+=v;el("rect",{x:x(i)-bw/2,y:y1,width:bw,height:Math.max(1,y0-y1),rx:Math.min(2.5,bw/4),fill:s.color,opacity:pl[i]?.45:.92,stroke:"#15161c","stroke-width":bw>5?1:0},svg)})}
   }
+  const path=(s,k,fill)=>{const gid="g"+box.id+k;if(fill){const lg=el("linearGradient",{id:gid,x1:0,y1:0,x2:0,y2:1},defs);el("stop",{offset:"0","stop-color":s.color,"stop-opacity":.28},lg);el("stop",{offset:"1","stop-color":s.color,"stop-opacity":0},lg)}
+    let run=[];const runs=[];s.v.forEach((v,i)=>{if(v==null){if(run.length)runs.push(run);run=[]}else run.push([x(i),y(v)])});if(run.length)runs.push(run);
+    for(const r of runs){if(r.length===1){el("circle",{cx:r[0][0],cy:r[0][1],r:3,fill:s.color},svg);continue}const d=smooth(r);if(fill)el("path",{d:d+"L"+r[r.length-1][0]+","+(T+ph)+"L"+r[0][0]+","+(T+ph)+"Z",fill:"url(#"+gid+")"},svg);el("path",{d,fill:"none",stroke:s.color,"stroke-width":2,"stroke-linejoin":"round","stroke-linecap":"round"},svg)}};
+  if(type!=="bars")ser.forEach((s,k)=>path(s,k,type==="area"));
+  ov.forEach((s,k)=>path(s,"o"+k,false));
   // (the value under the finger or the mouse)
   const line=el("line",{y1:T,y2:T+ph,stroke:"rgb(242 193 78/.35)","stroke-width":1,opacity:0},svg);
-  const dots=ser.map(s=>el("circle",{r:4,fill:s.color,stroke:"#0b0c10","stroke-width":2,opacity:0},svg));
+  const lined=type==="bars"?ov:[...ser,...ov];
+  const dots=lined.map(s=>el("circle",{r:4,fill:s.color,stroke:"#0b0c10","stroke-width":2,opacity:0},svg));
   const tip=document.createElement("div");tip.className="tip";box.appendChild(tip);
+  const row=(s,v)=>"<div><span><i style=\\"background:"+s.color+"\\"></i>"+s.name+"</span><span>"+format(v)+"</span></div>";
   const show=(ev)=>{const r=box.getBoundingClientRect();const px=ev.clientX-r.left;let i=type==="bars"?Math.floor((px-L)/(pw/n)):Math.round((px-L)/(pw/(n-1||1)));i=Math.max(0,Math.min(n-1,i));
-    line.setAttribute("x1",x(i));line.setAttribute("x2",x(i));line.setAttribute("opacity",1);let acc=0;
-    ser.forEach((s,k)=>{const v=s.v[i];if(v==null||type==="bars"){dots[k].setAttribute("opacity",0);return}dots[k].setAttribute("cx",x(i));dots[k].setAttribute("cy",y(v));dots[k].setAttribute("opacity",1)});
+    line.setAttribute("x1",x(i));line.setAttribute("x2",x(i));line.setAttribute("opacity",1);
+    lined.forEach((s,k)=>{const v=s.v[i];if(v==null){dots[k].setAttribute("opacity",0);return}dots[k].setAttribute("cx",x(i));dots[k].setAttribute("cy",y(v));dots[k].setAttribute("opacity",1)});
     const sc=since&&take(since)[i];
-    tip.innerHTML="<b>"+lab[i]+(sc?" <span style=\\"color:var(--faint);font-weight:400\\">≈ shared since "+sc+"</span>":"")+"</b>"+ser.filter(s=>s.v[i]!=null).map(s=>"<div><span><i style=\\"background:"+s.color+"\\"></i>"+s.name+"</span><span>"+format(s.v[i])+"</span></div>").join("")+(type==="bars"&&ser.length>1?"<div style=\\"border-top:1px solid var(--edge);margin-top:4px;padding-top:4px\\"><span>Total</span><span>"+format(tot(i))+"</span></div>":"");
+    tip.innerHTML="<b>"+lab[i]+(sc?" <span style=\\"color:var(--faint);font-weight:400\\">≈ shared since "+sc+"</span>":pl[i]?" <span style=\\"color:var(--faint);font-weight:400\\">CurseForge alone</span>":"")+"</b>"+ser.filter(s=>s.v[i]!=null).map(s=>row(s,s.v[i])).join("")+(type==="bars"&&ser.length>1?"<div style=\\"border-top:1px solid var(--edge);margin-top:4px;padding-top:4px\\"><span>Total</span><span>"+format(tot(i))+"</span></div>":"")+ov.filter(s=>s.v[i]!=null).map(s=>row(s,s.v[i])).join("")+(at[i]?"<div style=\\"color:var(--gold);margin-top:4px\\">"+at[i].join(" · ")+"</div>":"");
     tip.classList.add("on");const tw=tip.offsetWidth;tip.style.left=Math.max(0,Math.min(W-tw,x(i)+(x(i)>W/2?-tw-12:12)))+"px";tip.style.top=T+"px"};
   const hide=()=>{tip.classList.remove("on");line.setAttribute("opacity",0);dots.forEach(d=>d.setAttribute("opacity",0))};
   box.onpointermove=show;box.onpointerdown=show;box.onpointerleave=hide;
 }
-function spark(box,values,color){if(!box)return;box.innerHTML="";const v=cut(values);const pts=v.map((y,i)=>[i,y]).filter(p=>p[1]!=null);if(pts.length<2)return;
+function spark(box,values,color,whole){if(!box)return;box.innerHTML="";const v=whole?values:cut(values);const pts=v.map((y,i)=>[i,y]).filter(p=>p[1]!=null);if(pts.length<2)return;
   const W=box.clientWidth,H=box.clientHeight,hi=Math.max(...pts.map(p=>p[1]))||1,n=v.length;const X=(i)=>2+i*(W-4)/(n-1),Y=(y)=>H-3-(H-6)*y/hi;
-  const svg=el("svg",{viewBox:"0 0 "+W+" "+H},box),gid="s"+box.id,lg=el("linearGradient",{id:gid,x1:0,y1:0,x2:0,y2:1},el("defs",{},svg));el("stop",{offset:"0","stop-color":color,"stop-opacity":.3},lg);el("stop",{offset:"1","stop-color":color,"stop-opacity":0},lg);
+  const svg=el("svg",{viewBox:"0 0 "+W+" "+H},box),gid="s"+(box.id||Math.random().toString(36).slice(2)),lg=el("linearGradient",{id:gid,x1:0,y1:0,x2:0,y2:1},el("defs",{},svg));el("stop",{offset:"0","stop-color":color,"stop-opacity":.3},lg);el("stop",{offset:"1","stop-color":color,"stop-opacity":0},lg);
   const p=pts.map(([i,y])=>[X(i),Y(y)]),d=smooth(p);el("path",{d:d+"L"+p[p.length-1][0]+","+H+"L"+p[0][0]+","+H+"Z",fill:"url(#"+gid+")"},svg);el("path",{d,fill:"none",stroke:color,"stroke-width":1.6},svg);el("circle",{cx:p[p.length-1][0],cy:p[p.length-1][1],r:2.6,fill:color},svg)}
-const legend=(box,series,onToggle)=>{if(!box)return;box.innerHTML=series.map((s,k)=>"<span data-k=\\""+k+"\\" style=\\"cursor:pointer;opacity:"+(s.off?.35:1)+"\\"><i style=\\"background:"+s.color+"\\"></i>"+s.name+"</span>").join("");box.querySelectorAll("span").forEach(sp=>sp.onclick=()=>onToggle(+sp.dataset.k))};
-let addons,dlTotal,sites;
+const legend=(box,series,onToggle)=>{if(!box)return;box.innerHTML=series.map((s,k)=>"<span data-k=\\""+k+"\\" style=\\"cursor:pointer;opacity:"+(s.off?.35:1)+"\\"><i style=\\"background:"+s.color+"\\"></i>"+s.name+(s.sum!=null?" <b style=\\"color:var(--parchment);font-weight:500\\">"+nf(s.sum)+"</b>":"")+"</span>").join("");box.querySelectorAll("span").forEach(sp=>sp.onclick=()=>onToggle(+sp.dataset.k))};
+let addons,dlTotal,sites,colorOf;
 function readSeries(){
   addons=D.downloads.addons.map((a,k)=>({name:a,color:C[k%C.length],values:D.downloads.daily[a],off:hidden("hiddenAddons").includes(a)}));
+  colorOf=Object.fromEntries(addons.map(a=>[a.name,a.color]));
   dlTotal=D.days.map((_,i)=>{let t=null;for(const a of addons){const v=a.values[i];if(v!=null)t=(t||0)+v}return t});
-  sites=Object.entries(D.sites).map(([s,v],k)=>({name:s,color:C[(k+1)%C.length],values:v.visitors,off:hidden("hiddenSites").includes(s)}));
+  sites=Object.entries(D.sites).map(([s,v],k)=>({name:s,color:C[(k+1)%C.length],v,off:hidden("hiddenSites").includes(s)}));
 }
 readSeries();
-function draw(){
-  spark($("k-dl"),dlTotal,C[0]);spark($("k-in"),D.installs,C[1]);spark($("k-fa"),D.facts,C[2]);spark($("k-vi"),D.visitors,C[4]);
-  const on=addons.filter(a=>!a.off);
-  // (all the downloads, or the different people: CurseForge's own count)
-  const dl=mode==="unique"?on.map(a=>({...a,values:D.unique[a.name]||D.days.map(()=>null)})):on;
-  chart($("c-dl"),{type:"bars",series:dl,labels:D.labels,since:mode==="unique"?null:D.since});legend($("l-dl"),addons,(k)=>{addons[k].off=!addons[k].off;remember("hiddenAddons",addons.filter(a=>a.off).map(a=>a.name));draw()});
-  chart($("c-in"),{type:"bars",series:[{name:"Installs",color:C[1],values:D.installs}],labels:D.labels});
-  const fa=[{name:"Facts",color:C[2],values:D.facts},{name:"New observations archived",color:C[0],values:D.newFacts}];
-  chart($("c-fa"),{type:"area",series:fa,labels:D.labels});legend($("l-fa"),fa,()=>{});
-  if($("c-vi")){chart($("c-vi"),{type:"area",series:sites.filter(s=>!s.off),labels:D.labels});legend($("l-vi"),sites,(k)=>{sites[k].off=!sites[k].off;remember("hiddenSites",sites.filter(s=>s.off).map(s=>s.name));draw()})}
-  const hl=D.hourly.hours.map(h=>new Date(h).toLocaleString("en-GB",{weekday:"short",hour:"2-digit",minute:"2-digit",hour12:false}));
-  chart($("c-hr"),{type:"bars",whole:true,series:addons.filter(a=>!a.off&&D.hourly.series[a.name]).map(a=>({...a,values:D.hourly.series[a.name]})),labels:hl});
+const pct=(cur,was)=>was==null||cur==null?null:was===0?(cur>0?"new":null):Math.round(100*(cur-was)/was);
+const delta=(p)=>p==null?"":p==="new"?"<span class=\\"dl up\\">new</span>":"<span class=\\"dl "+(p<0?"down":"up")+"\\">"+(p<0?"−":"+")+Math.abs(p)+"%</span>";
+const hours=()=>D.hourly.hours.map(h=>new Date(h).toLocaleString("en-GB",{weekday:"short",hour:"2-digit",minute:"2-digit",hour12:false}));
+/** An addon's downloads in the range and in the span before: the hours' when 24 h (CurseForge's readings), the days' else. */
+function inRange(a){if(hourly()){const h=D.hourly.series[a];return h?[total(h.slice(24)),total(h.slice(0,24))]:[null,null]}const [x,y]=span(),p=prior(),v=D.downloads.daily[a]||[];return [total(v.slice(x,y)),p?total(v.slice(p[0],p[1])):null]}
+const marks=()=>D.marks.map(m=>({i:D.days.indexOf(m.day),text:m.text})).filter(m=>m.i>=0);
+function tile(id,label,v,d,extra){const t=$(id);if(!t)return;t.querySelector(".k").textContent=label;t.querySelector(".v").innerHTML=v;t.querySelector(".d").innerHTML=(extra||"")+(d||"&nbsp;")}
+function tiles(){
+  const [a,b]=span(),p=prior();
+  // downloads in the range, against the span before
+  let cur,was;if(hourly()){const h=Object.values(D.hourly.series);cur=total(h.map(s=>total(s.slice(24))));was=total(h.map(s=>total(s.slice(0,24))))}else{cur=total(dlTotal.slice(a,b));was=p?total(dlTotal.slice(p[0],p[1])):null}
+  const ch=pct(cur,was);
+  tile("t-dl","Downloads, "+rangeName(),nf(cur),hourly()?"CurseForge's readings, hour by hour":ch==null?(range==="0"?"since "+(D.labels[a]||"–"):"nothing to compare before"):(ch==="new"?"<b class=\\"up\\">new</b>":"<b class=\\""+(ch<0?"down":"up")+"\\">"+(ch<0?"▼ ":"▲ ")+Math.abs(ch)+"%</b>")+" on the "+rangeName()+" before");
+  // different people: CurseForge's own, over 7, 30 or 90 days only (a sum of days would count a person each day)
+  const per=D.periods[range]&&Object.keys(D.periods[range]).length?D.periods[range]:null;
+  tile("t-pp","Different people"+(per?", "+rangeName():""),per?nf(Object.values(per).reduce((t,c)=>t+c.unique,0)):"–",per?"CurseForge, each addon's own: one person on two counts twice":"CurseForge counts people over 7, 30 or 90 days");
+  // the best day (hour), and what was released on it
+  let best=-1,bi=-1;const vals=hourly()?D.hourly.hours.map((_,i)=>total(Object.values(D.hourly.series).map(s=>s[i]))).slice(24):dlTotal.slice(a,b);vals.forEach((v,i)=>{if(v!=null&&v>best){best=v;bi=i}});
+  const rel=!hourly()&&bi>=0?marks().filter(m=>m.i===a+bi).map(m=>m.text):[];
+  tile("t-best",hourly()?"Best hour":"Best day",bi<0?"–":nf(best),bi<0?"":(hourly()?hours().slice(24)[bi]:D.labels[a+bi])+(rel.length?" · "+rel[0]+(rel.length>1?" +"+(rel.length-1):""):""));
+  // the stores' shares
+  if(hourly())tile("t-st","Stores","CurseForge","Hour by hour, CurseForge alone: Wago and GitHub are daily totals");
+  else{const sums=D.stores.map(x=>({...x,n:total(D.downloads.stores[x.key].slice(a,b))||0}));const all=sums.reduce((t,x)=>t+x.n,0)||1;
+    tile("t-st","Stores","<span class=\\"split\\">"+sums.map(x=>"<i style=\\"width:"+(100*x.n/all)+"%;background:"+x.color+"\\"></i>").join("")+"</span>",sums.map(x=>x.name+" "+Math.round(100*x.n/all)+"%").join(" · "))}
+  const label=hourly()?"The last 24 hours":D.labels[a]?(a===b-1?D.labels[a]:D.labels[a]+" – "+D.labels[b-1]):"Nothing in this range";
+  $("range-label").textContent=label;if($("dl-span"))$("dl-span").textContent=label;
+  if($("k-dl-r"))$("k-dl-r").textContent=cur!=null?"+"+nf(cur)+" in "+(range==="0"?"all":rangeName()):"";
+}
+// The leaderboard: the range's column filled, sorted by a column, six then all.
+let sortBy=["name","range","people","all"].includes(prefs.sort)?prefs.sort:"range",lbAll=false;
+function board(){
+  const body=document.querySelector("#download-rows tbody");if(!body)return;
+  const per=D.periods[range];const rows=[...body.rows];const key={};
+  for(const tr of rows){const a=tr.dataset.a,[cur,was]=inRange(a),pp=per&&per[a]?per[a].unique:null;
+    tr.querySelector(".rg").innerHTML=cur==null?"–":"<b>"+nf(cur)+"</b>"+delta(pct(cur,was));
+    tr.querySelector(".pp").textContent=pp==null?"–":nf(pp);
+    const sp=tr.querySelector(".sp");sp.innerHTML="<div style=\\"width:66px;height:24px\\"></div>";
+    const v=hourly()?D.hourly.series[a]&&D.hourly.series[a].slice(24):D.downloads.daily[a]&&cut(D.downloads.daily[a]);if(v)spark(sp.firstChild,v,colorOf[a]||"#6f6a5e",true);
+    key[a]={name:a,range:cur??-1,people:pp??-1,all:+tr.dataset.all}}
+  rows.sort((x,y)=>{const a=key[x.dataset.a],b=key[y.dataset.a];if((a.all<0)!==(b.all<0))return a.all<0?1:-1;return sortBy==="name"?a.name.localeCompare(b.name):b[sortBy]-a[sortBy]||b.all-a.all});
+  rows.forEach((tr,i)=>{body.appendChild(tr);tr.classList.toggle("cut",!lbAll&&i>=6)});
+  document.querySelectorAll("#download-rows th[data-sort]").forEach(th=>th.classList.toggle("on",th.dataset.sort===sortBy));
+  if($("lb-range"))$("lb-range").textContent=range==="0"?"All":range==="c"?"Range":rangeName();
+  const m=$("lb-more");if(m){m.hidden=rows.length<=6;m.textContent=lbAll?"Show fewer":"Show all "+rows.length}
 }
 let mode=prefs.downloads==="unique"?"unique":"all";
+let view=["addon","store","lines"].includes(prefs.view)?prefs.view:"addon";
+let siteMode=prefs.sites==="pageviews"?"pageviews":"visitors";
+function chips(){const box=$("chips-dl");if(!box)return;box.hidden=view==="store"&&mode==="all"&&!hourly();
+  box.innerHTML=addons.map((a,k)=>"<button class=\\"chip"+(a.off?" off":"")+"\\" data-k=\\""+k+"\\"><i style=\\"background:"+a.color+"\\"></i>"+a.name+"</button>").join("")+"<button class=\\"chip all\\" data-k=\\"all\\">All</button><button class=\\"chip all\\" data-k=\\"none\\">None</button>";
+  box.querySelectorAll("button").forEach(b=>b.onclick=()=>{const k=b.dataset.k;if(k==="all"||k==="none")addons.forEach(a=>a.off=k==="none");else addons[+k].off=!addons[+k].off;remember("hiddenAddons",addons.filter(a=>a.off).map(a=>a.name));draw()})}
+function draw(){
+  spark($("k-dl"),dlTotal,C[0]);spark($("k-in"),D.installs,C[1]);spark($("k-fa"),D.facts,C[2]);spark($("k-vi"),D.visitors,C[4]);
+  document.querySelectorAll("[data-range]").forEach(b=>b.classList.toggle("on",b.dataset.range===range));
+  $("custom").hidden=range!=="c";if(range==="c"){$("from").value=from||"";$("to").value=to||""}
+  document.querySelectorAll(".daily-note").forEach(p=>p.hidden=!hourly());
+  document.querySelectorAll("[data-view]").forEach(b=>b.classList.toggle("on",b.dataset.view===view));
+  document.querySelectorAll("[data-site]").forEach(b=>b.classList.toggle("on",b.dataset.site===siteMode));
+  tiles();board();chips();
+  const on=addons.filter(a=>!a.off);
+  // (the downloads: hour by hour at 24 h, else the days; all of them, by store, or the different people)
+  if(hourly()&&mode==="all"){const hl=hours().slice(24);chart($("c-dl"),{type:view==="lines"?"lines":"bars",whole:true,series:on.filter(a=>D.hourly.series[a.name]).map(a=>({...a,values:D.hourly.series[a.name].slice(24)})),labels:hl})}
+  else if(mode==="unique")chart($("c-dl"),{type:"bars",series:on.map(a=>({...a,values:D.unique[a.name]||D.days.map(()=>null)})),labels:D.labels});
+  else if(view==="store")chart($("c-dl"),{type:"bars",series:D.stores.map(x=>({name:x.name,color:x.color,values:D.downloads.stores[x.key]})),labels:D.labels,since:D.since,pale:D.downloads.early,marks:marks()});
+  else chart($("c-dl"),{type:view==="lines"?"lines":"bars",series:on,labels:D.labels,since:view==="lines"?null:D.since,pale:D.downloads.early,marks:marks()});
+  chart($("c-rk"),{type:"lines",invert:true,trim:true,format:(v)=>v==null?"–":"#"+nf(v),series:Object.keys(D.rank).filter(a=>!addons.find(x=>x.name===a&&x.off)).map((a,k)=>({name:a,color:colorOf[a]||C[k%C.length],values:D.rank[a]})),labels:D.labels});
+  const inw=[{name:"Running that day",color:C[1],values:D.installs}],over=[{name:"Different over 7 days",color:C[0],values:D.installsWeek}];
+  chart($("c-in"),{type:"bars",trim:true,series:inw,over,labels:D.labels});legend($("l-in"),[...inw,...over],()=>{});
+  const fa=[{name:"Facts",color:C[2],values:D.facts},{name:"New observations archived",color:C[0],values:D.newFacts}];
+  chart($("c-fa"),{type:"area",trim:true,series:fa,labels:D.labels});legend($("l-fa"),fa,()=>{});
+  if($("c-vi")){const ss=sites.map(s=>({...s,values:s.v[siteMode],sum:total(cut(s.v[siteMode]))}));chart($("c-vi"),{type:"area",trim:true,series:ss.filter(s=>!s.off),labels:D.labels});legend($("l-vi"),ss,(k)=>{sites[k].off=!sites[k].off;remember("hiddenSites",sites.filter(s=>s.off).map(s=>s.name));draw()})}
+  fitAll();
+}
 const setMode=(m)=>{mode=m;document.body.classList.toggle("dl-u",m==="unique");document.querySelectorAll("[data-dl]").forEach(b=>b.classList.toggle("on",b.dataset.dl===m))};
-setMode(mode);document.querySelectorAll("[data-dl]").forEach(b=>b.onclick=()=>{setMode(b.dataset.dl);remember("downloads",mode);draw()});
-document.querySelectorAll("[data-range]").forEach(b=>{b.classList.toggle("on",+b.dataset.range===range);b.onclick=()=>{range=+b.dataset.range;remember("range",range);document.querySelectorAll("[data-range]").forEach(x=>x.classList.toggle("on",x===b));draw()}});
+setMode(mode);
+// (the controls by delegation: a part brought fresh by the refresh keeps working)
+document.addEventListener("click",(e)=>{const b=e.target.closest("button,th");if(!b)return;const d=b.dataset;
+  if(d.range){range=d.range;remember("range",range);if(range==="c"&&!(from&&to)){const [a,c]=span();from=D.days[a]||D.days[0];to=D.days[c-1]||D.days.at(-1)}draw()}
+  else if(d.dl){setMode(d.dl);remember("downloads",mode);draw()}
+  else if(d.view){view=d.view;remember("view",view);draw()}
+  else if(d.site){siteMode=d.site;remember("sites",siteMode);draw()}
+  else if(d.sort){sortBy=d.sort;remember("sort",sortBy);board()}
+  else if(b.id==="lb-more"){lbAll=!lbAll;board()}});
+["from","to"].forEach(id=>$(id).onchange=()=>{const v=$(id).value;if(id==="from")from=v;else to=v;if(from&&to&&from>to)[from,to]=[to,from];remember("from",from);remember("to",to);draw()});
 let t;new ResizeObserver(()=>{clearTimeout(t);t=setTimeout(draw,60)}).observe(document.querySelector("main"));draw();
 
-// The activity: its filters, more of it, a long word opened.
-let filter=["all","data","problems","comments","digests"].includes(prefs.activity)?prefs.activity:"all";let items=[];let all=false;const opened=new Set();
-const apply=()=>{document.querySelectorAll("[data-filter]").forEach(b=>b.classList.toggle("on",b.dataset.filter===filter));let shown=0;for(const li of items){const ok=filter==="all"||li.dataset.group===filter;const show=ok&&(all||shown<8);li.hidden=!show;if(ok)shown++}const m=$("feed-more");if(m)m.hidden=all||items.filter(li=>filter==="all"||li.dataset.group===filter).length<=8};
+// The scroll panels (the activity, the comments): five rows, then a peek of the sixth and a scroll.
+function fit(box,sel,k){if(!box)return;box.style.maxHeight="";box.classList.remove("fade","end");const rows=[...box.querySelectorAll(sel)].filter(r=>!r.hidden);
+  if(rows.length<=k)return;const top=box.getBoundingClientRect().top;box.style.maxHeight=Math.ceil(rows[k-1].getBoundingClientRect().bottom-top+28)+"px";box.classList.add("fade");
+  box.onscroll=()=>box.classList.toggle("end",box.scrollTop+box.clientHeight>=box.scrollHeight-4)}
+function fitAll(){fit($("feed-scroll"),".feed li",5);fit($("threads-scroll"),".thread",5)}
+
+// The activity: its filters, a long word opened.
+let filter=["all","data","problems","comments","digests"].includes(prefs.activity)?prefs.activity:"all";let items=[];const opened=new Set();
+const apply=()=>{document.querySelectorAll("[data-filter]").forEach(b=>b.classList.toggle("on",b.dataset.filter===filter));for(const li of items)li.hidden=!(filter==="all"||li.dataset.group===filter);if($("feed-scroll"))$("feed-scroll").scrollTop=0;fitAll()};
 document.querySelectorAll("[data-filter]").forEach(b=>b.onclick=()=>{filter=b.dataset.filter;remember("activity",filter);apply()});
 function bindFeed(){
   items=[...document.querySelectorAll(".feed li")];
-  if($("feed-more"))$("feed-more").onclick=()=>{all=true;apply()};
   document.querySelectorAll(".feed .b").forEach(b=>{const at=b.closest("li").dataset.at;if(opened.has(at))b.classList.add("open");b.onclick=()=>{b.classList.toggle("open");b.classList.contains("open")?opened.add(at):opened.delete(at)}});
-  apply();
+  for(const li of items)li.hidden=!(filter==="all"||li.dataset.group===filter);
+  document.querySelectorAll("[data-filter]").forEach(b=>b.classList.toggle("on",b.dataset.filter===filter));fitAll();
 }
 bindFeed();
 
@@ -776,7 +916,7 @@ bindFeed();
 let threadsShown=null;
 const showThreads=(k)=>{threadsShown=k;let shown=0;document.querySelectorAll(".thread").forEach(t=>{t.hidden=k==="open"&&t.dataset.open!=="1";if(!t.hidden)shown++});
   document.querySelectorAll("[data-threads]").forEach(b=>b.classList.toggle("on",b.dataset.threads===k));
-  if($("no-open"))$("no-open").hidden=!(k==="open"&&!shown&&document.querySelector(".thread"))};
+  if($("no-open"))$("no-open").hidden=!(k==="open"&&!shown&&document.querySelector(".thread"));fitAll()};
 function bindThreads(){
   document.querySelectorAll("[data-threads]").forEach(b=>b.onclick=()=>{remember("threads",b.dataset.threads);showThreads(b.dataset.threads)});
   const firstOn=document.querySelector("[data-threads].on");if(firstOn)showThreads(threadsShown??(["open","all"].includes(prefs.threads)?prefs.threads:firstOn.dataset.threads));
@@ -787,7 +927,7 @@ bindThreads();
 // minute while it's shown, at once when it comes back (the app on a phone:
 // iOS keeps it as it was left), on a pull at the top and with the refresh
 // button. A comment being read, a filter, a word opened stay as they were.
-const PARTS=["#hero","#side-standing","#nav-answer",".kpis","#to-day","#daily-snapshot","#feed","#threads","#comments .chips","#download-rows","#downloads-checked","#unique-through","#download-popularity","#download-releases","#addons-body","#players","#sites","#notif-count"];
+const PARTS=["#hero","#side-standing","#nav-answer",".kpis","#to-day","#daily-snapshot","#feed","#threads","#comments .chips","#download-rows","#dl-note","#downloads-checked","#unique-through","#download-popularity","#download-releases","#addons-body","#players","#sites","#notif-count"];
 let refreshing=false,freshAt=Date.now();
 const fresh=()=>{const s=Math.round((Date.now()-freshAt)/1000);if($("fresh"))$("fresh").textContent=" · updated "+(s<20?"just now":s<90?s+" s ago":Math.round(s/60)+" min ago")};
 setInterval(fresh,10000);fresh();
@@ -799,8 +939,10 @@ async function refresh(by){
     const res=await fetch(location.pathname+location.search,{cache:"no-store",signal:abort.signal});
     const page=new DOMParser().parseFromString(await res.text(),"text/html");const data=page.getElementById("data");
     if(!res.ok||!data){if(by)location.reload();return} // (signed out: the page says so)
+    // (a scroll panel read halfway stays where it was)
+    const kept=Object.fromEntries([...document.querySelectorAll(".scroll[id]")].map(x=>[x.id,x.scrollTop]));
     for(const selector of PARTS){const before=document.querySelector(selector),after=page.querySelector(selector);if(before&&after&&before.innerHTML!==after.innerHTML)before.innerHTML=after.innerHTML}
-    D=JSON.parse(data.textContent);readSeries();draw();bindFeed();bindThreads();freshAt=Date.now();fresh();
+    D=JSON.parse(data.textContent);readSeries();draw();bindFeed();bindThreads();for(const id in kept)if($(id))$(id).scrollTop=kept[id];freshAt=Date.now();fresh();
   }catch{if(by==="button")location.reload()}finally{clearTimeout(timeout);refreshing=false;spin.forEach(x=>x.classList.remove("busy"))}
 }
 setInterval(()=>refresh(),30000);

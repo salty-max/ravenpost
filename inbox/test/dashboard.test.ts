@@ -28,7 +28,7 @@ describe("the dashboard's current downloads", () => {
     expect(s.downloads.week.Yonder).toBe(28);
     const html = dashboard(history, { readings });
     expect(html).toContain('class="v">238<');
-    expect(html).toContain('class="tot">178<');
+    expect(html).toContain('<td class="num tot">178<');
     expect(JSON.stringify(history)).toBe(before);
   });
 
@@ -108,7 +108,7 @@ test("downloads lists every addon, counted or not", () => {
   const rows = html.slice(html.indexOf('id="download-rows"'), html.indexOf('id="downloads-checked"'));
   expect(rows.length).toBeGreaterThan(100);
   for (const [name] of ADDONS) expect(rows).toContain(name);
-  expect(rows).toMatch(/Goodwill<\/span>\s*<span class="tot">–<\/span>/);
+  expect(rows).toContain('data-a="Goodwill" data-all="-1"');
 });
 
 test("today's visitors so far reach the sites chart before the daily job sums them", () => {
