@@ -73,7 +73,8 @@ func sharedFiles(dir string) []string {
 }
 
 // sharedGame: the world the facts are of, as the addon says, unless the
-// client's folder is a test realm's.
+// client's folder is a PTR's. Forever's beta (_classic_beta_) is not one: it
+// is the only Forever there is before launch, and its facts are wanted.
 func sharedGame(flavour string, collect map[string]any) string {
 	game, _ := collect["game"].(string)
 	if (game != "classic" && game != "forever") || strings.Contains(flavour, "ptr") {

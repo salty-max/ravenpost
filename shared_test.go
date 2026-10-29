@@ -206,6 +206,15 @@ func TestSharesNothingUnasked(t *testing.T) {
 		}
 	}
 
+	// Forever's beta is no test realm: its facts go.
+	broot, bfile := fakeShared(t, "_classic_beta_", strings.Replace(yonderFile, `["game"] = "classic"`, `["game"] = "forever"`, 1))
+	bs := sharerFor(t, srv.URL, broot)
+	bs.process(context.Background(), bfile)
+	if len(site.bodies) == 0 {
+		t.Fatal("Forever's beta folder sent nothing")
+	}
+	site.bodies = nil
+
 	// An account left out sends nothing either.
 	root, file := fakeShared(t, "_classic_era_", yonderFile)
 	s := sharerFor(t, srv.URL, root)
