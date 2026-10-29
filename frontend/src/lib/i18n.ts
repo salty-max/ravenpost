@@ -73,7 +73,7 @@ const en = {
       hearthtale: (name: string, chapters: number) => (chapters ? `${name}'s journal sent, ${chapters} ${plural(chapters, "entry", "entries")}` : `${name}'s journal sent`),
     },
     refused: {
-      unknown: (name: string) => `${name} isn't on your Battle.net list yet: sign in again, or link the site again`,
+      unknown: (name: string) => `${name} isn't on your Battle.net list yet: sign in again, link the site again, or leave this account out in Game folders`,
       unlinked: (name: string) => `${name} isn't on your Battle.net list yet: sign in again, or /ht link CODE in the game`,
       removed: (name: string) => `${name}'s journal was removed from the site: /ht link CODE brings it back`,
       invalid: (name: string) => `${name}'s file couldn't be read`,
@@ -243,7 +243,7 @@ const fr: Strings = {
       hearthtale: (name, chapters) => (chapters ? `Journal de ${name} envoyé, ${chapters} ${plural(chapters, "entrée", "entrées")}` : `Journal de ${name} envoyé`),
     },
     refused: {
-      unknown: (name) => `${name} n'est pas encore dans la liste Battle.net : reconnectez-vous, ou reliez le site à nouveau`,
+      unknown: (name) => `${name} n'est pas encore dans la liste Battle.net : reconnectez-vous, reliez le site à nouveau, ou laissez ce compte de côté dans Dossiers du jeu`,
       unlinked: (name) => `${name} n'est pas encore dans la liste Battle.net : reconnectez-vous, ou /ht link CODE dans le jeu`,
       removed: (name) => `Le journal de ${name} a été retiré du site : /ht link CODE le remet`,
       invalid: (name) => `Le fichier de ${name} est illisible`,
@@ -280,7 +280,7 @@ const fr: Strings = {
     level: (n) => `Niveau ${n}`,
   },
   update: {
-    title: (v) => `Ravenpost ${v} est sortie`,
+    title: (v) => `Ravenpost ${v} est sorti`,
     why: "Une nouvelle version est prête. Téléchargez-la, quittez Ravenpost depuis son icône, puis ouvrez la nouvelle.",
     get: "Télécharger",
     settings: (v) => `Une nouvelle version est sortie : ${v}`,

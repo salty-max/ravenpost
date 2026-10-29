@@ -8,8 +8,9 @@ const FAMILY = ["Hearthtale", "Lorekeeper's Codex", "Yonder", "Second Wind", "Ke
 /** Each game folder found, the family's addons installed in it, and which have saved their file. */
 export function Addons() {
   const { state, t } = useApp();
-  // (the clients the family ships for: no Retail, no Classic progression)
-  const installs = (state.installs ?? []).filter((i) => /^_(classic_era|anniversary|forever|classic_beta)/.test(i.flavour));
+  // (the clients the family ships for: no Retail, no Classic progression, no TBC Anniversary:
+  // Hearthtale, Mealbook, Goodwill and Yours Truly have no _TBC.toc, so its list would name addons it can't have)
+  const installs = (state.installs ?? []).filter((i) => /^_(classic_era|forever|classic_beta)/.test(i.flavour));
   const forever = installs.some((i) => i.flavour === "_forever_" || i.flavour === "_classic_beta_");
   return (
     <div className="flex flex-col gap-5">
