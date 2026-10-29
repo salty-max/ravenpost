@@ -636,9 +636,8 @@ export function dashboard(
     stores: Object.entries(CH).map(([k, [name, color]]) => ({ key: k, name, color })),
   };
   const firstCounted = s.downloads.early.lastIndexOf(true) + 1;
-  const RANGES: [string, string][] = [["24h", "24 h"], ["7", "7 d"], ["30", "30 d"], ["90", "90 d"], ["0", "All"], ["c", "Custom"]];
+  const RANGES: [string, string][] = [["7", "7 d"], ["30", "30 d"], ["90", "90 d"], ["0", "All"], ["c", "Custom"]];
   const tile = (id: string, label: string) => `<div class="panel tile" id="${id}"><span class="k">${label}</span><span class="v">–</span><span class="d">&nbsp;</span></div>`;
-  const dailyNote = `<p class="sub daily-note" hidden>Daily numbers: the last 7 days shown.</p>`;
   return `${head("Ravenpost")}<body>
 <aside class="side"><div class="brand"><img src="/icon-192.png" alt=""><div><p class="title">Ravenpost</p><small>The inbox</small></div></div>
 <nav class="nav">${NAV.map(([id, ic, label]) => `<a href="#${id}" data-nav="${id}">${icon(ic)}<span style="flex:1">${label}</span>${id === "comments" ? `<span id="nav-answer">${toAnswer ? `<span class="tag gold" style="height:18px">${toAnswer}</span>` : ""}</span>` : ""}</a>`).join("")}</nav>
@@ -674,7 +673,7 @@ ${kpi("k-vi", "globe", "Site visitors", fmt(lastOf(visitors)), [Object.keys(s.si
 <section id="downloads"><div class="sh"><h2 class="title">Downloads</h2><p id="dl-span"></p></div>
 <div class="tiles">${tile("t-dl", "Downloads")}${tile("t-pp", "Different people")}${tile("t-best", "Best day")}${tile("t-st", "Stores")}</div>
 <div class="panel card"><div class="ctl"><div><h3 data-mode="all">New downloads</h3><h3 data-mode="unique">Different people a day</h3></div>
-<div class="ctl-r"><div class="seg" role="group" aria-label="Count"><button data-dl="all" class="on">All</button><button data-dl="unique">Unique</button></div><div class="seg" role="group" aria-label="View" data-mode="all"><button data-view="addon" class="on">By addon</button><button data-view="store">By store</button><button data-view="lines">Lines</button></div></div></div>
+<div class="ctl-r"><div class="seg" role="group" aria-label="Count"><button data-dl="all" class="on">All</button><button data-dl="unique">Unique</button></div><div class="seg" role="group" aria-label="View" data-mode="all"><button data-view="addon" class="on">By addon</button><button data-view="store">By store</button><button data-view="lines">Lines</button><button data-view="hours">24 h</button></div></div></div>
 <p class="sub" data-mode="all" id="dl-hour-note" hidden>CurseForge's downloads an hour, from its readings every ten minutes: Wago and GitHub keep only daily totals.</p>
 <p class="sub" data-mode="all" id="dl-note">Download events on every store: one player downloading twice counts twice.${firstCounted > 0 ? ` ${firstCounted < s.days.length ? `Before ${short(s.days[firstCounted])}, CurseForge's` : "CurseForge's"} own daily count alone (paler): Wago and GitHub keep only totals.` : ""}${marks.length ? " Gold marks: releases." : ""}</p>
 <p class="sub" data-mode="unique" id="unique-through">${s.days.some((d) => h.days[d]?.unique) ? `CurseForge's own count, to ${short(s.days.filter((d) => h.days[d]?.unique).at(-1)!)}: Wago and GitHub don't count people${opts.unique?.at ? `, brought ${ago(opts.unique.at)}` : ""}.` : "CurseForge's own count, not brought yet (CURSEFORGE_COOKIE on Vercel, read hourly)."}</p>
@@ -683,7 +682,7 @@ ${kpi("k-vi", "globe", "Site visitors", fmt(lastOf(visitors)), [Object.keys(s.si
 <button class="more" id="lb-more" hidden></button>
 <p class="sub" id="downloads-checked" style="margin-top:10px">Download events, not players: People is CurseForge's count over 7, 30 or 90 days, each addon's own. CurseForge and Wago are read every ten minutes, GitHub every hour${downloadsChecked ? `, last ${esc(downloadsChecked.slice(0, 10))} at ${esc(downloadsChecked.slice(11, 16))} UTC` : ""}.</p></div>
 <div class="grid2" style="margin-top:12px;align-items:start">
-<div class="panel card" id="download-popularity"><h3>Rank on CurseForge</h3><p class="sub">Among every WoW addon, by popularity: higher is better</p>${dailyNote}<div class="chart" id="c-rk" style="height:180px"></div>${rankMoves(h)}</div>
+<div class="panel card" id="download-popularity"><h3>Rank on CurseForge</h3><p class="sub">Among every WoW addon, by popularity: higher is better</p><div class="chart" id="c-rk" style="height:180px"></div>${rankMoves(h)}</div>
 <div class="panel card" id="download-releases"><h3>Newest releases</h3><p class="sub">Each addon's newest on CurseForge: its downloads since it went live, and a day</p>${releasesVelocity(releases, opts.now)}</div>
 </div></section>
 
@@ -692,16 +691,16 @@ ${kpi("k-vi", "globe", "Site visitors", fmt(lastOf(visitors)), [Object.keys(s.si
 
 <section id="players"><div class="sh"><h2 class="title">Players</h2><p>Ravenpost and the shared facts</p></div>
 <div class="grid2">
-<div class="panel card"><h3>Ravenpost in use</h3><p class="sub">The installs running that day, one anonymous ping each (0.4.0 and later: earlier releases never ping), and the different ones over 7 days</p>${dailyNote}<div class="chart" id="c-in" style="height:170px"></div><div class="legend" id="l-in"></div>
+<div class="panel card"><h3>Ravenpost in use</h3><p class="sub">The installs running that day, one anonymous ping each (0.4.0 and later: earlier releases never ping), and the different ones over 7 days</p><div class="chart" id="c-in" style="height:170px"></div><div class="legend" id="l-in"></div>
 ${installsCard(distinct, distinctTo)}
 <div class="grid2" style="gap:14px;margin-top:14px"><div><p class="sub">Versions</p>${shares(rp?.versions, "–")}</div><div><p class="sub">Systems</p>${shares(rp?.os, "–")}</div></div>
 <p class="sub" style="margin-top:12px">Linked</p>${shares(rp?.linked, "None yet.")}</div>
-<div class="panel card"><h3>Facts shared</h3><p class="sub">A day, and the ones new to the database</p>${dailyNote}<div class="chart" id="c-fa" style="height:170px"></div><div class="legend" id="l-fa"></div>
+<div class="panel card"><h3>Facts shared</h3><p class="sub">A day, and the ones new to the database</p><div class="chart" id="c-fa" style="height:170px"></div><div class="legend" id="l-fa"></div>
 <div class="grid2" style="gap:14px;margin-top:6px"><div><p class="sub">Games</p>${shares(sh?.games, "–")}</div><div><p class="sub">Languages</p>${shares(sh?.locales, "–")}</div></div></div>
 </div></section>
 
 <section id="sites"><div class="sh"><h2 class="title">Sites</h2>${Object.keys(s.sites).length ? `<div class="seg" role="group" aria-label="Count"><button data-site="visitors" class="on">Visitors</button><button data-site="pageviews">Page views</button></div>` : "<p>Visitors a day</p>"}</div>
-<div class="panel card">${Object.keys(s.sites).length ? `${dailyNote}<div class="chart" id="c-vi"></div><div class="legend" id="l-vi"></div>` : `<p class="empty" style="padding:4px 0">No traffic numbers yet. Web Analytics feeds them once its token is set.</p>`}</div></section>
+<div class="panel card">${Object.keys(s.sites).length ? `<div class="chart" id="c-vi"></div><div class="legend" id="l-vi"></div>` : `<p class="empty" style="padding:4px 0">No traffic numbers yet. Web Analytics feeds them once its token is set.</p>`}</div></section>
 
 <section id="comments"><div class="sh"><h2 class="title">Comments</h2><div class="chips" role="group" aria-label="Show">${[
     ["open", `To answer${toAnswer ? ` (${toAnswer})` : ""}`],
@@ -735,14 +734,15 @@ const PREFS="ravenpost.dashboard.preferences";
 let prefs={};try{const saved=JSON.parse(localStorage.getItem(PREFS)||"{}");if(saved&&typeof saved==="object"&&!Array.isArray(saved))prefs=saved}catch{}
 const remember=(key,value)=>{prefs[key]=value;try{localStorage.setItem(PREFS,JSON.stringify(prefs))}catch{}};
 const hidden=(key)=>Array.isArray(prefs[key])?prefs[key].filter(x=>typeof x==="string"):[];
-// The range, the whole page's: 24 hours (the downloads hour by hour, the daily charts their last 7 days), 7, 30, 90 days, all, or two dates.
-const RANGES=["24h","7","30","90","0","c"];
-let range=String(prefs.range??"30");if(!RANGES.includes(range))range="30";
+// The range, the whole page's: 7, 30, 90 days, all, or two dates (every chart is daily; the downloads' last 24 hours, hour by hour, are a view of their own).
+const RANGES=["7","30","90","0","c"];
+let range=String(prefs.range??"30");
+// (a range of 24 hours saved before they became a view: that view, on the default days)
+const was24=range==="24h";if(!RANGES.includes(range))range="30";
 let from=typeof prefs.from==="string"?prefs.from:null,to=typeof prefs.to==="string"?prefs.to:null;
-const hourly=()=>range==="24h";
+const hourly=()=>view==="hours"&&mode==="all";
 /** The days shown: [first, end) in D.days. */
 function span(){const n=D.days.length;
-  if(range==="24h")return [Math.max(0,n-7),n];
   if(range==="c"&&from&&to){let a=D.days.findIndex(d=>d>=from);if(a<0)a=n;let b=n;while(b>0&&D.days[b-1]>to)b--;return [a,Math.max(a,b)]}
   const r=+range;return r?[Math.max(0,n-r),n]:[0,n]}
 const cut=(xs)=>{const [a,b]=span();return xs.slice(a,b)};
@@ -750,7 +750,7 @@ const cut=(xs)=>{const [a,b]=span();return xs.slice(a,b)};
 /** The range's days and the span as long just before, to compare: today (still going) left out of both, and null where no downloads were counted all through the span before. */
 function compared(){if(range==="0")return null;const [a,b0]=span();const b=D.days[b0-1]===new Date().toISOString().slice(0,10)?b0-1:b0;const n=b-a;const first=Math.max(dlTotal.findIndex(v=>v!=null),D.downloads.early.lastIndexOf(true)+1);return n>0&&first>=0&&a-n>=first?{now:[a,b],before:[a-n,a],today:b<b0}:null}
 const total=(xs)=>{let t=null;for(const v of xs)if(v!=null)t=(t||0)+v;return t};
-const rangeName=()=>({"24h":"24 h","7":"7 d","30":"30 d","90":"90 d","0":"all","c":"the range"})[range];
+const rangeName=()=>hourly()?"24 h":({"7":"7 d","30":"30 d","90":"90 d","0":"all","c":"the range"})[range];
 // (a smooth line through the points: monotone, it never overshoots)
 function smooth(p){if(p.length<2)return "";const n=p.length,d=[],m=[];for(let i=0;i<n-1;i++)d.push((p[i+1][1]-p[i][1])/(p[i+1][0]-p[i][0]||1));m.push(d[0]);for(let i=1;i<n-1;i++)m.push(d[i-1]*d[i]<=0?0:(d[i-1]+d[i])/2);m.push(d[n-2]);
 for(let i=0;i<n-1;i++){if(d[i]===0){m[i]=m[i+1]=0;continue}const a=m[i]/d[i],b=m[i+1]/d[i],s=a*a+b*b;if(s>9){const t=3/Math.sqrt(s);m[i]=t*a*d[i];m[i+1]=t*b*d[i]}}
@@ -830,6 +830,8 @@ function inRange(a){if(hourly()){const h=D.hourly.series[a];return h?[total(h.sl
 // (the releases of the addons shown)
 const marks=(shown)=>D.marks.filter(m=>!shown||!addons.find(a=>a.name===m.addon&&a.off)).map(m=>({i:D.days.indexOf(m.day),text:m.text})).filter(m=>m.i>=0);
 function tile(id,label,v,d,extra){const t=$(id);if(!t)return;t.querySelector(".k").textContent=label;t.querySelector(".v").innerHTML=v;t.querySelector(".d").innerHTML=(extra||"")+(d||"&nbsp;")}
+// (CurseForge's different people, over 7, 30 or 90 days: none for an hour or another span)
+const people=()=>!hourly()&&D.periods[range]&&Object.keys(D.periods[range]).length?D.periods[range]:null;
 function tiles(){
   const [a,b]=span(),c=compared();
   // downloads in the range, against the span before (whole days: today, still going, aside)
@@ -838,7 +840,7 @@ function tiles(){
   const days=(k)=>k===1?"day":k+" days";const arrow=(ch)=>ch==="new"?"<b class=\\"up\\">new</b>":"<b class=\\""+(ch<0?"down":"up")+"\\">"+(ch<0?"▼ ":"▲ ")+Math.abs(ch)+"%</b>";
   tile("t-dl","Downloads, "+rangeName(),nf(cur),hourly()?(ch==null?"CurseForge's readings, hour by hour":arrow(ch)+" on the 24 hours before, CurseForge's readings"):ch==null?(range==="0"?"since "+(D.labels[Math.max(a,first)]||"–"):"nothing to compare before"):(ch==="new"?"<b class=\\"up\\">new</b>":"<b class=\\""+(ch<0?"down":"up")+"\\">"+(ch<0?"▼ ":"▲ ")+Math.abs(ch)+"%</b>")+" on the "+days(c.now[1]-c.now[0])+" before"+(c.today?", today aside":""));
   // different people: CurseForge's own, over 7, 30 or 90 days only (a sum of days would count a person each day)
-  const per=D.periods[range]&&Object.keys(D.periods[range]).length?D.periods[range]:null;
+  const per=people();
   tile("t-pp","Different people"+(per?", "+rangeName():""),per?nf(Object.values(per).reduce((t,c)=>t+c.unique,0)):"–",per?"CurseForge, each addon's own: one person on two counts twice":"CurseForge counts people over 7, 30 or 90 days");
   // the best day (hour), and what was released on it
   let best=-1,bi=-1;const vals=hourly()?D.hourly.hours.map((_,i)=>total(Object.values(D.hourly.series).map(s=>s[i]))).slice(24):dlTotal.slice(a,c&&c.today||D.days[b-1]===new Date().toISOString().slice(0,10)?b-1:b);vals.forEach((v,i)=>{if(v!=null&&v>best){best=v;bi=i}});
@@ -848,15 +850,16 @@ function tiles(){
   if(hourly())tile("t-st","Stores","CurseForge","Hour by hour, CurseForge alone: Wago and GitHub are daily totals");
   else{const sums=D.stores.map(x=>({...x,n:total(D.downloads.stores[x.key].slice(a,b))||0}));const all=sums.reduce((t,x)=>t+x.n,0);
     if(!all)tile("t-st","Stores","–","");else tile("t-st","Stores","<span class=\\"split\\">"+sums.map(x=>"<i style=\\"width:"+(100*x.n/all)+"%;background:"+x.color+"\\"></i>").join("")+"</span>",sums.map(x=>x.name+" "+Math.round(100*x.n/all)+"%").join(" · "))}
-  const label=hourly()?"The last 24 hours":D.labels[a]?(a===b-1?D.labels[a]:D.labels[a]+" – "+D.labels[b-1]):"Nothing in this range";
-  $("range-label").textContent=label;if($("dl-span"))$("dl-span").textContent=label;
-  if($("k-dl-r"))$("k-dl-r").textContent=cur!=null?"+"+nf(cur)+" in "+(range==="0"?"all":rangeName()):"";
+  const label=D.labels[a]?(a===b-1?D.labels[a]:D.labels[a]+" – "+D.labels[b-1]):"Nothing in this range";
+  $("range-label").textContent=label;if($("dl-span"))$("dl-span").textContent=hourly()?"The last 24 hours":label;
+  // (the overview's line: the page's range of days, whatever the downloads' view)
+  const days0=total(dlTotal.slice(a,b));if($("k-dl-r"))$("k-dl-r").textContent=days0!=null?"+"+nf(days0)+" in "+({"7":"7 d","30":"30 d","90":"90 d","0":"all","c":"the range"})[range]:"";
 }
 // The leaderboard: the range's column filled, sorted by a column, six then all.
 let sortBy=["name","range","people","all"].includes(prefs.sort)?prefs.sort:"range",lbAll=false;
 function board(){
   const body=document.querySelector("#download-rows tbody");if(!body)return;
-  const per=D.periods[range];const rows=[...body.rows];const key={};
+  const per=people();const rows=[...body.rows];const key={};
   for(const tr of rows){const a=tr.dataset.a,[cur,base,was]=inRange(a),pp=per&&per[a]?per[a].unique:null;
     tr.querySelector(".rg").innerHTML=cur==null?"–":"<b>"+nf(cur)+"</b>"+delta(pct(base,was));
     tr.querySelector(".pp").textContent=pp==null?"–":nf(pp);
@@ -866,11 +869,13 @@ function board(){
   rows.sort((x,y)=>{const a=key[x.dataset.a],b=key[y.dataset.a];if((a.all<0)!==(b.all<0))return a.all<0?1:-1;return sortBy==="name"?a.name.localeCompare(b.name):b[sortBy]-a[sortBy]||b.all-a.all});
   rows.forEach((tr,i)=>{body.appendChild(tr);tr.classList.toggle("cut",!lbAll&&i>=6)});
   document.querySelectorAll("#download-rows th[data-sort]").forEach(th=>th.classList.toggle("on",th.dataset.sort===sortBy));
-  if($("lb-range"))$("lb-range").textContent=range==="0"?"All":range==="c"?"Range":rangeName();
+  if($("lb-range"))$("lb-range").textContent=hourly()?"24 h":range==="0"?"All":range==="c"?"Range":rangeName();
   const m=$("lb-more");if(m){m.hidden=rows.length<=6;m.textContent=lbAll?"Show fewer":"Show all "+rows.length}
 }
 let mode=prefs.downloads==="unique"?"unique":"all";
-let view=["addon","store","lines"].includes(prefs.view)?prefs.view:"addon";
+let view=was24?"hours":["addon","store","lines","hours"].includes(prefs.view)?prefs.view:"addon";
+// (the old 24 hours rewritten once, so the view picked after it holds on the next load)
+if(was24){remember("range",range);remember("view",view)}
 let siteMode=prefs.sites==="pageviews"?"pageviews":"visitors";
 function chips(){const box=$("chips-dl");if(!box)return;box.hidden=view==="store"&&mode==="all"&&!hourly();
   box.innerHTML=addons.map((a,k)=>"<button class=\\"chip"+(a.off?" off":"")+"\\" data-k=\\""+k+"\\"><i style=\\"background:"+a.color+"\\"></i>"+a.name+"</button>").join("")+"<button class=\\"chip all\\" data-k=\\"all\\">All</button><button class=\\"chip all\\" data-k=\\"none\\">None</button>";
@@ -879,7 +884,6 @@ function draw(){
   spark($("k-dl"),dlTotal,C[0]);spark($("k-in"),D.installs,C[1]);spark($("k-fa"),D.facts,C[2]);spark($("k-vi"),D.visitors,C[4]);
   document.querySelectorAll("[data-range]").forEach(b=>b.classList.toggle("on",b.dataset.range===range));
   $("custom").hidden=range!=="c";if(range==="c"){$("from").value=from||"";$("to").value=to||""}
-  document.querySelectorAll(".daily-note").forEach(p=>p.hidden=!hourly());
   if($("dl-note"))$("dl-note").hidden=hourly();if($("dl-hour-note"))$("dl-hour-note").hidden=!hourly();
   document.querySelectorAll("[data-view]").forEach(b=>b.classList.toggle("on",b.dataset.view===view));
   document.querySelectorAll("[data-site]").forEach(b=>b.classList.toggle("on",b.dataset.site===siteMode));
@@ -887,7 +891,7 @@ function draw(){
   const on=addons.filter(a=>!a.off);
   // (the downloads: hour by hour at 24 h, else the days; all of them, by store, or the different people)
   const hiddenAll=on.length?null:"Every addon hidden: a chip below shows it again.";
-  if(hourly()&&mode==="all"){const hl=hours().slice(24);chart($("c-dl"),{type:view==="lines"?"lines":"bars",whole:true,empty:hiddenAll||"No readings in the last 24 hours yet.",series:on.filter(a=>D.hourly.series[a.name]).map(a=>({...a,values:D.hourly.series[a.name].slice(24)})),labels:hl})}
+  if(hourly()&&mode==="all"){const hl=hours().slice(24);chart($("c-dl"),{type:"bars",whole:true,empty:hiddenAll||"No readings in the last 24 hours yet.",series:on.filter(a=>D.hourly.series[a.name]).map(a=>({...a,values:D.hourly.series[a.name].slice(24)})),labels:hl})}
   else if(mode==="unique")chart($("c-dl"),{type:"bars",trim:true,empty:hiddenAll,series:on.map(a=>({...a,values:D.unique[a.name]||D.days.map(()=>null)})),labels:D.labels});
   else if(view==="store")chart($("c-dl"),{type:"bars",trim:true,series:D.stores.map(x=>({name:x.name,color:x.color,values:D.downloads.stores[x.key]})),labels:D.labels,since:D.since,pale:D.downloads.early,marks:marks()});
   else chart($("c-dl"),{type:view==="lines"?"lines":"bars",trim:true,empty:hiddenAll,series:on,labels:D.labels,since:view==="lines"?null:D.since,pale:D.downloads.early,marks:marks(true)});

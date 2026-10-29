@@ -87,9 +87,8 @@ dashboard shows only the twenty newest releases. Today's Ravenpost installs
 and facts shared so far are counted at each look too (`stats/today.json`),
 beside yesterday's whole day.
 
-The page has one range for all of it, in a bar that stays at the top: 24
-hours (the downloads hour by hour from the ten-minute readings, CurseForge's
-alone, the daily charts their last 7 days), 7, 30, 90 days, all, or two dates.
+The page has one range of days for all of it, in a bar that stays at the top:
+7, 30, 90 days, all, or two dates.
 The Downloads section: the range's downloads against the span before, the
 different people (CurseForge's 7, 30 or 90 days, else none: a sum of days
 would count a person each day), the best day and its releases, the stores'
@@ -97,7 +96,9 @@ shares; the chart by addon, by store or as lines (Unique: the people a day),
 the releases marked, each addon a chip to hide it; a leaderboard (the range,
 its change, people, a trend, all time, the stores) sorted by any column, six
 then all; the rank on CurseForge as a line a day; each addon's newest release
-and its downloads a day. The Activity and the Comments show five, then
+and its downloads a day. A fourth view, 24 h, shows the last 24 hours hour by
+hour from the ten-minute readings (CurseForge's alone), and the tiles and the
+leaderboard follow it. The Activity and the Comments show five, then
 scroll. The Addons section is a table, the watch's fine checks folded.
 
 Nothing on the page waits for a reload: every half minute while it's shown,
