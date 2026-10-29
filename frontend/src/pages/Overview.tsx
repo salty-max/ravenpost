@@ -1,4 +1,4 @@
-import { AlertTriangle, Check, CheckCircle2, ExternalLink, FolderPlus, Link2, Loader2, RefreshCw, Share2, Unlink, XCircle } from "lucide-react";
+import { AlertTriangle, Check, Download, CheckCircle2, ExternalLink, FolderPlus, Link2, Loader2, RefreshCw, Share2, Unlink, XCircle } from "lucide-react";
 import type { Share, SiteState } from "../../bindings/github.com/salty-max/ravenpost/models";
 import { useNow } from "@/components/ui";
 import { useApp } from "@/lib/app";
@@ -9,6 +9,7 @@ import { ago } from "@/lib/format";
 export function Overview() {
   return (
     <div className="flex flex-col gap-6">
+      <UpdateBanner />
       <Status />
       <section aria-labelledby="sites" className="grid grid-cols-2 gap-4">
         <h2 id="sites" className="sr-only">
@@ -20,6 +21,25 @@ export function Overview() {
       </section>
       <ActivityPanel />
     </div>
+  );
+}
+
+/** A newer release, if GitHub said so: where to get it (Ravenpost doesn't replace itself). */
+function UpdateBanner() {
+  const { state, t, api, run } = useApp();
+  const u = state.update;
+  if (!u) return null;
+  return (
+    <section role="status" className="panel flex items-center gap-4 border-gold/40 px-5 py-3">
+      <Download className="size-5 shrink-0 text-gold" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <h2 className="font-semibold text-parchment">{t.update.title(u.version)}</h2>
+        <p className="text-sm text-dim">{t.update.why}</p>
+      </div>
+      <button type="button" className="btn btn-gold shrink-0" onClick={() => run(() => api.Open(u.url))}>
+        {t.update.get}
+      </button>
+    </section>
   );
 }
 

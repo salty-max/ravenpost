@@ -13,7 +13,7 @@ import (
 
 type trayText struct {
 	lastUpload, never, syncNow, openApp, quit, chooseFolder string
-	uploading, synced, syncedEvents                         string
+	uploading, synced, syncedEvents, update                 string
 }
 
 func trayStrings() trayText {
@@ -26,13 +26,13 @@ func trayStrings() trayText {
 var trayEN = trayText{
 	lastUpload: "Last upload: %s", never: "no upload yet", syncNow: "Sync now", openApp: "Open Ravenpost",
 	quit: "Quit Ravenpost", chooseFolder: "World of Warcraft folder",
-	uploading: "Uploading %s…", synced: "%s synced", syncedEvents: "%s synced · +%d events",
+	uploading: "Uploading %s…", synced: "%s synced", syncedEvents: "%s synced · +%d events", update: "Update available: %s",
 }
 
 var trayFR = trayText{
 	lastUpload: "Dernier envoi : %s", never: "aucun envoi", syncNow: "Synchroniser", openApp: "Ouvrir Ravenpost",
 	quit: "Quitter Ravenpost", chooseFolder: "Dossier World of Warcraft",
-	uploading: "Envoi de %s…", synced: "%s synchronisé", syncedEvents: "%s synchronisé · +%d événements",
+	uploading: "Envoi de %s…", synced: "%s synchronisé", syncedEvents: "%s synchronisé · +%d événements", update: "Mise à jour disponible : %s",
 }
 
 // trayMenu builds the menu, and the func that brings its lines up to date.
@@ -41,6 +41,13 @@ func (a *App) trayMenu(app *application.App, show func()) (*application.Menu, fu
 	menu := app.NewMenu()
 	status := menu.Add("Ravenpost").SetEnabled(false)
 	last := menu.Add("").SetEnabled(false)
+	updateItem := menu.Add("").SetHidden(true)
+	updateURL := ""
+	updateItem.OnClick(func(*application.Context) {
+		if updateURL != "" {
+			_ = openURL(updateURL)
+		}
+	})
 	menu.AddSeparator()
 	menu.Add(t.openApp).OnClick(func(*application.Context) { show() })
 	syncNow := menu.Add(t.syncNow).OnClick(func(*application.Context) { a.syncer.SyncNow(true) })
@@ -59,6 +66,12 @@ func (a *App) trayMenu(app *application.App, show func()) (*application.Menu, fu
 			status.SetLabel("Ravenpost")
 		}
 		last.SetLabel(fmt.Sprintf(t.lastUpload, lastUploadWhen(t, snap.LastSync)))
+		if u := a.Update(); u != nil {
+			updateURL = u.URL
+			updateItem.SetLabel(fmt.Sprintf(t.update, u.Version)).SetHidden(false)
+		} else {
+			updateItem.SetHidden(true)
+		}
 		syncNow.SetEnabled(a.linkedAny() || len(snap.Sharing) > 0)
 		menu.Update()
 	}

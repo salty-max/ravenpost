@@ -6,6 +6,7 @@ import (
 	"log"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -18,6 +19,9 @@ type App struct {
 	mu       sync.Mutex
 	pairings map[string]*Pairing // by site
 	cancels  map[string]context.CancelFunc
+
+	// The newer release GitHub told of (update.go), or nil.
+	latest atomic.Pointer[Update]
 
 	// Signalled on any change the tray should reflect.
 	changed chan struct{}
