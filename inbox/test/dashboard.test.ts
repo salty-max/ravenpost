@@ -94,7 +94,7 @@ describe("the dashboard's current downloads", () => {
     const html = dashboard(history);
     const main = html.slice(html.indexOf("<main>"), html.indexOf("</main>"));
     const sections = [...main.matchAll(/<section id="([^"]+)"/g)].map((m) => m[1]);
-    expect(sections).toEqual(["activity", "downloads", "players", "sites", "comments", "notifications"]);
+    expect(sections).toEqual(["activity", "downloads", "addons", "players", "sites", "comments", "notifications"]);
     const side = html.match(/<nav class="nav">([\s\S]*?)<\/nav>/)![1];
     expect([...side.matchAll(/data-nav="([^"]+)"/g)].map((m) => m[1]).slice(-2)).toEqual(["comments", "notifications"]);
     const mobile = html.match(/<nav class="tabs">([\s\S]*?)<\/nav>/)![1];

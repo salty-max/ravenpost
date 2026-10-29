@@ -9,6 +9,7 @@ import { dashboard, signinPage } from "./dashboard";
 import { digestOf } from "./digest";
 import * as events from "./events";
 import * as github from "./github";
+import { checks, githubLatest, lookGitHub, watch as watchLaunch } from "./launch";
 import * as push from "./push";
 import * as store from "./store";
 import { collect, countToday, countUpload, history, ping, readPing, readUnique, record, recordUnique, today, uniquePeriods, type Day } from "./stats";
@@ -198,7 +199,7 @@ app.get("/stats", async (c) => {
   const yday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
   // (the problems GitHub has seen settled since, asked as the page is made: a few seconds at most)
   const settled = events.recent().then(async (ev) => [ev, await github.settle(ev).catch(() => ({}))] as const);
-  const [h, [ev, resolved], devices, r0, r1, releases, threads, now, unique] = await Promise.all([
+  const [h, [ev, resolved], devices, r0, r1, releases, threads, now, unique, gh] = await Promise.all([
     history(),
     settled,
     push.devices(),
@@ -208,9 +209,10 @@ app.get("/stats", async (c) => {
     recentThreads(),
     today(),
     uniquePeriods(),
+    githubLatest(),
   ]);
   return c.html(
-    dashboard(h, { viewer: tag, events: ev, pushKey: push.vapid()?.publicKey ?? null, devices, readings: [...r0, ...r1], releases, threads, resolved, today: now, unique }),
+    dashboard(h, { viewer: tag, events: ev, pushKey: push.vapid()?.publicKey ?? null, devices, readings: [...r0, ...r1], releases, threads, resolved, today: now, unique, github: gh }),
   );
 });
 app.get("/", (c) => c.redirect("/stats"));
@@ -288,7 +290,15 @@ app.get("/api/cron/curseforge", async (c) => {
   const comments = await watch();
   const releases = await curseforge.look();
   const [t, resolved] = await Promise.all([countToday(), events.recent().then((ev) => github.settle(ev, { wait: 20_000 }))]);
-  return c.json({ comments, releases, today: t, resolved: Object.keys(resolved).length });
+  // (the launch watch: each addon's GitHub release, the day against yesterday, told once; a failed look never fails the job)
+  let watched: string[] = [];
+  try {
+    const gh = process.env.GITHUB_TOKEN || new Date().getUTCMinutes() < 10 ? await lookGitHub() : await githubLatest();
+    watched = await watchLaunch(checks(await history(), t, gh, await curseforge.latest()));
+  } catch (err) {
+    console.error(JSON.stringify({ launch: "failed", err: String(err) }));
+  }
+  return c.json({ comments, releases, today: t, resolved: Object.keys(resolved).length, watched });
 });
 
 // ── Wowhead's pages, from a Wowhead tab (wow-data's bin/wowhead-tab.js) ──────

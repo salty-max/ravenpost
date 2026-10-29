@@ -4,6 +4,8 @@ import type { Reading, Release } from "./curseforge";
 import type { Event } from "./events";
 import type { Resolution } from "./github";
 import type { Day, Distinct, History, Today, UniquePeriods } from "./stats";
+import { ADDONS } from "./stats";
+import { behind, checks, DRIFT_HOURS, type GitHubRelease } from "./launch";
 
 /**
  * The dashboard (/stats), in Ravenpost's window's look (its theme: night
@@ -386,6 +388,23 @@ function releasesCard(releases: Record<string, Release[]>): string {
     .join("");
 }
 
+/** Each addon's standing across the stores and the data jobs, and what the launch watch sees right now: read only. */
+export function addonsSection(h: History, td: Today | null, gh: Record<string, GitHubRelease>, cf: Record<string, Release[]>, events: Event[], now = Date.now()): string {
+  const watch = checks(h, td, gh, cf, new Date(now));
+  const dot = (l: string) => (l === "warn" ? "blood" : l === "good" ? "gold" : "ok");
+  const watchRows = watch.map((c) => `<div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-top:1px solid var(--edge)"><span class="dot ${dot(c.level)}" style="margin-top:5px"></span><div style="flex:1;min-width:0;text-align:left"><b>${esc(c.title)}</b><p class="sub" style="margin:2px 0 0">${esc(c.line)}</p></div></div>`).join("");
+  const rows = ADDONS.map(([name, , , , repo]) => {
+    const g = gh[name], c = cf[name]?.[0];
+    const job = events.find((e) => e.repo === repo && (e.kind === "merged" || e.kind === "failed" || e.kind === "waiting"));
+    const b = behind(g, cf[name], now);
+    const status = b ? `<span class="tag ${b.hours >= DRIFT_HOURS ? "blood" : "gold"}">CurseForge ${b.hours} h behind</span>` : g && c ? `<span class="tag ok">In step</span>` : `<span class="tag">–</span>`;
+    return `<div class="rel"><div class="rel-h"><b>${esc(name)}</b>${status}</div>
+<span class="sub">GitHub ${g ? `<a href="${esc(g.url)}" rel="noopener">${esc(g.tag)}</a>, ${ago(g.at, now)}` : "–"} · CurseForge ${c ? `${esc(c.version)}, ${ago(c.at, now)}` : cf[name] || !ADDONS.find((a) => a[4] === repo)?.[1] ? "–" : "not read yet"}${job ? ` · ${esc(job.title)}, ${ago(job.at, now)}` : ""}</span></div>`;
+  }).join("");
+  return `<div class="panel card"><h3>Launch watch</h3><p class="sub">Checked every ten minutes. A warning is told to your devices once a day.</p><div style="margin-top:6px">${watchRows}</div></div>
+<div class="panel card" style="margin-top:12px"><h3>The addons</h3><p class="sub">Each one's newest release on GitHub and CurseForge, and its last data job</p>${rows}</div>`;
+}
+
 /** Different Ravenpost installs over 7 and 30 days and since counting began, to a day: each counted once, however many days it ran. */
 function installsCard(d: Distinct | undefined, through: string | undefined): string {
   if (!d || !through) return `<p class="empty" style="padding:12px 0 0">Different installs: counted from the first pings the inbox keeps.</p>`;
@@ -467,6 +486,7 @@ export function dashboard(
     resolved?: Record<string, Resolution>;
     today?: Today | null;
     unique?: UniquePeriods | null;
+    github?: Record<string, GitHubRelease>;
     now?: number;
   } = {},
 ): string {
@@ -518,6 +538,7 @@ export function dashboard(
     ["overview", "house", "Overview"],
     ["activity", "activity", "Activity"],
     ["downloads", "download", "Downloads"],
+    ["addons", "clock", "Addons"],
     ["players", "users", "Players"],
     ["sites", "globe", "Sites"],
     ["comments", "comment", "Comments"],
@@ -580,6 +601,9 @@ ${kpi("k-vi", "globe", "Site visitors", fmt(lastOf(visitors)), Object.keys(s.sit
 </div>
 <div class="panel card" id="download-releases"><h3>By release</h3><p class="sub">Each version's CurseForge downloads, the newest first</p>${releasesCard(opts.releases ?? {})}</div>
 </div></section>
+
+<section id="addons"><div class="sh"><h2 class="title">Addons</h2><p>The launch watch and the stores</p></div>
+<div id="addons-body">${addonsSection(h, td, opts.github ?? {}, opts.releases ?? {}, events, opts.now)}</div></section>
 
 <section id="players"><div class="sh"><h2 class="title">Players</h2><p>Ravenpost and the shared facts</p></div>
 <div class="grid2">
@@ -726,7 +750,7 @@ bindThreads();
 // minute while it's shown, at once when it comes back (the app on a phone:
 // iOS keeps it as it was left), on a pull at the top and with the refresh
 // button. A comment being read, a filter, a word opened stay as they were.
-const PARTS=["#hero","#side-standing","#nav-answer",".kpis","#to-day","#daily-snapshot","#feed","#threads","#comments .chips","#download-rows","#downloads-checked","#unique-through","#download-popularity","#download-unique","#download-releases","#players","#sites","#notif-count"];
+const PARTS=["#hero","#side-standing","#nav-answer",".kpis","#to-day","#daily-snapshot","#feed","#threads","#comments .chips","#download-rows","#downloads-checked","#unique-through","#download-popularity","#download-unique","#download-releases","#addons-body","#players","#sites","#notif-count"];
 let refreshing=false,freshAt=Date.now();
 const fresh=()=>{const s=Math.round((Date.now()-freshAt)/1000);if($("fresh"))$("fresh").textContent=" · updated "+(s<20?"just now":s<90?s+" s ago":Math.round(s/60)+" min ago")};
 setInterval(fresh,10000);fresh();
