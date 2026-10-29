@@ -193,7 +193,8 @@ export function hourlyOf(readings: Reading[], now = Date.now()) {
       const h = Math.floor((Date.parse(at) - start) / 3600_000);
       if (h >= 0 && h < 48) series[a][h] = (series[a][h] ?? 0) + Math.max(0, t[a] - counted[i - 1][1][a]);
     }
-    const base = [...counted].reverse().find(([at]) => at.slice(0, 10) < day) ?? counted.find(([at]) => at.slice(0, 10) === day);
+    // (the base: yesterday's last reading, never an older day's, which would count days of downloads as today's)
+    const base = [...counted].reverse().find(([at]) => at.slice(0, 10) < day && Date.parse(at) >= Date.parse(day) - DAY) ?? counted.find(([at]) => at.slice(0, 10) === day);
     const last = counted[counted.length - 1];
     if (base && last && last[0].slice(0, 10) === day) today = (today ?? 0) + Math.max(0, last[1][a] - base[1][a]);
   }
@@ -286,7 +287,7 @@ body.dl-u [data-mode=all],body:not(.dl-u) [data-mode=unique]{display:none!import
 .bars{display:flex;flex-direction:column;gap:8px;margin-top:12px}.bar-r{display:grid;grid-template-columns:minmax(52px,max-content) minmax(24px,1fr) auto;gap:10px;align-items:center;font-size:12px;color:var(--dim)}.bar-r .track{height:6px;border-radius:999px;background:var(--stone-3);overflow:hidden}.bar-r .track i{display:block;height:100%;background:var(--gold-soft);border-radius:999px}.bar-r b{color:var(--parchment);text-align:right;font-weight:500;font-variant-numeric:tabular-nums}
 .switch{position:relative;width:40px;height:22px;border-radius:999px;border:1px solid var(--edge);background:var(--stone-3);cursor:pointer;flex:none;transition:background .15s}.switch::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--dim);transition:transform .15s}
 .switch[aria-checked=true]{background:rgb(201 162 39/.8);border-color:var(--gold-soft)}.switch[aria-checked=true]::after{transform:translateX(18px);background:var(--night)}.switch:disabled{opacity:.4;cursor:default}
-.ad-t{margin-top:8px}.ad-r{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) auto;gap:4px 14px;align-items:center;padding:9px 0 9px 10px;border-top:1px solid rgb(255 255 255/.045);border-left:3px solid var(--edge);font-size:13px}.ad-r:first-child{border-top:0}.ad-r.ok{border-left-color:var(--ok)}.ad-r.gold{border-left-color:var(--gold)}
+.ad-t{margin-top:8px}.ad-r{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) 190px;gap:4px 14px;align-items:center;padding:9px 0 9px 10px;border-top:1px solid rgb(255 255 255/.045);border-left:3px solid var(--edge);font-size:13px}.ad-r:first-child{border-top:0}.ad-r.ok{border-left-color:var(--ok)}.ad-r.gold{border-left-color:var(--gold)}
 .ad-n{min-width:0}.ad-n b{font-weight:600;display:block}.ad-r .a{color:var(--faint);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}.ad-c{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ad-c .a{display:inline}.ad-c b{font-weight:600}.ad-c .l{display:none}.ad-s{justify-self:end}
 .watch{margin-top:6px}.wl{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-top:1px solid var(--edge)}.wl .dot{margin-top:6px}.wl div{flex:1;min-width:0}.wl b{font-weight:600}.wl .sub{margin:2px 0 0}
 .fine{border-top:1px solid var(--edge)}.fine summary{display:flex;align-items:center;gap:10px;padding:9px 0;color:var(--dim);cursor:pointer;list-style:none}.fine summary::-webkit-details-marker{display:none}.fine summary::after{content:"▾";margin-left:auto;color:var(--faint)}.fine[open] summary::after{content:"▴"}.fine .wl{padding-left:18px}
@@ -438,15 +439,16 @@ function releasesVelocity(releases: Record<string, Release[]>, now = Date.now())
     .map(([name, rs]) => {
       const r = rs[0];
       const live = Math.max(0, (now - Date.parse(r.at)) / DAY);
-      return { name, r, live, rate: r.downloads / Math.max(1, live) };
+      // (under a day live, its downloads so far are no day's rate: told so, after the others)
+      return { name, r, live, rate: live >= 1 ? r.downloads / live : null };
     })
-    .sort((a, b) => b.rate - a.rate);
+    .sort((a, b) => (a.rate === null) !== (b.rate === null) ? (a.rate === null ? 1 : -1) : (b.rate ?? b.r.downloads) - (a.rate ?? a.r.downloads));
   if (!list.length) return `<p class="empty" style="padding:12px 0 0">The first look at CurseForge fills this in.</p>`;
   const lived = (d: number) => (d < 1 ? `${Math.max(1, Math.round(d * 24))} h live` : `${Math.round(d)} d live`);
   return `<table class="lb rel-t"><tbody>${list
     .map(
       ({ name, r, live, rate }) =>
-        `<tr><td class="n"><span class="nm">${esc(name)}</span><span class="ver">${esc(r.version)}</span></td><td class="num">${fmt(r.downloads)}<span class="dl">${lived(live)}</span></td><td class="num"><b>${fmt(Math.round(rate))}</b><span class="dl">a day</span></td></tr>`,
+        `<tr><td class="n"><span class="nm">${esc(name)}</span><span class="ver">${esc(r.version)}</span></td><td class="num">${fmt(r.downloads)}<span class="dl">${lived(live)}</span></td><td class="num">${rate === null ? `<b>–</b><span class="dl">so far</span>` : `<b>${fmt(Math.round(rate))}</b><span class="dl">a day</span>`}</td></tr>`,
     )
     .join("")}</tbody></table>`;
 }
@@ -601,10 +603,10 @@ export function dashboard(
     .join("");
   // (the releases on the chart: CurseForge's for the addons, GitHub's newest for Ravenpost)
   const marks = [
-    ...Object.entries(releases).flatMap(([a, rs]) => rs.map((r) => ({ day: r.at.slice(0, 10), text: `${a} ${r.version}` }))),
+    ...Object.entries(releases).flatMap(([a, rs]) => rs.map((r) => ({ day: r.at.slice(0, 10), addon: a, text: `${a} ${r.version}` }))),
     ...Object.entries(opts.github ?? {})
       .filter(([a]) => !ADDONS.find((x) => x[0] === a)?.[1])
-      .map(([a, g]) => ({ day: g.at.slice(0, 10), text: `${a} ${g.tag.replace(/^v/, "")}` })),
+      .map(([a, g]) => ({ day: g.at.slice(0, 10), addon: a, text: `${a} ${g.tag.replace(/^v/, "")}` })),
   ].filter((m) => s.days.includes(m.day));
   const kpi = (id: string, ic: string, label: string, value: string, line: string) =>
     `<div class="panel kpi"><span class="k">${icon(ic)}${esc(label)}</span><span class="v">${value}</span><span class="d">${line}</span><div class="spark" id="${id}"></div></div>`;
@@ -673,6 +675,7 @@ ${kpi("k-vi", "globe", "Site visitors", fmt(lastOf(visitors)), [Object.keys(s.si
 <div class="tiles">${tile("t-dl", "Downloads")}${tile("t-pp", "Different people")}${tile("t-best", "Best day")}${tile("t-st", "Stores")}</div>
 <div class="panel card"><div class="ctl"><div><h3 data-mode="all">New downloads</h3><h3 data-mode="unique">Different people a day</h3></div>
 <div class="ctl-r"><div class="seg" role="group" aria-label="Count"><button data-dl="all" class="on">All</button><button data-dl="unique">Unique</button></div><div class="seg" role="group" aria-label="View" data-mode="all"><button data-view="addon" class="on">By addon</button><button data-view="store">By store</button><button data-view="lines">Lines</button></div></div></div>
+<p class="sub" data-mode="all" id="dl-hour-note" hidden>CurseForge's downloads an hour, from its readings every ten minutes: Wago and GitHub keep only daily totals.</p>
 <p class="sub" data-mode="all" id="dl-note">Download events on every store: one player downloading twice counts twice.${firstCounted > 0 ? ` ${firstCounted < s.days.length ? `Before ${short(s.days[firstCounted])}, CurseForge's` : "CurseForge's"} own daily count alone (paler): Wago and GitHub keep only totals.` : ""}${marks.length ? " Gold marks: releases." : ""}</p>
 <p class="sub" data-mode="unique" id="unique-through">${s.days.some((d) => h.days[d]?.unique) ? `CurseForge's own count, to ${short(s.days.filter((d) => h.days[d]?.unique).at(-1)!)}: Wago and GitHub don't count people${opts.unique?.at ? `, brought ${ago(opts.unique.at)}` : ""}.` : "CurseForge's own count, not brought yet (CURSEFORGE_COOKIE on Vercel, read hourly)."}</p>
 <div class="chart" id="c-dl"></div><div class="chiprow" id="chips-dl" role="group" aria-label="Addons"></div>
@@ -745,7 +748,7 @@ function span(){const n=D.days.length;
 const cut=(xs)=>{const [a,b]=span();return xs.slice(a,b)};
 /** The span as long just before, or null where the numbers don't reach it. */
 /** The range's days and the span as long just before, to compare: today (still going) left out of both, and null where no downloads were counted all through the span before. */
-function compared(){if(range==="0")return null;const [a,b0]=span();const b=D.days[b0-1]===new Date().toISOString().slice(0,10)?b0-1:b0;const n=b-a;const first=dlTotal.findIndex(v=>v!=null);return n>0&&first>=0&&a-n>=first?{now:[a,b],before:[a-n,a],today:b<b0}:null}
+function compared(){if(range==="0")return null;const [a,b0]=span();const b=D.days[b0-1]===new Date().toISOString().slice(0,10)?b0-1:b0;const n=b-a;const first=Math.max(dlTotal.findIndex(v=>v!=null),D.downloads.early.lastIndexOf(true)+1);return n>0&&first>=0&&a-n>=first?{now:[a,b],before:[a-n,a],today:b<b0}:null}
 const total=(xs)=>{let t=null;for(const v of xs)if(v!=null)t=(t||0)+v;return t};
 const rangeName=()=>({"24h":"24 h","7":"7 d","30":"30 d","90":"90 d","0":"all","c":"the range"})[range];
 // (a smooth line through the points: monotone, it never overshoots)
@@ -753,7 +756,7 @@ function smooth(p){if(p.length<2)return "";const n=p.length,d=[],m=[];for(let i=
 for(let i=0;i<n-1;i++){if(d[i]===0){m[i]=m[i+1]=0;continue}const a=m[i]/d[i],b=m[i+1]/d[i],s=a*a+b*b;if(s>9){const t=3/Math.sqrt(s);m[i]=t*a*d[i];m[i+1]=t*b*d[i]}}
 let s="M"+p[0][0]+","+p[0][1];for(let i=0;i<n-1;i++){const h=(p[i+1][0]-p[i][0])/3;s+="C"+(p[i][0]+h)+","+(p[i][1]+m[i]*h)+" "+(p[i+1][0]-h)+","+(p[i+1][1]-m[i]*h)+" "+p[i+1][0]+","+p[i+1][1]}return s}
 /** A chart at its box's size, a value under the finger: "bars" (stacked: pale ones for the days CurseForge counted alone, lines laid over), "area" (lines with a soft fill), "lines"; inverted for a rank; the releases marked. */
-function chart(box,{type,series,labels,since,format=nf,whole,pale,marks,invert,trim,over=[]}){
+function chart(box,{type,series,labels,since,format=nf,whole,pale,marks,invert,trim,empty,over=[]}){
   if(!box)return;box.innerHTML="";
   // (trim: the days before the first number left out, for a part counted later than the downloads)
   const [a0,b0]=whole?[0,labels.length]:span();
@@ -761,9 +764,11 @@ function chart(box,{type,series,labels,since,format=nf,whole,pale,marks,invert,t
   const take=(xs)=>whole?xs:xs.slice(off,b0);
   const lab=take(labels),ser=series.map(s=>({...s,v:take(s.values)})),ov=over.map(s=>({...s,v:take(s.values)})),pl=pale?take(pale):[];
   const n=lab.length,has=ser.some(s=>s.v.filter(v=>v!=null).length>(type==="bars"?0:1));
-  if(!n||!has){const w=document.createElement("div");w.className="wait";const one=ser.map(s=>s.v.filter(v=>v!=null).pop()).filter(v=>v!=null);w.innerHTML=(one.length?"<b style=\\"color:var(--parchment);font-size:18px\\">"+format(one.reduce((a,b)=>a+b,0))+"</b><br>":"")+(n?"Collecting: the chart draws itself as the days come in.":"Nothing in this range.");box.appendChild(w);return}
+  if(!n||!has){const w=document.createElement("div");w.className="wait";const one=ser.map(s=>s.v.filter(v=>v!=null).pop()).filter(v=>v!=null);w.innerHTML=(one.length?"<b style=\\"color:var(--parchment);font-size:18px\\">"+format(one.reduce((a,b)=>a+b,0))+"</b><br>":"")+(!series.length?empty||"Every line is off: tap one in the legend.":n?"Collecting: the chart draws itself as the days come in.":"Nothing in this range.");box.appendChild(w);return}
   const W=box.clientWidth,H=box.clientHeight,L=34,R=8,T=12,B=22,pw=W-L-R,ph=H-T-B;
   const tot=(i)=>ser.reduce((a,s)=>a+(s.v[i]||0),0);
+  // (today, still going: pale, said so, its line dashed)
+  const part=whole?-1:D.days.indexOf(new Date().toISOString().slice(0,10))-off;
   let hi=0,lo=Infinity;for(let i=0;i<n;i++){if(type==="bars")hi=Math.max(hi,tot(i));else for(const s of ser){const v=s.v[i];if(v!=null){hi=Math.max(hi,v);lo=Math.min(lo,v)}}for(const s of ov)if(s.v[i]!=null)hi=Math.max(hi,s.v[i])}
   let y;if(invert){lo=Math.max(1,Math.floor(lo*.92));hi=Math.ceil(hi*1.05);if(hi<=lo)hi=lo+1;y=(v)=>T+ph*(v-lo)/(hi-lo)}else{hi=nice(hi*1.08);y=(v)=>T+ph*(1-v/hi)}
   const x=type==="bars"?(i)=>L+(i+.5)*pw/n:(i)=>L+(n===1?pw/2:i*pw/(n-1));
@@ -774,14 +779,17 @@ function chart(box,{type,series,labels,since,format=nf,whole,pale,marks,invert,t
   const ticks=Math.min(n,W<420?3:5);for(let k=0;k<ticks;k++){const i=ticks===1?0:Math.round(k*(n-1)/(ticks-1));const t=el("text",{x:x(i),y:H-5,"text-anchor":ticks>1&&k===0?"start":ticks>1&&k===ticks-1?"end":"middle"},svg);t.textContent=lab[i]}
   // (the releases: a gold mark on their day)
   const at={};for(const m of marks||[]){const i=m.i-off;if(i<0||i>=n)continue;(at[i]=at[i]||[]).push(m.text)}
-  for(const i in at){el("line",{x1:x(+i),x2:x(+i),y1:T,y2:T+ph,stroke:"#f2c14e","stroke-dasharray":"2 3",opacity:.45},svg);el("circle",{cx:x(+i),cy:T-3,r:3.2,fill:"#f2c14e"},svg)}
+  // (a dot on the top edge a release day, bigger for several: a line through the bars would comb a busy week)
+  for(const i in at)el("circle",{cx:x(+i),cy:T-4,r:Math.min(4.5,2.2+at[i].length*.6),fill:"#f2c14e",opacity:.9},svg);
   if(type==="bars"){
     const bw=Math.max(2,Math.min(16,pw/n*.6));
-    for(let i=0;i<n;i++){let acc=0;ser.forEach((s)=>{const v=s.v[i]||0;if(!v)return;const y0=y(acc),y1=y(acc+v);acc+=v;el("rect",{x:x(i)-bw/2,y:y1,width:bw,height:Math.max(1,y0-y1),rx:Math.min(2.5,bw/4),fill:s.color,opacity:pl[i]?.45:.92,stroke:"#15161c","stroke-width":bw>5?1:0},svg)})}
+    for(let i=0;i<n;i++){let acc=0;ser.forEach((s)=>{const v=s.v[i]||0;if(!v)return;const y0=y(acc),y1=y(acc+v);acc+=v;el("rect",{x:x(i)-bw/2,y:y1,width:bw,height:Math.max(1,y0-y1),rx:Math.min(2.5,bw/4),fill:s.color,opacity:pl[i]||i===part?.45:.92,stroke:"#15161c","stroke-width":bw>5?1:0},svg)})}
   }
   const path=(s,k,fill)=>{const gid="g"+box.id+k;if(fill){const lg=el("linearGradient",{id:gid,x1:0,y1:0,x2:0,y2:1},defs);el("stop",{offset:"0","stop-color":s.color,"stop-opacity":.28},lg);el("stop",{offset:"1","stop-color":s.color,"stop-opacity":0},lg)}
     let run=[];const runs=[];s.v.forEach((v,i)=>{if(v==null){if(run.length)runs.push(run);run=[]}else run.push([x(i),y(v)])});if(run.length)runs.push(run);
-    for(const r of runs){if(r.length===1){el("circle",{cx:r[0][0],cy:r[0][1],r:3,fill:s.color},svg);continue}const d=smooth(r);if(fill)el("path",{d:d+"L"+r[r.length-1][0]+","+(T+ph)+"L"+r[0][0]+","+(T+ph)+"Z",fill:"url(#"+gid+")"},svg);el("path",{d,fill:"none",stroke:s.color,"stroke-width":2,"stroke-linejoin":"round","stroke-linecap":"round"},svg)}};
+    for(let r of runs){const last=r[r.length-1];const so=part>=0&&part===n-1&&s.v[part]!=null&&Math.abs(last[0]-x(part))<.5&&r.length>1;
+      if(so){el("path",{d:"M"+r[r.length-2][0]+","+r[r.length-2][1]+"L"+last[0]+","+last[1],fill:"none",stroke:s.color,"stroke-width":1.6,"stroke-dasharray":"3 4",opacity:.8},svg);el("circle",{cx:last[0],cy:last[1],r:3,fill:"#0b0c10",stroke:s.color,"stroke-width":1.6},svg);r=r.slice(0,-1)}
+      if(r.length===1){el("circle",{cx:r[0][0],cy:r[0][1],r:3,fill:s.color},svg);continue}const d=smooth(r);if(fill)el("path",{d:d+"L"+r[r.length-1][0]+","+(T+ph)+"L"+r[0][0]+","+(T+ph)+"Z",fill:"url(#"+gid+")"},svg);el("path",{d,fill:"none",stroke:s.color,"stroke-width":2,"stroke-linejoin":"round","stroke-linecap":"round"},svg)}};
   if(type!=="bars")ser.forEach((s,k)=>path(s,k,type==="area"));
   ov.forEach((s,k)=>path(s,"o"+k,false));
   // (the value under the finger or the mouse)
@@ -794,7 +802,7 @@ function chart(box,{type,series,labels,since,format=nf,whole,pale,marks,invert,t
     line.setAttribute("x1",x(i));line.setAttribute("x2",x(i));line.setAttribute("opacity",1);
     lined.forEach((s,k)=>{const v=s.v[i];if(v==null){dots[k].setAttribute("opacity",0);return}dots[k].setAttribute("cx",x(i));dots[k].setAttribute("cy",y(v));dots[k].setAttribute("opacity",1)});
     const sc=since&&take(since)[i];
-    tip.innerHTML="<b>"+lab[i]+(sc?" <span style=\\"color:var(--faint);font-weight:400\\">≈ shared since "+sc+"</span>":pl[i]?" <span style=\\"color:var(--faint);font-weight:400\\">CurseForge alone</span>":"")+"</b>"+ser.filter(s=>s.v[i]!=null).map(s=>row(s,s.v[i])).join("")+(type==="bars"&&ser.length>1?"<div style=\\"border-top:1px solid var(--edge);margin-top:4px;padding-top:4px\\"><span>Total</span><span>"+format(tot(i))+"</span></div>":"")+ov.filter(s=>s.v[i]!=null).map(s=>row(s,s.v[i])).join("")+(at[i]?"<div style=\\"color:var(--gold);margin-top:4px\\">"+at[i].join(" · ")+"</div>":"");
+    tip.innerHTML="<b>"+lab[i]+(i===part?" <span style=\\"color:var(--faint);font-weight:400\\">so far</span>":sc?" <span style=\\"color:var(--faint);font-weight:400\\">≈ shared since "+sc+"</span>":pl[i]?" <span style=\\"color:var(--faint);font-weight:400\\">CurseForge alone</span>":"")+"</b>"+ser.filter(s=>s.v[i]!=null).map(s=>row(s,s.v[i])).join("")+(type==="bars"&&ser.length>1?"<div style=\\"border-top:1px solid var(--edge);margin-top:4px;padding-top:4px\\"><span>Total</span><span>"+format(tot(i))+"</span></div>":"")+ov.filter(s=>s.v[i]!=null).map(s=>row(s,s.v[i])).join("")+(at[i]?"<div style=\\"color:var(--gold);margin-top:4px\\">"+at[i].join(" · ")+"</div>":"");
     tip.classList.add("on");const tw=tip.offsetWidth;tip.style.left=Math.max(0,Math.min(W-tw,x(i)+(x(i)>W/2?-tw-12:12)))+"px";tip.style.top=T+"px"};
   const hide=()=>{tip.classList.remove("on");line.setAttribute("opacity",0);dots.forEach(d=>d.setAttribute("opacity",0))};
   box.onpointermove=show;box.onpointerdown=show;box.onpointerleave=hide;
@@ -816,26 +824,30 @@ const pct=(cur,was)=>was==null||cur==null?null:was===0?(cur>0?"new":null):Math.r
 const delta=(p)=>p==null?"":p==="new"?"<span class=\\"dl up\\">new</span>":"<span class=\\"dl "+(p<0?"down":"up")+"\\">"+(p<0?"−":"+")+Math.abs(p)+"%</span>";
 const hours=()=>D.hourly.hours.map(h=>new Date(h).toLocaleString("en-GB",{weekday:"short",hour:"2-digit",minute:"2-digit",hour12:false}));
 /** An addon's downloads in the range and in the span before: the hours' when 24 h (CurseForge's readings), the days' else. */
-function inRange(a){if(hourly()){const h=D.hourly.series[a];return h?[total(h.slice(24)),total(h.slice(24)),total(h.slice(0,24))]:[null,null,null]}const [x,y]=span(),c=compared(),v=D.downloads.daily[a]||[];return [total(v.slice(x,y)),c?total(v.slice(...c.now)):null,c?total(v.slice(...c.before)):null]}
-const marks=()=>D.marks.map(m=>({i:D.days.indexOf(m.day),text:m.text})).filter(m=>m.i>=0);
+// (the 24 hours before compared only when the readings reach their first hour)
+const before24=()=>Object.values(D.hourly.series).some(s=>s[0]!=null);
+function inRange(a){if(hourly()){const h=D.hourly.series[a];return h?[total(h.slice(24)),total(h.slice(24)),before24()?total(h.slice(0,24)):null]:[null,null,null]}const [x,y]=span(),c=compared(),v=D.downloads.daily[a]||[];return [total(v.slice(x,y)),c?total(v.slice(...c.now)):null,c?total(v.slice(...c.before)):null]}
+// (the releases of the addons shown)
+const marks=(shown)=>D.marks.filter(m=>!shown||!addons.find(a=>a.name===m.addon&&a.off)).map(m=>({i:D.days.indexOf(m.day),text:m.text})).filter(m=>m.i>=0);
 function tile(id,label,v,d,extra){const t=$(id);if(!t)return;t.querySelector(".k").textContent=label;t.querySelector(".v").innerHTML=v;t.querySelector(".d").innerHTML=(extra||"")+(d||"&nbsp;")}
 function tiles(){
   const [a,b]=span(),c=compared();
   // downloads in the range, against the span before (whole days: today, still going, aside)
-  let cur,ch=null;if(hourly()){const h=Object.values(D.hourly.series);cur=total(h.map(s=>total(s.slice(24))))}else{cur=total(dlTotal.slice(a,b));if(c)ch=pct(total(dlTotal.slice(...c.now)),total(dlTotal.slice(...c.before)))}
+  let cur,ch=null;if(hourly()){const h=Object.values(D.hourly.series);cur=total(h.map(s=>total(s.slice(24))));if(before24())ch=pct(cur,total(h.map(s=>total(s.slice(0,24)))))}else{cur=total(dlTotal.slice(a,b));if(c)ch=pct(total(dlTotal.slice(...c.now)),total(dlTotal.slice(...c.before)))}
   const first=dlTotal.findIndex(v=>v!=null);
-  tile("t-dl","Downloads, "+rangeName(),nf(cur),hourly()?"CurseForge's readings, hour by hour":ch==null?(range==="0"?"since "+(D.labels[Math.max(a,first)]||"–"):"nothing to compare before"):(ch==="new"?"<b class=\\"up\\">new</b>":"<b class=\\""+(ch<0?"down":"up")+"\\">"+(ch<0?"▼ ":"▲ ")+Math.abs(ch)+"%</b>")+" on the "+(c.now[1]-c.now[0])+" days before"+(c.today?", today aside":""));
+  const days=(k)=>k===1?"day":k+" days";const arrow=(ch)=>ch==="new"?"<b class=\\"up\\">new</b>":"<b class=\\""+(ch<0?"down":"up")+"\\">"+(ch<0?"▼ ":"▲ ")+Math.abs(ch)+"%</b>";
+  tile("t-dl","Downloads, "+rangeName(),nf(cur),hourly()?(ch==null?"CurseForge's readings, hour by hour":arrow(ch)+" on the 24 hours before, CurseForge's readings"):ch==null?(range==="0"?"since "+(D.labels[Math.max(a,first)]||"–"):"nothing to compare before"):(ch==="new"?"<b class=\\"up\\">new</b>":"<b class=\\""+(ch<0?"down":"up")+"\\">"+(ch<0?"▼ ":"▲ ")+Math.abs(ch)+"%</b>")+" on the "+days(c.now[1]-c.now[0])+" before"+(c.today?", today aside":""));
   // different people: CurseForge's own, over 7, 30 or 90 days only (a sum of days would count a person each day)
   const per=D.periods[range]&&Object.keys(D.periods[range]).length?D.periods[range]:null;
   tile("t-pp","Different people"+(per?", "+rangeName():""),per?nf(Object.values(per).reduce((t,c)=>t+c.unique,0)):"–",per?"CurseForge, each addon's own: one person on two counts twice":"CurseForge counts people over 7, 30 or 90 days");
   // the best day (hour), and what was released on it
-  let best=-1,bi=-1;const vals=hourly()?D.hourly.hours.map((_,i)=>total(Object.values(D.hourly.series).map(s=>s[i]))).slice(24):dlTotal.slice(a,b);vals.forEach((v,i)=>{if(v!=null&&v>best){best=v;bi=i}});
+  let best=-1,bi=-1;const vals=hourly()?D.hourly.hours.map((_,i)=>total(Object.values(D.hourly.series).map(s=>s[i]))).slice(24):dlTotal.slice(a,c&&c.today||D.days[b-1]===new Date().toISOString().slice(0,10)?b-1:b);vals.forEach((v,i)=>{if(v!=null&&v>best){best=v;bi=i}});
   const rel=!hourly()&&bi>=0?marks().filter(m=>m.i===a+bi).map(m=>m.text):[];
   tile("t-best",hourly()?"Best hour":"Best day",bi<0?"–":nf(best),bi<0?"":(hourly()?hours().slice(24)[bi]:D.labels[a+bi])+(rel.length?" · "+rel[0]+(rel.length>1?" +"+(rel.length-1):""):""));
   // the stores' shares
   if(hourly())tile("t-st","Stores","CurseForge","Hour by hour, CurseForge alone: Wago and GitHub are daily totals");
-  else{const sums=D.stores.map(x=>({...x,n:total(D.downloads.stores[x.key].slice(a,b))||0}));const all=sums.reduce((t,x)=>t+x.n,0)||1;
-    tile("t-st","Stores","<span class=\\"split\\">"+sums.map(x=>"<i style=\\"width:"+(100*x.n/all)+"%;background:"+x.color+"\\"></i>").join("")+"</span>",sums.map(x=>x.name+" "+Math.round(100*x.n/all)+"%").join(" · "))}
+  else{const sums=D.stores.map(x=>({...x,n:total(D.downloads.stores[x.key].slice(a,b))||0}));const all=sums.reduce((t,x)=>t+x.n,0);
+    if(!all)tile("t-st","Stores","–","");else tile("t-st","Stores","<span class=\\"split\\">"+sums.map(x=>"<i style=\\"width:"+(100*x.n/all)+"%;background:"+x.color+"\\"></i>").join("")+"</span>",sums.map(x=>x.name+" "+Math.round(100*x.n/all)+"%").join(" · "))}
   const label=hourly()?"The last 24 hours":D.labels[a]?(a===b-1?D.labels[a]:D.labels[a]+" – "+D.labels[b-1]):"Nothing in this range";
   $("range-label").textContent=label;if($("dl-span"))$("dl-span").textContent=label;
   if($("k-dl-r"))$("k-dl-r").textContent=cur!=null?"+"+nf(cur)+" in "+(range==="0"?"all":rangeName()):"";
@@ -868,16 +880,18 @@ function draw(){
   document.querySelectorAll("[data-range]").forEach(b=>b.classList.toggle("on",b.dataset.range===range));
   $("custom").hidden=range!=="c";if(range==="c"){$("from").value=from||"";$("to").value=to||""}
   document.querySelectorAll(".daily-note").forEach(p=>p.hidden=!hourly());
+  if($("dl-note"))$("dl-note").hidden=hourly();if($("dl-hour-note"))$("dl-hour-note").hidden=!hourly();
   document.querySelectorAll("[data-view]").forEach(b=>b.classList.toggle("on",b.dataset.view===view));
   document.querySelectorAll("[data-site]").forEach(b=>b.classList.toggle("on",b.dataset.site===siteMode));
   tiles();board();chips();
   const on=addons.filter(a=>!a.off);
   // (the downloads: hour by hour at 24 h, else the days; all of them, by store, or the different people)
-  if(hourly()&&mode==="all"){const hl=hours().slice(24);chart($("c-dl"),{type:view==="lines"?"lines":"bars",whole:true,series:on.filter(a=>D.hourly.series[a.name]).map(a=>({...a,values:D.hourly.series[a.name].slice(24)})),labels:hl})}
-  else if(mode==="unique")chart($("c-dl"),{type:"bars",trim:true,series:on.map(a=>({...a,values:D.unique[a.name]||D.days.map(()=>null)})),labels:D.labels});
+  const hiddenAll=on.length?null:"Every addon hidden: a chip below shows it again.";
+  if(hourly()&&mode==="all"){const hl=hours().slice(24);chart($("c-dl"),{type:view==="lines"?"lines":"bars",whole:true,empty:hiddenAll||"No readings in the last 24 hours yet.",series:on.filter(a=>D.hourly.series[a.name]).map(a=>({...a,values:D.hourly.series[a.name].slice(24)})),labels:hl})}
+  else if(mode==="unique")chart($("c-dl"),{type:"bars",trim:true,empty:hiddenAll,series:on.map(a=>({...a,values:D.unique[a.name]||D.days.map(()=>null)})),labels:D.labels});
   else if(view==="store")chart($("c-dl"),{type:"bars",trim:true,series:D.stores.map(x=>({name:x.name,color:x.color,values:D.downloads.stores[x.key]})),labels:D.labels,since:D.since,pale:D.downloads.early,marks:marks()});
-  else chart($("c-dl"),{type:view==="lines"?"lines":"bars",trim:true,series:on,labels:D.labels,since:view==="lines"?null:D.since,pale:D.downloads.early,marks:marks()});
-  chart($("c-rk"),{type:"lines",invert:true,trim:true,format:(v)=>v==null?"–":"#"+nf(v),series:Object.keys(D.rank).filter(a=>!addons.find(x=>x.name===a&&x.off)).map((a,k)=>({name:a,color:colorOf[a]||C[k%C.length],values:D.rank[a]})),labels:D.labels});
+  else chart($("c-dl"),{type:view==="lines"?"lines":"bars",trim:true,empty:hiddenAll,series:on,labels:D.labels,since:view==="lines"?null:D.since,pale:D.downloads.early,marks:marks(true)});
+  chart($("c-rk"),{type:"lines",invert:true,trim:true,empty:on.length?"No ranks yet: the daily numbers bring them.":"Every addon hidden: the chips under the downloads show them again.",format:(v)=>v==null?"–":"#"+nf(v),series:Object.keys(D.rank).filter(a=>!addons.find(x=>x.name===a&&x.off)).map((a,k)=>({name:a,color:colorOf[a]||C[k%C.length],values:D.rank[a]})),labels:D.labels});
   const inw=[{name:"Running that day",color:C[1],values:D.installs}],over=[{name:"Different over 7 days",color:C[0],values:D.installsWeek}];
   chart($("c-in"),{type:"bars",trim:true,series:inw,over,labels:D.labels});legend($("l-in"),[...inw,...over],()=>{});
   const fa=[{name:"Facts",color:C[2],values:D.facts},{name:"New observations archived",color:C[0],values:D.newFacts}];

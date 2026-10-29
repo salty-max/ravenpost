@@ -170,3 +170,20 @@ describe("the series' earlier days and stores", () => {
     expect(later.downloads.early.slice(3)).toEqual([false, false, false]);
   });
 });
+
+test("a release under a day old shows its downloads so far, after the ones with a day's rate", () => {
+  const now = Date.parse("2026-10-29T12:00:00Z");
+  const rel = (version: string, at: string, downloads: number) => ({ id: 1, version, at, downloads, type: 1 });
+  const html = dashboard({ days: {} }, { now, releases: { Yonder: [rel("0.15.0", "2026-10-29T07:00:00Z", 140)], Keyring: [rel("0.3.0", "2026-10-26T12:00:00Z", 60)] } });
+  const t = html.slice(html.indexOf('id="download-releases"'));
+  expect(t.indexOf("Keyring")).toBeLessThan(t.indexOf("Yonder"));
+  expect(t).toContain("<b>20</b><span class=\"dl\">a day</span>");
+  expect(t).toContain("<b>–</b><span class=\"dl\">so far</span>");
+});
+
+test("today's downloads count from yesterday's last reading, never an older day's", () => {
+  const now = Date.parse("2026-10-29T10:00:00Z");
+  const r: Reading[] = [["2026-10-27T23:50:00Z", { Yonder: 100 }], ["2026-10-29T00:10:00Z", { Yonder: 160 }], ["2026-10-29T09:50:00Z", { Yonder: 170 }]];
+  expect(hourlyOf(r, now).today).toBe(10);
+  expect(hourlyOf([["2026-10-28T23:50:00Z", { Yonder: 150 }], ...r.slice(1)], now).today).toBe(20);
+});

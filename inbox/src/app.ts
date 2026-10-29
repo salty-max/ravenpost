@@ -198,12 +198,15 @@ app.get("/stats", async (c) => {
   if (!tag) return c.html(signinPage());
   const day = new Date().toISOString().slice(0, 10);
   const yday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+  // (the day before too: the dashboard's 24 hours before reach back into it)
+  const yday2 = new Date(Date.now() - 2 * 86_400_000).toISOString().slice(0, 10);
   // (the problems GitHub has seen settled since, asked as the page is made: a few seconds at most)
   const settled = events.recent().then(async (ev) => [ev, await github.settle(ev).catch(() => ({}))] as const);
-  const [h, [ev, resolved], devices, r0, r1, releases, threads, now, unique, gh] = await Promise.all([
+  const [h, [ev, resolved], devices, rb, r0, r1, releases, threads, now, unique, gh] = await Promise.all([
     history(),
     settled,
     push.devices(),
+    curseforge.readings(yday2),
     curseforge.readings(yday),
     curseforge.readings(day),
     curseforge.latest(),
@@ -213,7 +216,7 @@ app.get("/stats", async (c) => {
     githubLatest(),
   ]);
   return c.html(
-    dashboard(h, { viewer: tag, events: ev, pushKey: push.vapid()?.publicKey ?? null, devices, readings: [...r0, ...r1], releases, threads, resolved, today: now, unique, github: gh }),
+    dashboard(h, { viewer: tag, events: ev, pushKey: push.vapid()?.publicKey ?? null, devices, readings: [...rb, ...r0, ...r1], releases, threads, resolved, today: now, unique, github: gh }),
   );
 });
 app.get("/", (c) => c.redirect("/stats"));
