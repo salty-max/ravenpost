@@ -57,7 +57,8 @@ with Battle.net in the browser (a signed cookie, 30 days). Its history,
   favorites and thumbs up (CurseForge's official API, `CURSEFORGE_API_KEY`;
   its search is closed to this key);
 - traffic: hearthtale.app's and wow-locker.app's page views and visitors
-  from Vercel Web Analytics' API (`STATS_SITES`, `VERCEL_TEAM_ID`, and
+  from Vercel Web Analytics' API (yesterday's by the daily job, today's so far
+  at each ten-minute look, in `stats/today.json`) (`STATS_SITES`, `VERCEL_TEAM_ID`, and
   `VERCEL_ANALYTICS_TOKEN`: a Vercel token; without it, a link to Vercel);
 - unique: each addon's CurseForge downloads and its unique downloaders
   (different people) that day, CurseForge's own statistics, with their 7, 30
@@ -66,7 +67,7 @@ with Battle.net in the browser (a signed cookie, 30 days). Its history,
   there reads them (the authors site's Downloads statistics queries, the
   cookie in `~/.config/wow-addons/curseforge-cookie`, addon-kit's store.ts's)
   and hands them over (`POST /api/unique` with `UNIQUE_TOKEN`, the script's
-  alone, kept there in `~/.config/wow-addons/unique-token`). A day or two behind; Wago and GitHub
+  alone, kept there in `~/.config/wow-addons/unique-token`). CurseForge itself is a day or two behind (the page says to which day, and when it was brought); Wago and GitHub
   count no people. The Downloads section's All and Unique switch the chart
   and the rows between download events and people.
 

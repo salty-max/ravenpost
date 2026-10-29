@@ -418,18 +418,6 @@ function installsCard(d: Distinct | undefined, through: string | undefined): str
 <p class="sub" style="margin-top:10px">Each install once, however many days it ran, to ${short(through)}. A player on two computers counts twice.</p>`;
 }
 
-/** Each addon's unique downloaders on CurseForge over 7, 30 and 90 days: different people, beside its downloads. */
-function uniqueCard(u: UniquePeriods | null | undefined): string {
-  const p = u?.periods ?? {};
-  const names = [...new Set(Object.values(p).flatMap((c) => Object.keys(c)))].sort((a, b) => (p["30"]?.[b]?.unique ?? 0) - (p["30"]?.[a]?.unique ?? 0));
-  if (!u || !names.length)
-    return `<p class="empty" style="padding:12px 0 0">Not brought yet. CurseForge counts them behind your sign-in: <code>bun bin/curseforge-unique.ts</code> on your computer brings them.</p>`;
-  const cell = (c?: { downloads: number; unique: number }) => `<span class="c">${c ? `<b>${fmt(c.unique)}</b><span>of ${fmt(c.downloads)}</span>` : "–"}</span>`;
-  return `<div class="periods"><span class="h">Addon</span><span class="h">7 days</span><span class="h">30 days</span><span class="h">90 days</span>
-${names.map((n) => `<span class="n">${esc(n)}</span>${cell(p["7"]?.[n])}${cell(p["30"]?.[n])}${cell(p["90"]?.[n])}`).join("")}</div>
-<p class="sub" style="margin-top:10px">Different people, of the downloads, to ${u.through ? short(u.through) : "the last day CurseForge had"}. A player with two addons counts in each. Brought ${ago(u.at)}.</p>`;
-}
-
 /** The addons' latest comment threads: who wrote, the replies (the owner's set apart), whether one waits for an answer. */
 function threadsList(threads: Thread[]): string {
   if (!threads.length) return `<p class="empty">No comments yet. They show here, and on your phone, within ten minutes.</p>`;
@@ -494,11 +482,13 @@ export function dashboard(
     now?: number;
   } = {},
 ): string {
-  const s = seriesOf(withDownloadReadings(h, opts.readings ?? []));
+  const td = opts.today ?? null;
+  // (the day's visitors so far, from the ten-minute look, on the day the daily job has not summed yet)
+  const live = td?.traffic ? { ...h, days: { ...h.days, [td.day]: { ...h.days[td.day], traffic: td.traffic } } } : h;
+  const s = seriesOf(withDownloadReadings(live, opts.readings ?? []));
   const events = opts.events ?? [];
   const resolved = opts.resolved ?? {};
   const st = standing(events, resolved, opts.now);
-  const td = opts.today ?? null;
   const total = Object.values(s.downloads.totals).reduce((a, b) => a + b, 0);
   const weeks = Object.values(s.downloads.week).filter((v): v is number => v !== null);
   const week = weeks.length ? weeks.reduce((a, b) => a + b, 0) : null;
@@ -594,11 +584,10 @@ ${kpi("k-vi", "globe", "Site visitors", fmt(lastOf(visitors)), Object.keys(s.sit
 <section id="downloads"><div class="sh"><h2 class="title">Downloads</h2><div class="seg" role="group" aria-label="Count"><button data-dl="all" class="on">All</button><button data-dl="unique">Unique</button></div></div>
 <div class="panel card"><h3 data-mode="all">New downloads a day, by addon</h3><h3 data-mode="unique">Different people a day, by addon</h3>
 <p class="sub" data-mode="all">Download events on every store: one player downloading twice counts twice.</p>
-<p class="sub" data-mode="unique" id="unique-through">${s.days.some((d) => h.days[d]?.unique) ? `CurseForge's own count, to ${short(s.days.filter((d) => h.days[d]?.unique).at(-1)!)}: Wago and GitHub don't count people.` : "CurseForge's own count, not brought yet (bin/curseforge-unique.ts on your computer)."}</p>
+<p class="sub" data-mode="unique" id="unique-through">${s.days.some((d) => h.days[d]?.unique) ? `CurseForge's own count, to ${short(s.days.filter((d) => h.days[d]?.unique).at(-1)!)}: Wago and GitHub don't count people${opts.unique?.at ? `, brought ${ago(opts.unique.at)}` : ""}.` : "CurseForge's own count, not brought yet (bin/curseforge-unique.ts on your computer)."}</p>
 <div class="chart" id="c-dl"></div><div class="legend" id="l-dl"></div>
 <div class="rows" id="download-rows" style="margin-top:14px">${rows || `<p class="empty">Nothing yet.</p>`}</div>
 <p class="sub" id="downloads-checked" style="margin-top:10px">Download events, not players: Unique counts people. CurseForge and Wago are read every ten minutes, GitHub every hour${downloadsChecked ? `, last ${esc(downloadsChecked.slice(0, 10))} at ${esc(downloadsChecked.slice(11, 16))} UTC` : ""}.</p></div>
-<div class="panel card" id="download-unique" style="margin-top:12px"><h3>Unique on CurseForge</h3><p class="sub">Different people who downloaded each addon, beside its downloads</p>${uniqueCard(opts.unique)}</div>
 <div class="grid2" style="margin-top:12px;align-items:start">
 <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
 <div class="panel card"><h3>The last 48 hours</h3><p class="sub">New CurseForge downloads an hour, read every ten minutes</p><div class="chart" id="c-hr" style="height:170px"></div></div>
@@ -755,7 +744,7 @@ bindThreads();
 // minute while it's shown, at once when it comes back (the app on a phone:
 // iOS keeps it as it was left), on a pull at the top and with the refresh
 // button. A comment being read, a filter, a word opened stay as they were.
-const PARTS=["#hero","#side-standing","#nav-answer",".kpis","#to-day","#daily-snapshot","#feed","#threads","#comments .chips","#download-rows","#downloads-checked","#unique-through","#download-popularity","#download-unique","#download-releases","#addons-body","#players","#sites","#notif-count"];
+const PARTS=["#hero","#side-standing","#nav-answer",".kpis","#to-day","#daily-snapshot","#feed","#threads","#comments .chips","#download-rows","#downloads-checked","#unique-through","#download-popularity","#download-releases","#addons-body","#players","#sites","#notif-count"];
 let refreshing=false,freshAt=Date.now();
 const fresh=()=>{const s=Math.round((Date.now()-freshAt)/1000);if($("fresh"))$("fresh").textContent=" · updated "+(s<20?"just now":s<90?s+" s ago":Math.round(s/60)+" min ago")};
 setInterval(fresh,10000);fresh();

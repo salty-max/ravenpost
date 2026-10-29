@@ -215,7 +215,6 @@ describe("today so far, and the unique downloaders", () => {
     expect(await uniquePeriods()).toMatchObject({ through: "2026-10-18", periods: { "7": { Yonder: { downloads: 359, unique: 217 } } } });
     expect(seriesOf(h).unique.Yonder).toEqual([30, 33]);
     const html = dashboard(h, { unique: await uniquePeriods() });
-    expect(html).toContain("<b>217</b><span>of 359</span>");
     expect(html).toContain("<b>217</b> 7 d");
   });
 });

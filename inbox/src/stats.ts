@@ -229,7 +229,7 @@ export async function downloads(): Promise<NonNullable<Day["downloads"]>> {
 
 // ── the sites' traffic (Vercel Web Analytics) ────────────────────────────────
 /** STATS_SITES: "hearthtale=prj_…,wow-locker=prj_…"; VERCEL_TEAM_ID: their team. */
-async function traffic(day: string): Promise<Day["traffic"]> {
+export async function traffic(day: string): Promise<Day["traffic"]> {
   const token = process.env.VERCEL_ANALYTICS_TOKEN;
   const team = process.env.VERCEL_TEAM_ID;
   if (!token || !team) return undefined;
@@ -281,14 +281,16 @@ async function standing(): Promise<Day["curseforge"]> {
 }
 
 // ── today so far (the ten-minute look) ───────────────────────────────────────
-export type Today = { at: string; day: string; installs: number; sharing: number; sharers: number; uploads: number; facts: number; distinct?: Distinct };
+export type Today = { at: string; day: string; installs: number; sharing: number; sharers: number; uploads: number; facts: number; distinct?: Distinct; traffic?: Day["traffic"] };
 const TODAY = "stats/today.json";
 
 /** Today's pings and uploads so far, before the daily job sums them: counted and kept for the dashboard. */
 export async function countToday(now = new Date()): Promise<Today> {
   const day = dayOf(now);
   const t: Today = { at: now.toISOString(), day, installs: 0, sharing: 0, sharers: 0, uploads: 0, facts: 0 };
-  const [pings, counts, before, s] = await Promise.all([store.all(`pings/${day}/`), store.all(`counts/${day}/`), store.all(`pings/${yesterday(now)}/`), seen()]);
+  const [pings, counts, before, s, tr] = await Promise.all([store.all(`pings/${day}/`), store.all(`counts/${day}/`), store.all(`pings/${yesterday(now)}/`), seen(), traffic(day).catch(() => undefined)]);
+  // (the sites' visitors so far today: Web Analytics answers for a day not yet over)
+  if (tr && Object.keys(tr).length) t.traffic = tr;
   t.installs = pings.length;
   // (different installs to today: yesterday's pings too, should the daily job not have counted them yet)
   const known = see(see(s, yesterday(now), before), day, pings);
