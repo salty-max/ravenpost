@@ -128,7 +128,10 @@ export function seriesOf(h: History): Series {
         for (let j = prev.i + 1; j <= i; j++) {
           out[j] = each;
           if (span > 1) since[j] = prev.day;
-          for (const x of STORES) add(stores[x], j, Math.max(0, (carried[x] ?? 0) - (prev.channels[x] ?? 0)) / span);
+          // (the day's downloads shared by each store's rise: the stores add up to the daily, a store recounted lower counting none)
+          const rise = STORES.map((x) => Math.max(0, (carried[x] ?? 0) - (prev!.channels[x] ?? 0)));
+          const all = rise.reduce((t, r) => t + r, 0);
+          STORES.forEach((x, k) => add(stores[x], j, all ? (each * rise[k]) / all : 0));
         }
       }
       prev = { day: d, total, i, channels: carried };
@@ -200,7 +203,7 @@ export function hourlyOf(readings: Reading[], now = Date.now()) {
 // ── the look: Ravenpost's window's theme ─────────────────────────────────────
 const STYLE = `
 :root{color-scheme:dark;--night:#0b0c10;--stone:#121319;--stone-2:#181a21;--stone-3:#21242d;--edge:#2b2f3a;--edge-gold:#5a4a2a;--parchment:#ece3cf;--dim:#a39b88;--faint:#6f6a5e;--gold:#f2c14e;--gold-soft:#c9a227;--ok:#6fd08c;--blood:#e0634f;--bnet:#148eff;--display:"Cinzel","Trajan Pro",Georgia,serif;--sans:"Inter",ui-sans-serif,system-ui,sans-serif}
-*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:calc(16px + env(safe-area-inset-top))}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:calc(70px + env(safe-area-inset-top))}
 body{margin:0;overflow-x:clip;background:radial-gradient(1200px 600px at 70% -10%,rgb(242 193 78/.06),transparent 60%),var(--night);color:var(--parchment);font:14px/1.5 var(--sans);-webkit-font-smoothing:antialiased;min-height:100vh}
 a{color:inherit;text-decoration:none}
 /* (on a phone, the status bar's own strip: the page scrolls under the night, never under the clock) */
@@ -630,7 +633,7 @@ export function dashboard(
     marks,
     stores: Object.entries(CH).map(([k, [name, color]]) => ({ key: k, name, color })),
   };
-  const firstCounted = s.downloads.early.indexOf(false);
+  const firstCounted = s.downloads.early.lastIndexOf(true) + 1;
   const RANGES: [string, string][] = [["24h", "24 h"], ["7", "7 d"], ["30", "30 d"], ["90", "90 d"], ["0", "All"], ["c", "Custom"]];
   const tile = (id: string, label: string) => `<div class="panel tile" id="${id}"><span class="k">${label}</span><span class="v">–</span><span class="d">&nbsp;</span></div>`;
   const dailyNote = `<p class="sub daily-note" hidden>Daily numbers: the last 7 days shown.</p>`;
@@ -670,7 +673,7 @@ ${kpi("k-vi", "globe", "Site visitors", fmt(lastOf(visitors)), [Object.keys(s.si
 <div class="tiles">${tile("t-dl", "Downloads")}${tile("t-pp", "Different people")}${tile("t-best", "Best day")}${tile("t-st", "Stores")}</div>
 <div class="panel card"><div class="ctl"><div><h3 data-mode="all">New downloads</h3><h3 data-mode="unique">Different people a day</h3></div>
 <div class="ctl-r"><div class="seg" role="group" aria-label="Count"><button data-dl="all" class="on">All</button><button data-dl="unique">Unique</button></div><div class="seg" role="group" aria-label="View" data-mode="all"><button data-view="addon" class="on">By addon</button><button data-view="store">By store</button><button data-view="lines">Lines</button></div></div></div>
-<p class="sub" data-mode="all" id="dl-note">Download events on every store: one player downloading twice counts twice.${firstCounted > 0 ? ` Before ${short(s.days[firstCounted])}, CurseForge's own daily count alone (paler): Wago and GitHub keep only totals.` : ""}${marks.length ? " Gold marks: releases." : ""}</p>
+<p class="sub" data-mode="all" id="dl-note">Download events on every store: one player downloading twice counts twice.${firstCounted > 0 ? ` ${firstCounted < s.days.length ? `Before ${short(s.days[firstCounted])}, CurseForge's` : "CurseForge's"} own daily count alone (paler): Wago and GitHub keep only totals.` : ""}${marks.length ? " Gold marks: releases." : ""}</p>
 <p class="sub" data-mode="unique" id="unique-through">${s.days.some((d) => h.days[d]?.unique) ? `CurseForge's own count, to ${short(s.days.filter((d) => h.days[d]?.unique).at(-1)!)}: Wago and GitHub don't count people${opts.unique?.at ? `, brought ${ago(opts.unique.at)}` : ""}.` : "CurseForge's own count, not brought yet (CURSEFORGE_COOKIE on Vercel, read hourly)."}</p>
 <div class="chart" id="c-dl"></div><div class="chiprow" id="chips-dl" role="group" aria-label="Addons"></div>
 <table class="lb" id="download-rows"><thead><tr><th data-sort="name">Addon</th><th data-sort="range" id="lb-range">In range</th><th data-sort="people" class="pp">People</th><th class="sp">Trend</th><th data-sort="all" class="tot">All time</th><th class="st">Stores</th></tr></thead><tbody>${rows}</tbody></table>
@@ -741,7 +744,8 @@ function span(){const n=D.days.length;
   const r=+range;return r?[Math.max(0,n-r),n]:[0,n]}
 const cut=(xs)=>{const [a,b]=span();return xs.slice(a,b)};
 /** The span as long just before, or null where the numbers don't reach it. */
-function prior(){if(range==="0")return null;const [a,b]=span();const n=b-a;return n&&a-n>=0?[a-n,a]:null}
+/** The range's days and the span as long just before, to compare: today (still going) left out of both, and null where no downloads were counted all through the span before. */
+function compared(){if(range==="0")return null;const [a,b0]=span();const b=D.days[b0-1]===new Date().toISOString().slice(0,10)?b0-1:b0;const n=b-a;const first=dlTotal.findIndex(v=>v!=null);return n>0&&first>=0&&a-n>=first?{now:[a,b],before:[a-n,a],today:b<b0}:null}
 const total=(xs)=>{let t=null;for(const v of xs)if(v!=null)t=(t||0)+v;return t};
 const rangeName=()=>({"24h":"24 h","7":"7 d","30":"30 d","90":"90 d","0":"all","c":"the range"})[range];
 // (a smooth line through the points: monotone, it never overshoots)
@@ -812,15 +816,15 @@ const pct=(cur,was)=>was==null||cur==null?null:was===0?(cur>0?"new":null):Math.r
 const delta=(p)=>p==null?"":p==="new"?"<span class=\\"dl up\\">new</span>":"<span class=\\"dl "+(p<0?"down":"up")+"\\">"+(p<0?"−":"+")+Math.abs(p)+"%</span>";
 const hours=()=>D.hourly.hours.map(h=>new Date(h).toLocaleString("en-GB",{weekday:"short",hour:"2-digit",minute:"2-digit",hour12:false}));
 /** An addon's downloads in the range and in the span before: the hours' when 24 h (CurseForge's readings), the days' else. */
-function inRange(a){if(hourly()){const h=D.hourly.series[a];return h?[total(h.slice(24)),total(h.slice(0,24))]:[null,null]}const [x,y]=span(),p=prior(),v=D.downloads.daily[a]||[];return [total(v.slice(x,y)),p?total(v.slice(p[0],p[1])):null]}
+function inRange(a){if(hourly()){const h=D.hourly.series[a];return h?[total(h.slice(24)),total(h.slice(24)),total(h.slice(0,24))]:[null,null,null]}const [x,y]=span(),c=compared(),v=D.downloads.daily[a]||[];return [total(v.slice(x,y)),c?total(v.slice(...c.now)):null,c?total(v.slice(...c.before)):null]}
 const marks=()=>D.marks.map(m=>({i:D.days.indexOf(m.day),text:m.text})).filter(m=>m.i>=0);
 function tile(id,label,v,d,extra){const t=$(id);if(!t)return;t.querySelector(".k").textContent=label;t.querySelector(".v").innerHTML=v;t.querySelector(".d").innerHTML=(extra||"")+(d||"&nbsp;")}
 function tiles(){
-  const [a,b]=span(),p=prior();
-  // downloads in the range, against the span before
-  let cur,was;if(hourly()){const h=Object.values(D.hourly.series);cur=total(h.map(s=>total(s.slice(24))));was=total(h.map(s=>total(s.slice(0,24))))}else{cur=total(dlTotal.slice(a,b));was=p?total(dlTotal.slice(p[0],p[1])):null}
-  const ch=pct(cur,was);
-  tile("t-dl","Downloads, "+rangeName(),nf(cur),hourly()?"CurseForge's readings, hour by hour":ch==null?(range==="0"?"since "+(D.labels[a]||"–"):"nothing to compare before"):(ch==="new"?"<b class=\\"up\\">new</b>":"<b class=\\""+(ch<0?"down":"up")+"\\">"+(ch<0?"▼ ":"▲ ")+Math.abs(ch)+"%</b>")+" on the "+rangeName()+" before");
+  const [a,b]=span(),c=compared();
+  // downloads in the range, against the span before (whole days: today, still going, aside)
+  let cur,ch=null;if(hourly()){const h=Object.values(D.hourly.series);cur=total(h.map(s=>total(s.slice(24))))}else{cur=total(dlTotal.slice(a,b));if(c)ch=pct(total(dlTotal.slice(...c.now)),total(dlTotal.slice(...c.before)))}
+  const first=dlTotal.findIndex(v=>v!=null);
+  tile("t-dl","Downloads, "+rangeName(),nf(cur),hourly()?"CurseForge's readings, hour by hour":ch==null?(range==="0"?"since "+(D.labels[Math.max(a,first)]||"–"):"nothing to compare before"):(ch==="new"?"<b class=\\"up\\">new</b>":"<b class=\\""+(ch<0?"down":"up")+"\\">"+(ch<0?"▼ ":"▲ ")+Math.abs(ch)+"%</b>")+" on the "+(c.now[1]-c.now[0])+" days before"+(c.today?", today aside":""));
   // different people: CurseForge's own, over 7, 30 or 90 days only (a sum of days would count a person each day)
   const per=D.periods[range]&&Object.keys(D.periods[range]).length?D.periods[range]:null;
   tile("t-pp","Different people"+(per?", "+rangeName():""),per?nf(Object.values(per).reduce((t,c)=>t+c.unique,0)):"–",per?"CurseForge, each addon's own: one person on two counts twice":"CurseForge counts people over 7, 30 or 90 days");
@@ -841,8 +845,8 @@ let sortBy=["name","range","people","all"].includes(prefs.sort)?prefs.sort:"rang
 function board(){
   const body=document.querySelector("#download-rows tbody");if(!body)return;
   const per=D.periods[range];const rows=[...body.rows];const key={};
-  for(const tr of rows){const a=tr.dataset.a,[cur,was]=inRange(a),pp=per&&per[a]?per[a].unique:null;
-    tr.querySelector(".rg").innerHTML=cur==null?"–":"<b>"+nf(cur)+"</b>"+delta(pct(cur,was));
+  for(const tr of rows){const a=tr.dataset.a,[cur,base,was]=inRange(a),pp=per&&per[a]?per[a].unique:null;
+    tr.querySelector(".rg").innerHTML=cur==null?"–":"<b>"+nf(cur)+"</b>"+delta(pct(base,was));
     tr.querySelector(".pp").textContent=pp==null?"–":nf(pp);
     const sp=tr.querySelector(".sp");sp.innerHTML="<div style=\\"width:66px;height:24px\\"></div>";
     const v=hourly()?D.hourly.series[a]&&D.hourly.series[a].slice(24):D.downloads.daily[a]&&cut(D.downloads.daily[a]);if(v)spark(sp.firstChild,v,colorOf[a]||"#6f6a5e",true);
@@ -870,9 +874,9 @@ function draw(){
   const on=addons.filter(a=>!a.off);
   // (the downloads: hour by hour at 24 h, else the days; all of them, by store, or the different people)
   if(hourly()&&mode==="all"){const hl=hours().slice(24);chart($("c-dl"),{type:view==="lines"?"lines":"bars",whole:true,series:on.filter(a=>D.hourly.series[a.name]).map(a=>({...a,values:D.hourly.series[a.name].slice(24)})),labels:hl})}
-  else if(mode==="unique")chart($("c-dl"),{type:"bars",series:on.map(a=>({...a,values:D.unique[a.name]||D.days.map(()=>null)})),labels:D.labels});
-  else if(view==="store")chart($("c-dl"),{type:"bars",series:D.stores.map(x=>({name:x.name,color:x.color,values:D.downloads.stores[x.key]})),labels:D.labels,since:D.since,pale:D.downloads.early,marks:marks()});
-  else chart($("c-dl"),{type:view==="lines"?"lines":"bars",series:on,labels:D.labels,since:view==="lines"?null:D.since,pale:D.downloads.early,marks:marks()});
+  else if(mode==="unique")chart($("c-dl"),{type:"bars",trim:true,series:on.map(a=>({...a,values:D.unique[a.name]||D.days.map(()=>null)})),labels:D.labels});
+  else if(view==="store")chart($("c-dl"),{type:"bars",trim:true,series:D.stores.map(x=>({name:x.name,color:x.color,values:D.downloads.stores[x.key]})),labels:D.labels,since:D.since,pale:D.downloads.early,marks:marks()});
+  else chart($("c-dl"),{type:view==="lines"?"lines":"bars",trim:true,series:on,labels:D.labels,since:view==="lines"?null:D.since,pale:D.downloads.early,marks:marks()});
   chart($("c-rk"),{type:"lines",invert:true,trim:true,format:(v)=>v==null?"–":"#"+nf(v),series:Object.keys(D.rank).filter(a=>!addons.find(x=>x.name===a&&x.off)).map((a,k)=>({name:a,color:colorOf[a]||C[k%C.length],values:D.rank[a]})),labels:D.labels});
   const inw=[{name:"Running that day",color:C[1],values:D.installs}],over=[{name:"Different over 7 days",color:C[0],values:D.installsWeek}];
   chart($("c-in"),{type:"bars",trim:true,series:inw,over,labels:D.labels});legend($("l-in"),[...inw,...over],()=>{});

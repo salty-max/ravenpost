@@ -152,6 +152,18 @@ describe("the series' earlier days and stores", () => {
     expect(s.installsWeek).toEqual([null, null, null, 5, null, null]);
   });
 
+  test("a store recounted lower takes nothing from the day: the stores add up to the daily", () => {
+    const r = seriesOf({ days: { "2026-10-20": { downloads: { Yonder: { curseforge: 100, wago: 20 } } }, "2026-10-21": { downloads: { Yonder: { curseforge: 110, wago: 10 } } }, "2026-10-22": { downloads: { Yonder: { curseforge: 115, wago: 12 } } } } });
+    expect(r.downloads.daily.Yonder).toEqual([null, 0, 7]);
+    expect(r.downloads.stores.curseforge).toEqual([null, 0, 5]);
+    expect(r.downloads.stores.wago).toEqual([null, 0, 2]);
+  });
+
+  test("the pale days are told even when days of other parts come before them", () => {
+    const html = dashboard({ days: { "2026-08-01": { traffic: { hearthtale: { pageviews: 3, visitors: 1 } } }, ...h.days } });
+    expect(html).toContain("Before 14 Oct, CurseForge's own daily count alone");
+  });
+
   test("a newer addon's own early days don't mark the days others counted whole", () => {
     const later = seriesOf({ days: { ...h.days, "2026-10-15": { unique: { Mealbook: { downloads: 4, unique: 4 } } }, "2026-10-16": { downloads: { ...h.days["2026-10-16"].downloads, Mealbook: { curseforge: 4 } } } } });
     expect(later.downloads.daily.Mealbook.slice(4)).toEqual([4, null]);

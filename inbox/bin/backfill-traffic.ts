@@ -17,13 +17,16 @@
  */
 import { traffic, type Day } from "../src/stats";
 
+const LAST = "2026-10-13";
 const arg = (name: string, fallback: string) => {
   const i = process.argv.indexOf(name);
   return i > 0 && process.argv[i + 1] ? process.argv[i + 1] : fallback;
 };
 const from = arg("--from", "2026-08-01");
-const to = arg("--to", "2026-10-13");
+const to = arg("--to", LAST);
 if (![from, to].every((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)) || from > to) throw new Error("--from and --to: YYYY-MM-DD, the first not after the second");
+// (a day the daily job counted is never touched: a site whose query fails here would be dropped from it)
+if (to > LAST) throw new Error(`--to: ${LAST} at the latest, the days after are the daily job's`);
 if (!process.env.VERCEL_ANALYTICS_TOKEN || !process.env.VERCEL_TEAM_ID || !process.env.STATS_SITES)
   throw new Error("VERCEL_ANALYTICS_TOKEN, VERCEL_TEAM_ID and STATS_SITES: `vercel env pull` from inbox/");
 
