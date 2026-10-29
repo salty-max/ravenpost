@@ -3,9 +3,12 @@ package main
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"runtime"
 	"strings"
 )
+
+var underAccount = regexp.MustCompile(`WTF[/\\]+Account[/\\]+.*?(\.lua|$)`)
 
 // diagnostics: a text a player can paste into an issue. It names no player:
 // no character, no account folder, no token, no journal line (they name
@@ -18,7 +21,8 @@ func (r *Ravenpost) diagnostics() string {
 		if home != "" {
 			s = strings.ReplaceAll(s, home, "~")
 		}
-		return s
+		// (an account, realm and character are names: nothing past WTF/Account)
+		return underAccount.ReplaceAllString(s, "WTF/Account/…")
 	}
 	yesno := func(b bool) string {
 		if b {

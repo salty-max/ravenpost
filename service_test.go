@@ -98,7 +98,15 @@ func TestDiagnosticsNamesNobody(t *testing.T) {
 		c.Activity = []Activity{{Kind: "failed", Service: "hearthtale", Name: "SECRETACCOUNT", Detail: "the site didn't answer at " + home}}
 		c.Links = map[string]*Link{Hearthtale: {Token: "SECRETTOKEN", BattleTag: "Secret#1234"}}
 	})
+	_ = r.app.store.Update(func(c *Config) {
+		c.Activity = append(c.Activity, Activity{Kind: "failed", Service: "hearthtale", Detail: `open C:\Program Files (x86)\World of Warcraft\_classic_era_\WTF\Account\MYACCOUNT\Realm\Charname\SavedVariables\Hearthtale.lua: denied`})
+	})
 	out := r.Diagnostics()
+	for _, bad := range []string{"MYACCOUNT", "Charname", "Realm"} {
+		if strings.Contains(out, bad) {
+			t.Fatalf("diagnostics leaks %q:\n%s", bad, out)
+		}
+	}
 	for _, bad := range []string{"SECRETACCOUNT", "SECRETTOKEN", "Secret#1234"} {
 		if strings.Contains(out, bad) {
 			t.Fatalf("diagnostics leaks %q:\n%s", bad, out)

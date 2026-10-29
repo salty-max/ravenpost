@@ -42,10 +42,9 @@ func (a *App) trayMenu(app *application.App, show func()) (*application.Menu, fu
 	status := menu.Add("Ravenpost").SetEnabled(false)
 	last := menu.Add("").SetEnabled(false)
 	updateItem := menu.Add("").SetHidden(true)
-	updateURL := ""
 	updateItem.OnClick(func(*application.Context) {
-		if updateURL != "" {
-			_ = openURL(updateURL)
+		if u := a.Update(); u != nil {
+			_ = openURL(u.URL)
 		}
 	})
 	menu.AddSeparator()
@@ -67,7 +66,6 @@ func (a *App) trayMenu(app *application.App, show func()) (*application.Menu, fu
 		}
 		last.SetLabel(fmt.Sprintf(t.lastUpload, lastUploadWhen(t, snap.LastSync)))
 		if u := a.Update(); u != nil {
-			updateURL = u.URL
 			updateItem.SetLabel(fmt.Sprintf(t.update, u.Version)).SetHidden(false)
 		} else {
 			updateItem.SetHidden(true)
