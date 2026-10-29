@@ -244,6 +244,7 @@ body.dl-u [data-mode=all],body:not(.dl-u) [data-mode=unique]{display:none!import
 .bars{display:flex;flex-direction:column;gap:8px;margin-top:12px}.bar-r{display:grid;grid-template-columns:minmax(0,1fr) 2fr 36px;gap:10px;align-items:center;font-size:12px;color:var(--dim)}.bar-r .track{height:6px;border-radius:999px;background:var(--stone-3);overflow:hidden}.bar-r .track i{display:block;height:100%;background:var(--gold-soft);border-radius:999px}.bar-r b{color:var(--parchment);text-align:right;font-weight:500;font-variant-numeric:tabular-nums}
 .switch{position:relative;width:40px;height:22px;border-radius:999px;border:1px solid var(--edge);background:var(--stone-3);cursor:pointer;flex:none;transition:background .15s}.switch::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--dim);transition:transform .15s}
 .switch[aria-checked=true]{background:rgb(201 162 39/.8);border-color:var(--gold-soft)}.switch[aria-checked=true]::after{transform:translateX(18px);background:var(--night)}.switch:disabled{opacity:.4;cursor:default}
+.ad-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin-top:12px}.ad{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border:1px solid rgb(255 255 255/.07);border-radius:12px;background:rgb(255 255 255/.02);border-left:3px solid var(--edge);min-width:0}.ad.ok{border-left-color:var(--ok)}.ad.gold{border-left-color:var(--gold)}.ad-h{display:flex;align-items:center;justify-content:space-between;gap:8px}.ad-h b{font-weight:600;font-size:15px}.ad-v{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:baseline;font-size:13px}.ad-v .l{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.04em}.ad-v b{font-weight:600;font-variant-numeric:tabular-nums}.ad-v .a{color:var(--dim);font-size:12px;margin-left:6px}.ad-j{font-size:12px;color:var(--dim);border-top:1px solid rgb(255 255 255/.05);padding-top:7px}
 .rel{padding:10px 0;border-top:1px solid rgb(255 255 255/.045)}.rel:first-of-type{border-top:0}.rel-h{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}.rel-h b{font-weight:600}.rel-h .sub{margin:0}
 .notif{display:flex;align-items:center;gap:14px;padding:16px 18px}
 .tools{display:flex;align-items:center;gap:6px}.refresh{width:36px;padding:0;height:36px}.refresh.busy .ic,.pull.busy .ic{animation:spin .8s linear infinite}
@@ -398,11 +399,14 @@ export function addonsSection(h: History, td: Today | null, gh: Record<string, G
     const job = events.find((e) => e.repo === repo && (e.kind === "merged" || e.kind === "failed" || e.kind === "waiting"));
     const b = behind(g, cf[name], now);
     const status = b ? `<span class="tag gold">${b.hours >= DRIFT_HOURS ? "Not on CurseForge" : "CurseForge"} · ${b.hours} h</span>` : g && c ? `<span class="tag ok">In step</span>` : `<span class="tag">–</span>`;
-    return `<div class="rel"><div class="rel-h"><b>${esc(name)}</b>${status}</div>
-<span class="sub">GitHub ${g ? `<a href="${esc(g.url)}" rel="noopener">${esc(g.tag)}</a>, ${ago(g.at, now)}` : "–"} · CurseForge ${c ? `${esc(c.version)}, ${ago(c.at, now)}` : cf[name] || !ADDONS.find((a) => a[4] === repo)?.[1] ? "–" : "not read yet"}${job ? ` · ${esc(job.title)}, ${ago(job.at, now)}` : ""}</span></div>`;
+    const tone = b ? "gold" : g && c ? "ok" : "";
+    const cfv = c ? `<b>${esc(c.version)}</b><span class="a">${ago(c.at, now)}</span>` : cf[name] || !ADDONS.find((a) => a[4] === repo)?.[1] ? "–" : `<span class="a" style="margin:0">not read yet</span>`;
+    return `<div class="ad ${tone}"><div class="ad-h"><b>${esc(name)}</b>${status}</div>
+<div class="ad-v"><span class="l">GitHub</span><span>${g ? `<a href="${esc(g.url)}" rel="noopener"><b>${esc(g.tag)}</b></a><span class="a">${ago(g.at, now)}</span>` : "–"}</span><span class="l">CurseForge</span><span>${cfv}</span></div>
+${job ? `<div class="ad-j">${esc(job.title)}, ${ago(job.at, now)}</div>` : ""}</div>`;
   }).join("");
   return `<div class="panel card"><h3>Launch watch</h3><p class="sub">Checked every ten minutes. A warning is told to your devices once a day.</p><div style="margin-top:6px">${watchRows}</div></div>
-<div class="panel card" style="margin-top:12px"><h3>The addons</h3><p class="sub">Each one's newest release on GitHub and CurseForge, and its last data job</p>${rows}</div>`;
+<div class="panel card" style="margin-top:12px"><h3>The addons</h3><p class="sub">Each one's newest release on GitHub and CurseForge, and its last data job</p><div class="ad-grid">${rows}</div></div>`;
 }
 
 /** Different Ravenpost installs over 7 and 30 days and since counting began, to a day: each counted once, however many days it ran. */
@@ -521,15 +525,16 @@ export function dashboard(
       : `<p class="empty" style="padding:12px 0 0">${empty}</p>`;
   };
   const CH = { curseforge: ["CurseForge", "#f16436"], wago: ["Wago", "#f2c14e"], github: ["GitHub", "#a39b88"] } as const;
-  const rows = s.downloads.addons
+  const listed = [...s.downloads.addons, ...ADDONS.map((a) => a[0]).filter((n) => !s.downloads.addons.includes(n))];
+  const rows = listed
     .map((a, k) => {
       const c = s.downloads.channels[a] ?? {};
       const t = s.downloads.totals[a] ?? 0;
       const parts = (Object.keys(CH) as (keyof typeof CH)[]).filter((x) => c[x]);
       return `<div class="row"><span class="n"><i class="dotc" style="display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:8px;background:var(--c${k % 10})"></i>${esc(a)}</span>
-<span class="tot">${fmt(t)}</span>
+<span class="tot">${a in s.downloads.totals ? fmt(t) : "–"}</span>
 <span class="sp"><span class="split">${parts.map((x) => `<i style="width:${(100 * (c[x] ?? 0)) / (t || 1)}%;background:${CH[x][1]}"></i>`).join("")}</span><span class="split-l">${parts.map((x) => `<span>${CH[x][0]} ${fmt(c[x])}</span>`).join("")}</span></span>
-<span class="wk" data-mode="all">${s.downloads.week[a] === null ? "–" : `<b>${signed(s.downloads.week[a]!)}</b> 7 d`}</span><span class="wk" data-mode="unique"${opts.unique?.periods["7"]?.[a] ? ` title="${fmt(opts.unique.periods["7"][a].unique)} different people in 7 days, CurseForge's count">` : ">"}${opts.unique?.periods["7"]?.[a] ? `<b>${fmt(opts.unique.periods["7"][a].unique)}</b> 7 d` : "–"}</span></div>`;
+<span class="wk" data-mode="all">${s.downloads.week[a] == null ? "–" : `<b>${signed(s.downloads.week[a]!)}</b> 7 d`}</span><span class="wk" data-mode="unique"${opts.unique?.periods["7"]?.[a] ? ` title="${fmt(opts.unique.periods["7"][a].unique)} different people in 7 days, CurseForge's count">` : ">"}${opts.unique?.periods["7"]?.[a] ? `<b>${fmt(opts.unique.periods["7"][a].unique)}</b> 7 d` : "–"}</span></div>`;
     })
     .join("");
   const kpi = (id: string, ic: string, label: string, value: string, line: string) =>

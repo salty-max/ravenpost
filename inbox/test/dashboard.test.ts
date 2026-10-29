@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { dashboard, hourlyOf, seriesOf, withDownloadReadings } from "../src/dashboard";
 import type { Reading } from "../src/curseforge";
-import type { History } from "../src/stats";
+import { ADDONS, type History } from "../src/stats";
 
 describe("the dashboard's current downloads", () => {
   const history: History = {
@@ -101,4 +101,9 @@ describe("the dashboard's current downloads", () => {
     expect(mobile).toContain('href="#comments"');
     expect([...mobile.matchAll(/data-nav="([^"]+)"/g)].at(-1)?.[1]).toBe("comments");
   });
+});
+
+test("downloads lists every addon, counted or not", () => {
+  const html = dashboard({ days: {} } as any, {});
+  for (const [name] of ADDONS) expect(html).toContain(name.split("'")[0]);
 });
