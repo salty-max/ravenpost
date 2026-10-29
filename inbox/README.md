@@ -74,9 +74,13 @@ with Battle.net in the browser (a signed cookie, 30 days). Its history,
   14 October): those bars are CurseForge's alone, paler. Wago and GitHub keep
   only totals, Ravenpost's pings and the sharing were never kept before
   counting began, the rank has no past: none of these can be brought back.
-  The sites' visitors can, once: `bun bin/backfill-traffic.ts [--dry]`
-  (Web Analytics' own past, to 13 October, into the history through
-  `/api/inbox/stats`).
+  The sites' visitors can, once: the daily job fills in the days before the
+  first counted (from 1 August, Web Analytics' own past, never a counted day;
+  `stats/backfill.json` marks it done, a site the API keeps refusing tried
+  three mornings), with its own token, which never leaves Vercel
+  (`vercel env pull` hands encrypted values only). `bun
+  bin/backfill-traffic.ts [--dry]` does the same from a computer, the values
+  set by hand.
 
 The dashboard combines the daily history with the latest ten-minute
 readings for its download total, per-addon counts and charts: CurseForge's

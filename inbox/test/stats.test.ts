@@ -5,7 +5,7 @@ import path from "node:path";
 import { app } from "../src/app";
 import { sign, subOf, tokenFor } from "../src/auth";
 import { dashboard, seriesOf } from "../src/dashboard";
-import { collect, countToday, countUpload, history, ping, readPing, readUnique, record, setStatsFetch, today, uniquePeriods } from "../src/stats";
+import { backfillTraffic, collect, countToday, countUpload, history, ping, readPing, readUnique, record, setStatsFetch, today, uniquePeriods } from "../src/stats";
 
 beforeEach(() => {
   process.env.INBOX_DIR = mkdtempSync(path.join(tmpdir(), "stats-"));
@@ -230,5 +230,56 @@ describe("the store", () => {
     } finally {
       delete process.env.BLOB_READ_WRITE_TOKEN;
     }
+  });
+});
+
+describe("the sites' traffic before counting began, once", () => {
+  const analytics = (fail?: string) =>
+    setStatsFetch(async (url) => {
+      const u = new URL(url);
+      if (!u.pathname.includes("web-analytics")) return new Response("", { status: 404 });
+      if (fail && u.searchParams.get("projectId") === fail) return new Response("no", { status: 500 });
+      const day = u.searchParams.get("since")!;
+      return Response.json({ data: day >= "2026-10-10" ? [{ pageviews: 9, visitors: 4 }] : [{ pageviews: 0, visitors: 0 }] });
+    });
+  beforeEach(() => {
+    Object.assign(process.env, { VERCEL_ANALYTICS_TOKEN: "t", VERCEL_TEAM_ID: "team", STATS_SITES: "hearthtale=prj_h,wow-locker=prj_w" });
+  });
+  afterEach(() => {
+    for (const k of ["VERCEL_ANALYTICS_TOKEN", "VERCEL_TEAM_ID", "STATS_SITES"]) delete process.env[k];
+  });
+
+  test("the days before the first counted, with visitors, filled; a counted day never touched; then never again", async () => {
+    analytics();
+    await record({ "2026-10-01": { downloads: { Yonder: { curseforge: 3 } } }, "2026-10-14": { traffic: { hearthtale: { pageviews: 50, visitors: 20 } } } });
+    const before = (await history()).updated;
+    expect(await backfillTraffic()).toEqual({ days: 4 });
+    const h = await history();
+    expect(Object.keys(h.days).filter((d) => h.days[d].traffic).sort()).toEqual(["2026-10-10", "2026-10-11", "2026-10-12", "2026-10-13", "2026-10-14"]);
+    expect(h.days["2026-10-12"].traffic).toEqual({ hearthtale: { pageviews: 9, visitors: 4 }, "wow-locker": { pageviews: 9, visitors: 4 } });
+    expect(h.days["2026-10-14"].traffic).toEqual({ hearthtale: { pageviews: 50, visitors: 20 } });
+    expect(h.days["2026-10-01"]).toEqual({ downloads: { Yonder: { curseforge: 3 } } });
+    expect(h.updated).toBe(before);
+    expect(await backfillTraffic()).toBe("done");
+  });
+
+  test("a site the API turns down is tried three mornings, no more; nothing without the token or a counted day", async () => {
+    await record({ "2026-10-14": { traffic: { hearthtale: { pageviews: 50, visitors: 20 } } } });
+    analytics("prj_w");
+    expect(await backfillTraffic()).toEqual({ days: 0 });
+    expect(await backfillTraffic()).toEqual({ days: 0 });
+    expect(await backfillTraffic()).toEqual({ days: 0 });
+    expect(await backfillTraffic()).toBe("done");
+    delete process.env.VERCEL_ANALYTICS_TOKEN;
+    expect(await backfillTraffic()).toBe("skipped");
+  });
+
+  test("a run out of time keeps what it brought and counts as a try", async () => {
+    analytics();
+    await record({ "2026-10-14": { traffic: { hearthtale: { pageviews: 50, visitors: 20 } } } });
+    expect(await backfillTraffic(Date.now() + 5_000)).toEqual({ days: 0 });
+    expect(JSON.parse(readFileSync(path.join(process.env.INBOX_DIR!, "stats/backfill.json"), "utf8"))).toEqual({ tries: 1 });
+    expect(await backfillTraffic()).toEqual({ days: 4 });
+    expect(await backfillTraffic()).toBe("done");
   });
 });

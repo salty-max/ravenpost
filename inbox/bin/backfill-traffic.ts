@@ -10,10 +10,12 @@
  *   bun bin/backfill-traffic.ts --dry           the same, shown, nothing sent
  *   bun bin/backfill-traffic.ts --from 2026-09-01 --to 2026-10-13
  *
- * The same environment as the daily job's traffic (VERCEL_ANALYTICS_TOKEN,
- * VERCEL_TEAM_ID, STATS_SITES: `vercel env pull` from inbox/ writes them to
- * .env.local, which Bun loads), INBOX_TOKEN for the inbox (wow-data's), and
- * INBOX_URL, else https://ravenpost-inbox.vercel.app.
+ * The daily job does this itself, once (src/stats.ts backfillTraffic): this
+ * is the hand-run fallback. The same environment as the daily job's traffic
+ * (VERCEL_ANALYTICS_TOKEN, VERCEL_TEAM_ID, STATS_SITES), set by hand:
+ * `vercel env pull` hands these as "[encrypted]", sensitive on Vercel.
+ * INBOX_TOKEN for the inbox (wow-data's), and INBOX_URL, else
+ * https://ravenpost-inbox.vercel.app.
  */
 import { traffic, type Day } from "../src/stats";
 

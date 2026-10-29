@@ -13,7 +13,7 @@ import { checks, githubLatest, lookGitHub, watch as watchLaunch } from "./launch
 import * as push from "./push";
 import * as store from "./store";
 import { lookUnique } from "./unique";
-import { collect, countToday, countUpload, history, ping, readPing, readUnique, record, recordUnique, today, uniquePeriods, type Day } from "./stats";
+import { backfillTraffic, collect, countToday, countUpload, history, ping, readPing, readUnique, record, recordUnique, today, uniquePeriods, type Day } from "./stats";
 import { account, authorizeUrl, sharer, sign, subOf, tokenFor, verify } from "./auth";
 import { flatten } from "./facts";
 import { passportFor } from "./passport";
@@ -160,8 +160,14 @@ app.get("/api/cron/stats", async (c) => {
   const auth = c.req.header("authorization") ?? "";
   const ok = [process.env.CRON_SECRET, process.env.INBOX_TOKEN].some((t) => t && auth === `Bearer ${t}`);
   if (!ok) return c.json({ error: "unauthorized" }, 401);
+  const started = Date.now();
   const h = await collect();
-  return c.json({ days: Object.keys(h.days).length, updated: h.updated });
+  // (the sites' days before counting began, once, within the function's 60 s: a failure never fails the day's numbers)
+  const backfill = await backfillTraffic(started + 45_000).catch((err) => {
+    console.error(JSON.stringify({ backfill: "failed", err: err instanceof Error ? err.name : "error" }));
+    return "failed" as const;
+  });
+  return c.json({ days: Object.keys(h.days).length, updated: h.updated, backfill });
 });
 
 // ── the dashboard, for its owner (STATS_BATTLETAGS, signed in with Battle.net) ─

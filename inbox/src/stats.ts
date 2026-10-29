@@ -257,6 +257,63 @@ export async function traffic(day: string): Promise<Day["traffic"]> {
   return out;
 }
 
+// ── the sites' traffic before counting began, once (the daily job) ──────────
+const BACKFILL = "stats/backfill.json";
+/** The first day the sites could have had visitors to bring back: before it, nothing to ask. */
+export const BACKFILL_FROM = "2026-08-01";
+
+/**
+ * The sites' visitors and page views for the days before the first day the
+ * daily job counted them, from Web Analytics' own past, by the job itself (its
+ * token never leaves Vercel: `vercel env pull` hands encrypted values only).
+ * A day that has traffic is never touched; once done, never again
+ * (stats/backfill.json), and a site the API keeps turning down is tried three
+ * mornings, no more. Without the analytics token, or before any day was
+ * counted, nothing. Days asked ten at a time, each site given up on after 8 s,
+ * each batch kept as it comes, and no batch begun within 9 s of `until`: the
+ * function has 60 s in all, the day's numbers first (a run cut short still
+ * counts as a try, and keeps what it brought).
+ */
+export async function backfillTraffic(until = Date.now() + 45_000): Promise<{ days: number } | "done" | "skipped"> {
+  if (!process.env.VERCEL_ANALYTICS_TOKEN || !process.env.VERCEL_TEAM_ID) return "skipped";
+  const mark = JSON.parse((await store.read(BACKFILL)) ?? "null") as { traffic?: string; tries?: number } | null;
+  if (mark?.traffic) return "done";
+  const tries = (mark?.tries ?? 0) + 1;
+  const sites = (process.env.STATS_SITES ?? "").split(",").filter(Boolean).length;
+  const h = await history();
+  const first = Object.keys(h.days).filter((d) => h.days[d].traffic).sort()[0];
+  if (!first) return "skipped";
+  const wanted: string[] = [];
+  for (let t = Date.parse(BACKFILL_FROM); dayOf(new Date(t)) < first; t += 86_400_000) if (!h.days[dayOf(new Date(t))]?.traffic) wanted.push(dayOf(new Date(t)));
+  // (the try counted before asking: a run the time limit cuts off still counts)
+  await store.write(BACKFILL, JSON.stringify({ tries }));
+  let kept = 0;
+  let failed = false;
+  for (let i = 0; i < wanted.length; i += 10) {
+    if (Date.now() > until - 9_000) {
+      failed = true;
+      break;
+    }
+    const days: Record<string, Day> = {};
+    await Promise.all(
+      wanted.slice(i, i + 10).map(async (day) => {
+        const tr = await traffic(day).catch(() => undefined);
+        // (a site the API turned down is missing: the day tried again tomorrow, whole)
+        if (!tr || Object.keys(tr).length < sites) failed = true;
+        else if (Object.values(tr).some((x) => x.pageviews || x.visitors)) days[day] = { traffic: tr };
+      }),
+    );
+    if (!Object.keys(days).length) continue;
+    // (each batch into the history as it comes, without touching its daily snapshot's time, as the unique days are)
+    const now = await history();
+    for (const [d, v] of Object.entries(days)) if (!now.days[d]?.traffic) now.days[d] = { ...now.days[d], ...v };
+    await store.write(HISTORY, JSON.stringify(now));
+    kept += Object.keys(days).length;
+  }
+  if (!failed || tries >= 3) await store.write(BACKFILL, JSON.stringify({ traffic: new Date().toISOString(), tries, days: kept }));
+  return { days: kept };
+}
+
 // ── each addon's standing on CurseForge (its official API) ──────────────────
 async function standing(): Promise<Day["curseforge"]> {
   const key = process.env.CURSEFORGE_API_KEY;
