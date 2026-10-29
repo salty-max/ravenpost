@@ -104,6 +104,9 @@ describe("the dashboard's current downloads", () => {
 });
 
 test("downloads lists every addon, counted or not", () => {
-  const html = dashboard({ days: {} } as any, {});
-  for (const [name] of ADDONS) expect(html).toContain(name.split("'")[0]);
+  const html = dashboard({ days: { "2026-10-28": { downloads: { Yonder: { curseforge: 5 } } } } } as any, {});
+  const rows = html.slice(html.indexOf('id="download-rows"'), html.indexOf('id="downloads-checked"'));
+  expect(rows.length).toBeGreaterThan(100);
+  for (const [name] of ADDONS) expect(rows).toContain(name);
+  expect(rows).toMatch(/Goodwill<\/span>\s*<span class="tot">–<\/span>/);
 });
