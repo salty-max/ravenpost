@@ -95,8 +95,10 @@ would count a person each day), the best day and its releases, the stores'
 shares; the chart by addon, by store or as lines (Unique: the people a day),
 the releases marked, each addon a chip to hide it; a leaderboard (the range,
 its change, people, a trend, all time, the stores) sorted by any column, six
-then all; the rank on CurseForge as a line a day; each addon's newest release
-and its downloads a day. A fourth view, 24 h, shows the last 24 hours hour by
+then all; the standing on CurseForge, a row an addon: its rank, its move over
+7 days, its trend over the range on its own scale, its newest release and its
+favorites (CurseForge gives a project it hasn't ranked yet a placeholder near a
+million: no rank, and "new" once it has one). A fourth view, 24 h, shows the last 24 hours hour by
 hour from the ten-minute readings (CurseForge's alone), and the tiles and the
 leaderboard follow it. The Activity and the Comments show five, then
 scroll. The Addons section is a table, the watch's fine checks folded.

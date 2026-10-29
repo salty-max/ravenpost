@@ -171,15 +171,24 @@ describe("the series' earlier days and stores", () => {
   });
 });
 
-test("a release under a day old shows its downloads so far, after the ones with a day's rate", () => {
-  const now = Date.parse("2026-10-29T12:00:00Z");
-  const rel = (version: string, at: string, downloads: number) => ({ id: 1, version, at, downloads, type: 1 });
-  const html = dashboard({ days: {} }, { now, releases: { Yonder: [rel("0.15.0", "2026-10-29T07:00:00Z", 140)], Keyring: [rel("0.3.0", "2026-10-26T12:00:00Z", 60)] } });
-  const t = html.slice(html.indexOf('id="download-releases"'));
-  expect(t.indexOf("Keyring")).toBeLessThan(t.indexOf("Yonder"));
-  expect(t).toContain("<b>20</b><span class=\"dl\">a day</span>");
-  expect(t).toContain("<b>–</b><span class=\"dl\">so far</span>");
+test("the standing: CurseForge's placeholder is no rank, a project ranked since is new, sorted by rank", () => {
+  const h: History = { days: {
+    "2026-10-22": { curseforge: { Yonder: { rank: 9800 }, Mealbook: { rank: 1_000_000 }, Palaver: { rank: 22_000, favorites: 4 } } },
+    "2026-10-29": { curseforge: { Yonder: { rank: 9762, favorites: 7 }, Mealbook: { rank: 19_568 }, Palaver: { rank: 999_999 } } },
+  } };
+  expect(seriesOf(h).rank.Mealbook).toEqual([null, null, null, null, null, null, null, 19_568]);
+  const html = dashboard(h, { releases: { Yonder: [{ id: 1, version: "v0.14.2", at: "2026-10-28T23:00:00Z", downloads: 18, type: 1 }] }, now: Date.parse("2026-10-29T11:00:00Z") });
+  const t = html.slice(html.indexOf('id="download-standing"'), html.indexOf('id="addons"'));
+  const order = [...t.matchAll(/<tr data-a="([^"]+)"/g)].map((m) => m[1]);
+  expect(order.slice(0, 2)).toEqual(["Yonder", "Mealbook"]);
+  expect(order.indexOf("Goodwill")).toBeLessThan(order.indexOf("Palaver"));
+  expect(t).toContain('<span class="up">▲ 38</span>');
+  expect(t).toMatch(/data-a="Mealbook"[\s\S]*?<span class="up">new<\/span>/);
+  expect(t).toMatch(/data-a="Palaver"[\s\S]*?>unranked</);
+  expect(t).toContain("<b>v0.14.2</b><span class=\"dl\">12 h ago · 18 downloads</span>");
+  expect(t).not.toContain("980");
 });
+
 
 test("today's downloads count from yesterday's last reading, never an older day's", () => {
   const now = Date.parse("2026-10-29T10:00:00Z");
@@ -197,4 +206,14 @@ test("a release on CurseForge opens it, a comment is answered there", () => {
   const feed = html.slice(html.indexOf('id="feed"'), html.indexOf('id="downloads"'));
   expect(feed).toContain("Open on CurseForge ↗");
   expect(feed.match(/Answer on CurseForge/g)?.length).toBe(1);
+});
+
+test("a project first read after the week's first day, unranked, then ranked, is new", () => {
+  const h: History = { days: {
+    "2026-10-22": { curseforge: { Yonder: { rank: 9800 } } },
+    "2026-10-26": { curseforge: { Yonder: { rank: 9790 }, Goodwill: { rank: 1_000_000 } } },
+    "2026-10-29": { curseforge: { Yonder: { rank: 9762 }, Goodwill: { rank: 30_000 } } },
+  } };
+  const t = dashboard(h, {}).split('id="download-standing"')[1];
+  expect(t).toMatch(/data-a="Goodwill"[\s\S]*?<span class="up">new<\/span>/);
 });

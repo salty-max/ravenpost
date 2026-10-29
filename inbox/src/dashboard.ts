@@ -85,6 +85,12 @@ export type Series = {
   sites: Record<string, { visitors: N[]; pageviews: N[] }>;
 };
 
+/** CurseForge gives a project it hasn't ranked yet a placeholder near a million (seen in our own
+ * numbers in October 2026, e.g. 980,431 and 1,000,000; its API documents no such value): no rank at
+ * all. Real ranks of the family's addons run 2k to 30k, far under the cut. */
+export const UNRANKED = 100_000;
+const ranked = (r: number | undefined) => (r && r < UNRANKED ? r : undefined);
+
 /** Every calendar day from the first to the last (the last 180), each part's numbers on them; downloads a day as the totals' difference (a gap's shared evenly over its days, said in `since`). */
 export function seriesOf(h: History): Series {
   const have = Object.keys(h.days).sort();
@@ -164,7 +170,7 @@ export function seriesOf(h: History): Series {
     downloads: { addons, daily, since, totals, channels, week, early, stores },
     unique,
     rank: Object.fromEntries(
-      [...new Set(days.flatMap((d) => Object.keys(at(d)?.curseforge ?? {})))].map((a) => [a, days.map((d) => at(d)?.curseforge?.[a]?.rank ?? null)]),
+      [...new Set(days.flatMap((d) => Object.keys(at(d)?.curseforge ?? {})))].map((a) => [a, days.map((d) => ranked(at(d)?.curseforge?.[a]?.rank) ?? null)]),
     ),
     installs: days.map((d) => at(d)?.ravenpost?.installs ?? null),
     installsWeek: days.map((d) => at(d)?.ravenpost?.distinct?.week ?? null),
@@ -299,8 +305,7 @@ body.dl-u [data-mode=all],body:not(.dl-u) [data-mode=unique]{display:none!import
 table.lb{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px;table-layout:auto}.lb th{color:var(--faint);font-weight:500;font-size:11px;text-align:right;padding:6px 8px;white-space:nowrap;user-select:none}.lb th[data-sort]{cursor:pointer}.lb th[data-sort]:hover{color:var(--dim)}.lb th:first-child{text-align:left;padding-left:0}.lb th.on{color:var(--gold)}
 .lb td{padding:8px;border-top:1px solid rgb(255 255 255/.045);vertical-align:middle}.lb td:first-child{padding-left:0}.lb .n{font-weight:600;white-space:nowrap;max-width:0;width:34%;overflow:hidden;text-overflow:ellipsis}.lb .n i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:8px}.lb .ver{margin-left:8px;color:var(--faint);font-weight:400;font-size:11px}
 .lb .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.lb .num b{font-weight:600}.lb .dl{display:block;font-size:11px;color:var(--faint)}.lb .tot{color:var(--dim)}.lb td.sp{width:76px;padding-top:4px;padding-bottom:4px}.lb td.sp svg{display:block}.lb td.st{width:150px}.lb .st .split-l{font-size:10px;gap:6px}.lb tr.cut{display:none}
-.rel-t{margin-top:4px}.rel-t td{padding:7px 8px}.rel-t .n{width:auto;max-width:none}
-.moves{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:10px;font-size:12px;color:var(--dim)}.moves b{color:var(--parchment);font-weight:500}
+.st-t td{padding:7px 8px}.st-t th:not(:first-child),.st-t td:not(:first-child){text-align:right}.st-t .n{width:auto;max-width:none}.st-t .mv{font-size:12px;width:90px}.st-t td.sp{width:136px}.st-t .tsp{width:120px;height:24px;margin-left:auto}.st-t .rl .dl{display:block}.st-t .fav{color:var(--dim);width:90px}
 .rel{padding:10px 0;border-top:1px solid rgb(255 255 255/.045)}.rel:first-of-type{border-top:0}.rel-h{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}.rel-h b{font-weight:600}.rel-h .sub{margin:0}
 .notif{display:flex;align-items:center;gap:14px;padding:16px 18px}
 .tools{display:flex;align-items:center;gap:6px}.refresh{width:36px;padding:0;height:36px}.refresh.busy .ic,.pull.busy .ic{animation:spin .8s linear infinite}
@@ -319,7 +324,7 @@ table.lb{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px;tabl
   .tiles{gap:10px}.tile{padding:10px 12px}.tile .v{font-size:19px}
   .rangebar{margin:0 -4px 12px;padding:6px 4px}.rangebar .lab{display:none}.rangebar .seg{flex:1;justify-content:space-between}.rangebar .seg button{padding:5px 7px}.custom{width:100%}.custom input{flex:1;min-width:0}
   .chiprow{flex-wrap:nowrap;overflow-x:auto;margin-right:-14px;padding-right:14px;scrollbar-width:none}.chiprow::-webkit-scrollbar{display:none}
-  .lb .pp,.lb .tot,.lb .st,.lb .ver{display:none}.lb .n{width:auto}
+  .lb .pp,.lb .tot,.lb .st,.lb .ver,.st-t .rl,.st-t .fav{display:none}.st-t .n{max-width:0;width:auto}.st-t td{padding:7px 4px}.st-t td.num,.st-t th:not(:first-child){width:1%;white-space:nowrap}.st-t td.sp{width:60px}.st-t .tsp{width:56px}.st-t .mv{width:auto;font-size:11px}.lb .n{width:auto}
   .ad-r{position:relative;grid-template-columns:minmax(0,1fr) minmax(0,1fr);padding-left:8px;gap:2px 10px}.ad-n{grid-column:1/-1}.ad-r.ok .ad-n,.ad-r.gold .ad-n{padding-right:120px}.ad-c .l{display:block;color:var(--faint);font-size:10px;text-transform:uppercase;letter-spacing:.04em}.ad-s{position:absolute;right:0;top:9px}
   .tabs{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:10;justify-content:space-around;padding:6px 6px calc(6px + env(safe-area-inset-bottom));background:rgb(18 19 25/.92);backdrop-filter:blur(10px);border-top:1px solid var(--edge)}
   .tabs a{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:var(--faint);padding:4px 2px;border-radius:8px;min-width:52px;flex:1}.tabs a .ic{width:20px;height:20px}.tabs a.on{color:var(--gold)}
@@ -410,47 +415,32 @@ ${e.body ? `<div class="b">${esc(e.body)}</div>` : ""}
   return `<div class="scroll" id="feed-scroll"><ul class="feed">${rows}</ul></div>`;
 }
 
-/** Under the rank chart: where each addon stands now and how far it moved in 7 days, the favorites and thumbs up in all. */
-function rankMoves(h: History): string {
+/** Each addon's standing on CurseForge, one row each: its rank and its move over 7 days (a trend on its own scale, filled by the page), its newest release and its favorites. */
+function standingTable(h: History, releases: Record<string, Release[]>, order: string[], now = Date.now()): string {
   const days = Object.keys(h.days).filter((d) => h.days[d]?.curseforge).sort();
-  if (!days.length) return `<p class="sub" style="margin-top:10px">The daily numbers fill this in, once CurseForge's key is set.</p>`;
-  const last = days[days.length - 1];
-  const cut = new Date(Date.parse(last) - 7 * DAY).toISOString().slice(0, 10);
+  const last = days.at(-1);
+  const cut = last ? new Date(Date.parse(last) - 7 * DAY).toISOString().slice(0, 10) : "";
   const base = [...days].reverse().find((d) => d <= cut) ?? (days.length > 1 ? days[0] : undefined);
-  const now = h.days[last].curseforge!;
-  const was = base ? h.days[base].curseforge! : {};
-  const list = Object.entries(now).filter(([, s]) => s.rank).sort((a, b) => a[1].rank! - b[1].rank!);
-  const moves = list
-    .map(([name, s]) => {
-      const moved = was[name]?.rank ? was[name].rank! - s.rank! : null;
-      const m = moved ? ` <span style="color:${moved > 0 ? "var(--ok)" : "var(--blood)"}">${moved > 0 ? "▲" : "▼"} ${fmt(Math.abs(moved))}</span>` : "";
-      return `<span class="mv"><b>${esc(name)}</b> #${fmt(s.rank)}${m}</span>`;
+  const cfNow = last ? h.days[last].curseforge! : {};
+  const cfWas = base ? h.days[base].curseforge! : {};
+  const rows = ADDONS.filter(([, cf]) => cf)
+    // (seen: read unranked since the week's first day, on it or after, so a newly ranked project is "new")
+    .map(([name]) => ({ name, rank: ranked(cfNow[name]?.rank), was: ranked(cfWas[name]?.rank), seen: days.some((d) => (!base || d >= base) && d !== last && !!h.days[d].curseforge![name] && !ranked(h.days[d].curseforge![name].rank)), fav: cfNow[name]?.favorites, r: releases[name]?.[0] }))
+    .sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity) || a.name.localeCompare(b.name));
+  if (!rows.some((x) => x.rank || x.r)) return `<p class="empty" style="padding:12px 0 0">No ranks or releases yet: the daily numbers and the ten-minute look bring them.</p>`;
+  const tr = rows
+    .map(({ name, rank, was, seen, fav, r }) => {
+      const k = order.indexOf(name);
+      // (a project ranked since the week before, after CurseForge's placeholder: new, not a jump of a million)
+      const move = rank && was ? was - rank : null;
+      const mv = rank && !was && seen ? `<span class="up">new</span>` : move ? `<span class="${move > 0 ? "up" : "down"}">${move > 0 ? "▲" : "▼"} ${fmt(Math.abs(move))}</span>` : "–";
+      return `<tr data-a="${esc(name)}"><td class="n"><i style="background:${k >= 0 ? `var(--c${k % 10})` : "var(--edge)"}"></i><span class="nm">${esc(name)}</span></td>
+<td class="num">${rank ? `<b>#${fmt(rank)}</b>` : `<span class="dl" style="display:inline" title="CurseForge ranks a new project after a few days">unranked</span>`}</td><td class="num mv">${mv}</td><td class="sp"></td>
+<td class="num rl">${r ? `<b>${esc(r.version)}</b><span class="dl">${ago(r.at, now)} · ${fmt(r.downloads)} downloads</span>` : "–"}</td><td class="num fav">${fav === undefined ? "–" : `♥ ${fmt(fav)}`}</td></tr>`;
     })
     .join("");
-  const fav = list.reduce((t, [, s]) => t + (s.favorites ?? 0), 0);
-  const likes = list.reduce((t, [, s]) => t + (s.likes ?? 0), 0);
-  return `<div class="moves">${moves}</div><p class="sub" style="margin-top:8px">${base ? `Moves since ${short(base)}` : "Moves show from tomorrow"} · ♥ ${fmt(fav)} favorites · 👍 ${fmt(likes)} in all</p>`;
-}
-
-/** Each addon's newest CurseForge release: how long it's been live, its downloads, and a day (the fastest first). */
-function releasesVelocity(releases: Record<string, Release[]>, now = Date.now()): string {
-  const list = Object.entries(releases)
-    .filter(([, r]) => r.length)
-    .map(([name, rs]) => {
-      const r = rs[0];
-      const live = Math.max(0, (now - Date.parse(r.at)) / DAY);
-      // (under a day live, its downloads so far are no day's rate: told so, after the others)
-      return { name, r, live, rate: live >= 1 ? r.downloads / live : null };
-    })
-    .sort((a, b) => (a.rate === null) !== (b.rate === null) ? (a.rate === null ? 1 : -1) : (b.rate ?? b.r.downloads) - (a.rate ?? a.r.downloads));
-  if (!list.length) return `<p class="empty" style="padding:12px 0 0">The first look at CurseForge fills this in.</p>`;
-  const lived = (d: number) => (d < 1 ? `${Math.max(1, Math.round(d * 24))} h live` : `${Math.round(d)} d live`);
-  return `<table class="lb rel-t"><tbody>${list
-    .map(
-      ({ name, r, live, rate }) =>
-        `<tr><td class="n"><span class="nm">${esc(name)}</span><span class="ver">${esc(r.version)}</span></td><td class="num">${fmt(r.downloads)}<span class="dl">${lived(live)}</span></td><td class="num">${rate === null ? `<b>–</b><span class="dl">so far</span>` : `<b>${fmt(Math.round(rate))}</b><span class="dl">a day</span>`}</td></tr>`,
-    )
-    .join("")}</tbody></table>`;
+  return `<table class="lb st-t"><thead><tr><th>Addon</th><th>Rank</th><th>7 d</th><th class="sp">Trend</th><th class="rl">Newest release</th><th class="fav">Favorites</th></tr></thead><tbody>${tr}</tbody></table>
+<p class="sub" style="margin-top:8px">Among every WoW addon by popularity: a smaller number is better${base ? `, moves since ${short(base)}` : ""}. CurseForge ranks a new project after a few days.</p>`;
 }
 
 /** Each addon's standing across the stores and the data jobs, and what the launch watch sees right now: read only. */
@@ -681,10 +671,8 @@ ${kpi("k-vi", "globe", "Site visitors", fmt(lastOf(visitors)), [Object.keys(s.si
 <table class="lb" id="download-rows"><thead><tr><th data-sort="name">Addon</th><th data-sort="range" id="lb-range">In range</th><th data-sort="people" class="pp">People</th><th class="sp">Trend</th><th data-sort="all" class="tot">All time</th><th class="st">Stores</th></tr></thead><tbody>${rows}</tbody></table>
 <button class="more" id="lb-more" hidden></button>
 <p class="sub" id="downloads-checked" style="margin-top:10px">Download events, not players: People is CurseForge's count over 7, 30 or 90 days, each addon's own. CurseForge and Wago are read every ten minutes, GitHub every hour${downloadsChecked ? `, last ${esc(downloadsChecked.slice(0, 10))} at ${esc(downloadsChecked.slice(11, 16))} UTC` : ""}.</p></div>
-<div class="grid2" style="margin-top:12px;align-items:start">
-<div class="panel card" id="download-popularity"><h3>Rank on CurseForge</h3><p class="sub">Among every WoW addon, by popularity: higher is better</p><div class="chart" id="c-rk" style="height:180px"></div>${rankMoves(h)}</div>
-<div class="panel card" id="download-releases"><h3>Newest releases</h3><p class="sub">Each addon's newest on CurseForge: its downloads since it went live, and a day</p>${releasesVelocity(releases, opts.now)}</div>
-</div></section>
+<div class="panel card" id="download-standing" style="margin-top:12px"><h3>Standing on CurseForge</h3><p class="sub">Each addon's rank, its trend over the range, its newest release</p>${standingTable(h, releases, s.downloads.addons, opts.now)}</div>
+</section>
 
 <section id="addons"><div class="sh"><h2 class="title">Addons</h2><p>The launch watch and the stores</p></div>
 <div id="addons-body">${addonsSection(h, td, opts.github ?? {}, releases, events, opts.now)}</div></section>
@@ -755,8 +743,8 @@ const rangeName=()=>hourly()?"24 h":({"7":"7 d","30":"30 d","90":"90 d","0":"all
 function smooth(p){if(p.length<2)return "";const n=p.length,d=[],m=[];for(let i=0;i<n-1;i++)d.push((p[i+1][1]-p[i][1])/(p[i+1][0]-p[i][0]||1));m.push(d[0]);for(let i=1;i<n-1;i++)m.push(d[i-1]*d[i]<=0?0:(d[i-1]+d[i])/2);m.push(d[n-2]);
 for(let i=0;i<n-1;i++){if(d[i]===0){m[i]=m[i+1]=0;continue}const a=m[i]/d[i],b=m[i+1]/d[i],s=a*a+b*b;if(s>9){const t=3/Math.sqrt(s);m[i]=t*a*d[i];m[i+1]=t*b*d[i]}}
 let s="M"+p[0][0]+","+p[0][1];for(let i=0;i<n-1;i++){const h=(p[i+1][0]-p[i][0])/3;s+="C"+(p[i][0]+h)+","+(p[i][1]+m[i]*h)+" "+(p[i+1][0]-h)+","+(p[i+1][1]-m[i]*h)+" "+p[i+1][0]+","+p[i+1][1]}return s}
-/** A chart at its box's size, a value under the finger: "bars" (stacked: pale ones for the days CurseForge counted alone, lines laid over), "area" (lines with a soft fill), "lines"; inverted for a rank; the releases marked. */
-function chart(box,{type,series,labels,since,format=nf,whole,pale,marks,invert,trim,empty,over=[]}){
+/** A chart at its box's size, a value under the finger: "bars" (stacked: pale ones for the days CurseForge counted alone, lines laid over), "area" (lines with a soft fill), "lines"; the releases marked. */
+function chart(box,{type,series,labels,since,format=nf,whole,pale,marks,trim,empty,over=[]}){
   if(!box)return;box.innerHTML="";
   // (trim: the days before the first number left out, for a part counted later than the downloads)
   const [a0,b0]=whole?[0,labels.length]:span();
@@ -769,13 +757,13 @@ function chart(box,{type,series,labels,since,format=nf,whole,pale,marks,invert,t
   const tot=(i)=>ser.reduce((a,s)=>a+(s.v[i]||0),0);
   // (today, still going: pale, said so, its line dashed)
   const part=whole?-1:D.days.indexOf(new Date().toISOString().slice(0,10))-off;
-  let hi=0,lo=Infinity;for(let i=0;i<n;i++){if(type==="bars")hi=Math.max(hi,tot(i));else for(const s of ser){const v=s.v[i];if(v!=null){hi=Math.max(hi,v);lo=Math.min(lo,v)}}for(const s of ov)if(s.v[i]!=null)hi=Math.max(hi,s.v[i])}
-  let y;if(invert){lo=Math.max(1,Math.floor(lo*.92));hi=Math.ceil(hi*1.05);if(hi<=lo)hi=lo+1;y=(v)=>T+ph*(v-lo)/(hi-lo)}else{hi=nice(hi*1.08);y=(v)=>T+ph*(1-v/hi)}
+  let hi=0;for(let i=0;i<n;i++){if(type==="bars")hi=Math.max(hi,tot(i));else for(const s of ser)if(s.v[i]!=null)hi=Math.max(hi,s.v[i]);for(const s of ov)if(s.v[i]!=null)hi=Math.max(hi,s.v[i])}
+  hi=nice(hi*1.08);const y=(v)=>T+ph*(1-v/hi);
   const x=type==="bars"?(i)=>L+(i+.5)*pw/n:(i)=>L+(n===1?pw/2:i*pw/(n-1));
   const svg=el("svg",{viewBox:"0 0 "+W+" "+H,role:"img"},box),defs=el("defs",{},svg);
   const g=el("g",{class:"grid"},svg);
   const short=(v)=>v>=1000?(v/1000).toLocaleString("en-GB",{maximumFractionDigits:1})+"k":nf(v);
-  for(const f of [0,.5,1]){const v=invert?lo+(hi-lo)*(1-f):hi*f;el("line",{x1:L,x2:W-R,y1:y(v),y2:y(v),"stroke-dasharray":f?"3 4":""},g);const t=el("text",{x:L-8,y:y(v)+4,"text-anchor":"end"},svg);t.textContent=(invert?"#":"")+short(v)}
+  for(const f of [0,.5,1]){const v=hi*f;el("line",{x1:L,x2:W-R,y1:y(v),y2:y(v),"stroke-dasharray":f?"3 4":""},g);const t=el("text",{x:L-8,y:y(v)+4,"text-anchor":"end"},svg);t.textContent=short(v)}
   const ticks=Math.min(n,W<420?3:5);for(let k=0;k<ticks;k++){const i=ticks===1?0:Math.round(k*(n-1)/(ticks-1));const t=el("text",{x:x(i),y:H-5,"text-anchor":ticks>1&&k===0?"start":ticks>1&&k===ticks-1?"end":"middle"},svg);t.textContent=lab[i]}
   // (the releases: a gold mark on their day)
   const at={};for(const m of marks||[]){const i=m.i-off;if(i<0||i>=n)continue;(at[i]=at[i]||[]).push(m.text)}
@@ -895,7 +883,9 @@ function draw(){
   else if(mode==="unique")chart($("c-dl"),{type:"bars",trim:true,empty:hiddenAll,series:on.map(a=>({...a,values:D.unique[a.name]||D.days.map(()=>null)})),labels:D.labels});
   else if(view==="store")chart($("c-dl"),{type:"bars",trim:true,series:D.stores.map(x=>({name:x.name,color:x.color,values:D.downloads.stores[x.key]})),labels:D.labels,since:D.since,pale:D.downloads.early,marks:marks()});
   else chart($("c-dl"),{type:view==="lines"?"lines":"bars",trim:true,empty:hiddenAll,series:on,labels:D.labels,since:view==="lines"?null:D.since,pale:D.downloads.early,marks:marks(true)});
-  chart($("c-rk"),{type:"lines",invert:true,trim:true,empty:on.length?"No ranks yet: the daily numbers bring them.":"Every addon hidden: the chips under the downloads show them again.",format:(v)=>v==null?"–":"#"+nf(v),series:Object.keys(D.rank).filter(a=>!addons.find(x=>x.name===a&&x.off)).map((a,k)=>({name:a,color:colorOf[a]||C[k%C.length],values:D.rank[a]})),labels:D.labels});
+  // (the standing's trends: each addon's rank on its own scale over the range, up when it climbs)
+  document.querySelectorAll("#download-standing tr[data-a] .sp").forEach(td=>{const a=td.closest("tr").dataset.a,r=D.rank[a];td.innerHTML="<div class=\\"tsp\\"></div>";
+    if(!r)return;let v=cut(r);const f=v.findIndex(x=>x!=null);v=f<0?[]:v.slice(f);const hi=Math.max(...v.filter(x=>x!=null));spark(td.firstChild,v.map(x=>x==null?null:hi-x+1),colorOf[a]||"#6f6a5e",true)});
   const inw=[{name:"Running that day",color:C[1],values:D.installs}],over=[{name:"Different over 7 days",color:C[0],values:D.installsWeek}];
   chart($("c-in"),{type:"bars",trim:true,series:inw,over,labels:D.labels});legend($("l-in"),[...inw,...over],()=>{});
   const fa=[{name:"Facts",color:C[2],values:D.facts},{name:"New observations archived",color:C[0],values:D.newFacts}];
@@ -948,7 +938,7 @@ bindThreads();
 // minute while it's shown, at once when it comes back (the app on a phone:
 // iOS keeps it as it was left), on a pull at the top and with the refresh
 // button. A comment being read, a filter, a word opened stay as they were.
-const PARTS=["#hero","#side-standing","#nav-answer",".kpis","#to-day","#daily-snapshot","#feed","#threads","#comments .chips","#download-rows","#dl-note","#downloads-checked","#unique-through","#download-popularity","#download-releases","#addons-body","#players","#sites","#notif-count"];
+const PARTS=["#hero","#side-standing","#nav-answer",".kpis","#to-day","#daily-snapshot","#feed","#threads","#comments .chips","#download-rows","#dl-note","#downloads-checked","#unique-through","#download-standing","#addons-body","#players","#sites","#notif-count"];
 let refreshing=false,freshAt=Date.now();
 const fresh=()=>{const s=Math.round((Date.now()-freshAt)/1000);if($("fresh"))$("fresh").textContent=" · updated "+(s<20?"just now":s<90?s+" s ago":Math.round(s/60)+" min ago")};
 setInterval(fresh,10000);fresh();
