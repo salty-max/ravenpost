@@ -162,6 +162,8 @@ export const ADDONS: [name: string, curseforge: number | null, wagoSlug: string 
   ["Second Wind", 1739380, "second-wind", "XKqEjbKy", "second-wind"],
   ["Palaver", 1754439, "palaver", "ZKbqbO61", "palaver"],
   ["Mealbook", 1754441, "mealbook", "YK9xja6L", "mealbook"],
+  ["Goodwill", 1765838, "goodwill", "ZKbqa961", "goodwill"],
+  ["Yours Truly", 1765844, "yours-truly", "j6jAx1NR", "yours-truly"],
   ["Ravenpost", null, null, null, "ravenpost"],
 ];
 

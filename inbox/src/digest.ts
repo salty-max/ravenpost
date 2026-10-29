@@ -1,21 +1,17 @@
 import type { Event } from "./events";
-import type { History } from "./stats";
+import { ADDONS, type History } from "./stats";
 
 /**
  * The morning's digest (/api/cron/digest, after the numbers and the data
  * jobs): what the data jobs did since the last digest, and yesterday's
  * numbers, a line each, in words.
  */
+// (every addon of stats.ts' ADDONS by its repository: one list, the Codex
+// named short in a sentence, and wow-data, which has no download counters)
 export const REPO_NAMES: Record<string, string> = {
-  hearthtale: "Hearthtale",
+  ...Object.fromEntries(ADDONS.map(([name, , , , repo]) => [repo, name])),
   "lorekeepers-codex": "the Codex",
-  yonder: "Yonder",
-  "second-wind": "Second Wind",
-  keyring: "Keyring",
-  palaver: "Palaver",
-  mealbook: "Mealbook",
   "wow-data": "wow-data",
-  ravenpost: "Ravenpost",
 };
 const nameOf = (repo?: string) => (repo ? (REPO_NAMES[repo] ?? repo) : "");
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
