@@ -194,6 +194,11 @@ export interface State {
      * A newer Ravenpost release, if GitHub said so (update.go).
      */
     "update": Update | null;
+
+    /**
+     * Ravenpost's page (update.go's pageURL), for the About section.
+     */
+    "page": string;
 }
 
 /**

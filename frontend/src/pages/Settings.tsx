@@ -50,6 +50,10 @@ export function Settings() {
               {s.name}
             </button>
           ))}
+          <button type="button" className="btn" onClick={() => run(() => api.Open(state.page))}>
+            <ExternalLink className="size-4" aria-hidden />
+            {t.settings.page}
+          </button>
           <button type="button" className="btn btn-ghost" onClick={() => run(() => api.Open("https://github.com/salty-max/ravenpost"))}>
             <Code2 className="size-4" aria-hidden />
             {t.settings.source}

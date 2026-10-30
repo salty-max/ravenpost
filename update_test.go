@@ -43,7 +43,7 @@ func TestCheckUpdate(t *testing.T) {
 	if err := a.checkUpdate(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if u := a.Update(); u == nil || u.Version != "9.0.0" || u.URL != "https://github.com/salty-max/ravenpost/releases/tag/v9.0.0" {
+	if u := a.Update(); u == nil || u.Version != "9.0.0" || u.URL != pageURL {
 		t.Fatalf("update = %+v", u)
 	}
 	// A release turned into a prerelease takes the nudge away.
@@ -51,10 +51,10 @@ func TestCheckUpdate(t *testing.T) {
 	if err := a.checkUpdate(context.Background()); err != nil || a.Update() != nil {
 		t.Fatalf("a prerelease nudged: %v %+v", err, a.Update())
 	}
-	// A foreign link is never followed.
+	// Whatever GitHub's html_url says, the nudge opens Ravenpost's page.
 	body = `{"tag_name":"v9.0.0","html_url":"https://evil.example/x"}`
 	_ = a.checkUpdate(context.Background())
-	if u := a.Update(); u == nil || u.URL != releasesPage {
+	if u := a.Update(); u == nil || u.URL != pageURL {
 		t.Fatalf("foreign link: %+v", u)
 	}
 	// A failed look leaves what was known.

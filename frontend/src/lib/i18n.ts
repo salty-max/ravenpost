@@ -160,6 +160,7 @@ const en = {
     about: "About",
     version: (v: string) => `Ravenpost ${v}`,
     made: "Made by a player, for players. Not affiliated with Blizzard Entertainment.",
+    page: "Ravenpost page",
     source: "Source code",
     privacy: "What it sends",
     privacyText:
@@ -330,6 +331,7 @@ const fr: Strings = {
     about: "À propos",
     version: (v) => `Ravenpost ${v}`,
     made: "Fait par un joueur, pour les joueurs. Sans lien avec Blizzard Entertainment.",
+    page: "Page de Ravenpost",
     source: "Code source",
     privacy: "Ce qu'il envoie",
     privacyText:

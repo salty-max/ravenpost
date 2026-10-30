@@ -20,9 +20,13 @@ var (
 	releasesURL   = "https://api.github.com/repos/salty-max/ravenpost/releases/latest"
 	updateFirst   = 2 * time.Minute
 	updateEvery   = 6 * time.Hour
-	releasesPage  = "https://github.com/salty-max/ravenpost/releases/latest"
 	updateTimeout = 20 * time.Second
 )
+
+// pageURL: Ravenpost's own page, where players read about it and download it.
+// The one place the address is written in the app: the nudge, the About
+// section and the tray all open it (through the service's Open).
+const pageURL = "https://ravenpost-site.vercel.app"
 
 // Update: a release newer than this one.
 type Update struct {
@@ -67,7 +71,6 @@ func (a *App) checkUpdate(ctx context.Context) error {
 	}
 	var rel struct {
 		Tag        string `json:"tag_name"`
-		URL        string `json:"html_url"`
 		Draft      bool   `json:"draft"`
 		Prerelease bool   `json:"prerelease"`
 	}
@@ -76,12 +79,8 @@ func (a *App) checkUpdate(ctx context.Context) error {
 	}
 	var next *Update
 	if !rel.Draft && !rel.Prerelease && newerVersion(rel.Tag, version) {
-		// (the link only ever goes to this repository's releases)
-		url := releasesPage
-		if strings.HasPrefix(rel.URL, "https://github.com/salty-max/ravenpost/") {
-			url = rel.URL
-		}
-		next = &Update{Version: strings.TrimPrefix(rel.Tag, "v"), URL: url}
+		// (the link only ever goes to Ravenpost's page, whatever GitHub says)
+		next = &Update{Version: strings.TrimPrefix(rel.Tag, "v"), URL: pageURL}
 	}
 	a.latest.Store(next)
 	a.notify()

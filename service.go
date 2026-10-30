@@ -51,6 +51,8 @@ type State struct {
 	Facts SiteState `json:"facts"`
 	// A newer Ravenpost release, if GitHub said so (update.go).
 	Update *Update `json:"update"`
+	// Ravenpost's page (update.go's pageURL), for the About section.
+	Page string `json:"page"`
 }
 
 // State: the app as it stands.
@@ -74,6 +76,7 @@ func (r *Ravenpost) State() State {
 		Activity:           snap.Activity,
 		Sharing:            snap.Sharing,
 		Update:             r.app.Update(),
+		Page:               pageURL,
 	}
 	fl := cfg.LinkFor(Shared)
 	st.Facts = SiteState{ID: Shared, Name: "The addons' database", Server: fl.Server, Linked: fl.Token != "", BattleTag: fl.BattleTag, Pairing: r.app.Pairing(Shared)}

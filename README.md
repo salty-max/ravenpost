@@ -1,5 +1,7 @@
 # Ravenpost
 
+**[ravenpost-site.vercel.app](https://ravenpost-site.vercel.app)**: the page to read about it and download it.
+
 Ravenpost is a small app for macOS and Windows, the companion of the
 addons Hearthtale, Lorekeeper's Codex, Yonder, Second Wind, Keyring, Palaver,
 Mealbook, Goodwill, Yours Truly and WoWLocker. A
@@ -50,7 +52,8 @@ the first time it starts.
 
 ## Download
 
-Get the [latest release](https://github.com/salty-max/ravenpost/releases/latest):
+Get the [latest release](https://github.com/salty-max/ravenpost/releases/latest),
+or start from [ravenpost-site.vercel.app](https://ravenpost-site.vercel.app):
 
 - **macOS 11 or later**, Apple silicon and Intel: `ravenpost-vX.Y.Z-macos.zip`.
   Move Ravenpost to Applications.

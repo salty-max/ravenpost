@@ -111,7 +111,9 @@ stays there). The inbox: `inbox/README.md`. The icons: `assets/README.md`.
 - `update.go`: every 6 hours GitHub's `releases/latest` (it skips
   prereleases: a release Windows blocks is flipped to prerelease to stop the
   nudge) tells `State.Update`: a banner on the Overview, a line in Settings and in
-  the tray's menu. Ravenpost never updates itself (unsigned builds).
+  the tray's menu, all opening `pageURL` (Ravenpost's page, the one constant;
+  `State.Page` gives it to the About section). Ravenpost never updates itself
+  (unsigned builds).
 - `diagnostics.go`: `Diagnostics()`, a redacted text for an issue (no
   character, account or token names; the home folder as `~`).
   Forever's beta folder (`_classic_beta_`) sends its facts on purpose
