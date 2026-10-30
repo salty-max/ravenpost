@@ -15,7 +15,7 @@ import * as store from "./store";
 import { lookUnique } from "./unique";
 import { addressOf, distinct, hit } from "./ratelimit";
 import { backfillTraffic, collect, countToday, countUpload, dayOf, history, overCap, ping, readPing, readUnique, record, recordUnique, today, uniquePeriods, type Day } from "./stats";
-import { account, authorizeUrl, sharer, sign, subOf, tokenFor, verify } from "./auth";
+import { account, authorizeUrl, codeFor, isChallenge, redeem, refreshed, sharer, signAs, subOf, tokenFor, verify, type Sharer } from "./auth";
 import { flatten } from "./facts";
 import { passportFor } from "./passport";
 import { drop, names, read, remove } from "./inbox";
@@ -43,17 +43,20 @@ app.get("/api/login", (c) => {
   // (the dashboard's own sign-in, in the browser: back to /stats)
   if (c.req.query("web") === "1") {
     if (!process.env.BNET_CLIENT_ID) return c.html(page("Ravenpost", "Signing in with Battle.net isn't open yet."), 503);
-    return c.redirect(authorizeUrl(sign({ web: true, exp: Math.floor(Date.now() / 1000) + 600 })));
+    return c.redirect(authorizeUrl(signAs("state", { web: true, exp: Math.floor(Date.now() / 1000) + 600 })));
   }
   const port = c.req.query("port");
   const nonce = c.req.query("nonce");
   if (!isPort(port) || !isNonce(nonce)) return c.html(page("Ravenpost", "This page opens from Ravenpost's window."), 400);
-  const state = sign({ port: Number(port), nonce, exp: Math.floor(Date.now() / 1000) + 600 });
+  // (v=2 and its challenge: a Ravenpost that trades a code for its token; an older one gets the token itself)
+  const chl = c.req.query("v") === "2" ? c.req.query("challenge") : undefined;
+  if (c.req.query("v") === "2" && !isChallenge(chl)) return c.html(page("Ravenpost", "This page opens from Ravenpost's window."), 400);
+  const state = signAs("state", { port: Number(port), nonce, ...(chl && { chl }), exp: Math.floor(Date.now() / 1000) + 600 });
   // (on this computer only, INBOX_DEV=1: a test account, no Battle.net)
   if (process.env.INBOX_DEV === "1" && !process.env.VERCEL)
     return c.redirect(
       back(port!, {
-        token: tokenFor({ sub: subOf("dev"), tag: "Tester#1234" }),
+        ...handBack({ sub: subOf("dev"), tag: "Tester#1234" }, chl),
         passport: passportFor({ bnetId: 0, battletag: "Tester#1234", owned: [] }), // (Hearthtale's local test account)
         nonce: nonce!,
       }),
@@ -63,8 +66,11 @@ app.get("/api/login", (c) => {
   return c.redirect(authorizeUrl(state));
 });
 
+/** What goes back to Ravenpost in the address: a code to trade (v=2, its challenge), or the token itself (Ravenpost 0.5 and before). */
+const handBack = (s: Sharer, chl: string | undefined): Record<string, string> => (chl ? { code: codeFor(s, chl) } : { token: tokenFor(s) });
+
 app.get("/api/login/callback", async (c) => {
-  const s = verify<{ port: number; nonce: string; web?: boolean }>(c.req.query("state") ?? "");
+  const s = verify<{ port: number; nonce: string; web?: boolean; chl?: string }>(c.req.query("state") ?? "", "state");
   if (!s) return c.html(page("Ravenpost", "This sign-in has expired. Click Sign in with Battle.net in Ravenpost again."), 400);
   if (s.web) {
     const who = c.req.query("code") ? await account(c.req.query("code")!).catch(() => null) : null;
@@ -79,11 +85,28 @@ app.get("/api/login/callback", async (c) => {
   // (the sharing token, and the passport that links the sites in the same go)
   return c.redirect(
     back(s.port, {
-      token: tokenFor({ sub: subOf(who.id), tag: who.battletag }),
+      ...handBack({ sub: subOf(who.id), tag: who.battletag }, s.chl),
       passport: passportFor({ bnetId: who.id, battletag: who.battletag, owned: who.owned }),
       nonce: s.nonce,
     }),
   );
+});
+
+// The code from the address, traded for the sharing token (a POST, over https, with the verifier only that Ravenpost holds: no token in the browser's history).
+app.post("/api/login/exchange", bodyLimit({ maxSize: 4096 }), async (c) => {
+  const { code, verifier } = (await c.req.json().catch(() => ({}))) as { code?: unknown; verifier?: unknown };
+  const who = typeof code === "string" && typeof verifier === "string" ? redeem(code, verifier) : null;
+  return who ? c.json({ token: tokenFor(who) }) : c.json({ error: "this sign-in has expired" }, 400);
+});
+
+// A sharing token still good, traded for a fresh one (Ravenpost asks once it's a month old), up to a year after the first sign-in.
+app.post("/api/token/refresh", async (c) => {
+  const who = sharer(c.req.header("authorization"));
+  if (!who) return c.json({ error: "sign in with Battle.net" }, 401);
+  if (!hit("refresh", who.sub, 5, 60_000)) return c.json({ error: "too many for now" }, 429);
+  const token = refreshed(who);
+  // (a year since the first sign-in: refused without dropping the token, which holds until its own end)
+  return token ? c.json({ token }) : c.json({ error: "sign in again" }, 403);
 });
 
 // ── an addon's collect table, from Ravenpost ─────────────────────────────────
@@ -187,7 +210,7 @@ function statsAllowed(tag: string): boolean {
     .includes(tag.toLowerCase());
 }
 function signIn(c: Context, tag: string) {
-  setCookie(c, STATS_COOKIE, sign({ tag, exp: Math.floor(Date.now() / 1000) + COOKIE_DAYS * 86400 }), {
+  setCookie(c, STATS_COOKIE, signAs("stats", { tag, exp: Math.floor(Date.now() / 1000) + COOKIE_DAYS * 86400 }), {
     httpOnly: true,
     secure: true,
     sameSite: "Lax",
@@ -198,7 +221,7 @@ function signIn(c: Context, tag: string) {
 /** The owner signed in, or null; their sign-in renewed once a week while they come (the app on a phone stays signed in). */
 function owner(c: Context): string | null {
   if (process.env.INBOX_DEV === "1" && !process.env.VERCEL) return "Tester#1234";
-  const viewer = verify<{ tag: string; exp: number }>(getCookie(c, STATS_COOKIE) ?? "");
+  const viewer = verify<{ tag: string; exp: number }>(getCookie(c, STATS_COOKIE) ?? "", "stats");
   if (!viewer || !statsAllowed(viewer.tag)) return null;
   if (viewer.exp - Date.now() / 1000 < (COOKIE_DAYS - 7) * 86400) signIn(c, viewer.tag);
   return viewer.tag;

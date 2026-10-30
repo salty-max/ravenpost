@@ -40,6 +40,8 @@ func (a *App) pingDaily(ctx context.Context) {
 			if filed, err := a.ping(ctx); err == nil {
 				// (the day the inbox filed it under, should this clock be off)
 				sent = cmp.Or(filed, day)
+				// (once a day too: the sharing token traded for a fresh one once it's a month old)
+				a.refreshSharedToken(ctx)
 			} else if told != day {
 				log.Printf("ping: %v", err)
 				told = day

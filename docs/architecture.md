@@ -60,8 +60,12 @@ stays there). The inbox: `inbox/README.md`. The icons: `assets/README.md`.
   system, the links made, how many addons share. Nothing of the player.
 - `login.go`: the one Battle.net sign-in, the way desktop apps sign in: a
   listener on 127.0.0.1, the browser on the inbox's `/api/login?port=&nonce=`,
-  Battle.net, then back here on `/linked` with the sharing token (the addons'
-  database, `Links["shared"]`) and a passport, handed at once to each site in
+  Battle.net, then back here on `/linked` with a two-minute code, bound to
+  the hash of a secret this sign-in keeps and traded with it at once over
+  https for the sharing token (the addons' database, `Links["shared"]`, 90
+  days; `refreshSharedToken` trades it for a fresh one once a month, after
+  the day's ping, for a year after the first sign-in; an inbox before the
+  trade sends the token itself, still taken) and a passport, handed at once to each site in
   `passportSites` (Hearthtale's `/api/companion/signin`) for its own upload
   token. The inbox keeps nothing. The window's sign-in is Link("shared"); its
   Sign out unlinks the database and Hearthtale. WoWLocker keeps its own

@@ -7,11 +7,25 @@ wow-data's daily job merges it into its `data/players` (its `bin/players.ts`
 and `players.yml`). No database: each upload is a file in a private Vercel
 Blob store, and goes once merged.
 
-- `GET /api/login?port=&nonce=` and `/api/login/callback`: Ravenpost's one
+- `GET /api/login?port=&nonce=&v=2&challenge=` and `/api/login/callback`: Ravenpost's one
   sign-in (`src/auth.ts`, scopes `openid wow.profile`). Battle.net signs the
   player in, and the inbox hands Ravenpost, on `http://127.0.0.1:<port>/linked`:
-  - the sharing token (the account's id keyed with `INBOX_SECRET`, its
-    BattleTag), checked on each upload;
+  - a code of two minutes, bound to the challenge Ravenpost sent (the
+    SHA-256 of a secret it keeps, PKCE's way), which Ravenpost trades with
+    that secret for the sharing token (`POST /api/login/exchange`, over
+    https): the browser's history keeps no token, and a code read from it
+    buys nothing. A Ravenpost of 0.5.1 or before (no `v=2`) gets the token
+    itself in the address, as it always did. The token: the account's id
+    keyed with `INBOX_SECRET`, its BattleTag and when the account first
+    signed in, checked on each upload, good for 90 days. Ravenpost trades it
+    for a fresh one once it's a month old (`POST /api/token/refresh`), for a
+    year after the first sign-in (then once more through Battle.net), so a
+    token taken from someone dies within 90 days of its last refresh. A
+    Ravenpost of 0.5.1 or before never refreshes: its players sign in again
+    every 90 days. A token from before (no end in it) holds 90 days from
+    when it was made. Each signed thing says what it is (`typ`: `share`, `stats`
+    for the dashboard's cookie, `state` for a sign-in on its way, `code`)
+    and is taken for nothing else;
   - a passport (`src/passport.ts`): the Battle.net id, BattleTag and the
     characters the account owns in each region (Classic Era's profile), signed
     with the Ed25519 key `INBOX_SIGNING_KEY`, ten minutes, once. Ravenpost
@@ -35,7 +49,7 @@ Blob store, and goes once merged.
 
 `/stats` (https://ravenpost-inbox.vercel.app/stats): the dashboard
 (`src/dashboard.ts`), for the BattleTags in `STATS_BATTLETAGS`, signed in
-with Battle.net in the browser (a signed cookie, 30 days). Its history,
+with Battle.net in the browser (a signed cookie of its own kind, 90 days, renewed each week it's used). Its history,
 `stats/history.json` (`src/stats.ts`), a day at a time:
 
 - downloads: each addon's CurseForge (cfwidget), Wago (its page) and GitHub

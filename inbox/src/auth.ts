@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import type { Owned } from "./passport";
 
 /**
@@ -12,6 +12,21 @@ import type { Owned } from "./passport";
  * (INBOX_SECRET: the id can't be found from it), and its BattleTag for
  * Ravenpost to show. An account that misbehaves is refused by its `sub`
  * (INBOX_BLOCKED, comma-separated).
+ *
+ * Everything signed here says what it is for (`typ`), and is taken for that
+ * alone: `share` (the sharing token, 90 days, traded for a fresh one by
+ * Ravenpost before then: POST /api/token/refresh), `stats` (the dashboard's
+ * cookie), `state` (a sign-in on its way through Battle.net), `code` (two
+ * minutes in the address back to Ravenpost, traded for the token over https:
+ * POST /api/login/exchange, so the browser's history keeps no token).
+ * A token from before kinds (no `typ`, no `exp`) is a sharing token until 90
+ * days after it was made, and nothing else. A sharing token carries when its
+ * account first signed in (`auth`) through every refresh, and none is
+ * refreshed past a year of it: a token taken from someone dies within 90
+ * days of its last refresh, and every one within a year and 90 days.
+ * The code is bound to the Ravenpost that asked (`chl`, a hash of a secret
+ * it keeps, shown only to the exchange: PKCE's way), so an address read from
+ * the history buys nothing even within its two minutes.
  */
 const secret = () => {
   const s = process.env.INBOX_SECRET;
@@ -22,39 +37,82 @@ const secret = () => {
 const b64 = (b: Buffer | string) => Buffer.from(b).toString("base64url");
 const mac = (data: string) => createHmac("sha256", secret()).update(data).digest();
 
-export function sign(payload: Record<string, unknown>): string {
+export type Typ = "share" | "stats" | "state" | "code";
+export const SHARE_DAYS = 90;
+/** How long after the first sign-in a sharing token may still be refreshed. */
+export const REFRESH_DAYS = 365;
+
+/** A payload signed as it is, no kind: only the tests' tokens from before kinds. `signAs` for anything real. */
+export function signUntyped(payload: Record<string, unknown>): string {
   const body = b64(JSON.stringify(payload));
   return `${body}.${b64(mac(body))}`;
 }
 
-/** A signed payload, if the signature holds and it hasn't expired. */
-export function verify<T extends Record<string, unknown>>(token: string): T | null {
+export const signAs = (typ: Typ, payload: Record<string, unknown>) => signUntyped({ typ, ...payload });
+
+/** A signed payload of this kind, if the signature holds and it hasn't expired. */
+export function verify<T extends Record<string, unknown>>(token: string, typ: Typ): T | null {
   const [body, sig] = token.split(".");
   if (!body || !sig) return null;
   const want = mac(body);
   const got = Buffer.from(sig, "base64url");
   if (got.length !== want.length || !timingSafeEqual(got, want)) return null;
+  let payload: T & { typ?: string; exp?: number; iat?: number; sub?: unknown };
   try {
-    const payload = JSON.parse(Buffer.from(body, "base64url").toString()) as T & { exp?: number };
-    return payload.exp && payload.exp < Date.now() / 1000 ? null : payload;
+    payload = JSON.parse(Buffer.from(body, "base64url").toString());
   } catch {
     return null;
   }
+  const now = Date.now() / 1000;
+  // (from before kinds: a sharing token, ending 90 days after it was made)
+  if (payload.typ === undefined && typ === "share" && typeof payload.iat === "number" && typeof payload.sub === "string" && payload.exp === undefined)
+    return payload.iat + SHARE_DAYS * 86400 < now ? null : payload;
+  if (payload.typ !== typ || typeof payload.exp !== "number" || payload.exp < now) return null;
+  return payload;
 }
 
 /** An account's name in the inbox: its Battle.net id, keyed. */
 export const subOf = (bnetId: number | string) => createHmac("sha256", secret()).update(`bnet:${bnetId}`).digest("hex").slice(0, 24);
 
-export type Sharer = { sub: string; tag: string };
-export const tokenFor = (s: Sharer) => sign({ sub: s.sub, tag: s.tag, iat: Math.floor(Date.now() / 1000) });
+/** A sharer: their account's hash, BattleTag, and when they first signed in (`auth`; a token from before has its `iat`). */
+export type Sharer = { sub: string; tag: string; auth?: number; iat?: number };
+export const tokenFor = (s: Sharer) => {
+  const iat = Math.floor(Date.now() / 1000);
+  return signAs("share", { sub: s.sub, tag: s.tag, auth: s.auth ?? iat, iat, exp: iat + SHARE_DAYS * 86400 });
+};
+/** A fresh token for this one, or null once its first sign-in is a year old (then sign in again). */
+export function refreshed(s: Sharer): string | null {
+  const auth = s.auth ?? s.iat;
+  if (typeof auth !== "number" || auth + REFRESH_DAYS * 86400 < Date.now() / 1000) return null;
+  return tokenFor({ sub: s.sub, tag: s.tag, auth });
+}
+const challengeOf = (verifier: string) => createHash("sha256").update(verifier).digest("base64url");
+/** A Ravenpost's challenge: the base64url SHA-256 of its secret verifier. */
+export const isChallenge = (c: string | undefined): c is string => !!c && /^[A-Za-z0-9_-]{43}$/.test(c);
+/** The two minutes' code that stands for a sharer in the address back to Ravenpost (no token in it), bound to its challenge. */
+export const codeFor = (s: Sharer, chl: string) => signAs("code", { sub: s.sub, tag: s.tag, chl, exp: Math.floor(Date.now() / 1000) + 120 });
+
+const blocked = (sub: string) =>
+  (process.env.INBOX_BLOCKED ?? "")
+    .split(",")
+    .map((x) => x.trim())
+    .includes(sub);
+
+/** The sharer a code stands for, or null (expired, forged, blocked, not a code, not this Ravenpost's verifier). */
+export function redeem(code: string, verifier: string): Sharer | null {
+  const s = verify<Sharer & { chl: string }>(code, "code");
+  if (!s || typeof s.sub !== "string" || typeof s.tag !== "string" || typeof s.chl !== "string" || blocked(s.sub)) return null;
+  const want = Buffer.from(s.chl);
+  const got = Buffer.from(challengeOf(verifier));
+  return got.length === want.length && timingSafeEqual(got, want) ? { sub: s.sub, tag: s.tag } : null;
+}
 
 /** The sharer a request's bearer token names, or null (none, forged, blocked). */
 export function sharer(authorization: string | undefined): Sharer | null {
   const token = authorization?.match(/^Bearer (.+)$/)?.[1];
-  const s = token ? verify<Sharer>(token) : null;
+  const s = token ? verify<Sharer>(token, "share") : null;
   if (!s || typeof s.sub !== "string") return null;
-  const blocked = (process.env.INBOX_BLOCKED ?? "").split(",").map((x) => x.trim());
-  return blocked.includes(s.sub) ? null : s;
+  return blocked(s.sub) ? null : s;
 }
 
 // ── Battle.net ───────────────────────────────────────────────────────────────

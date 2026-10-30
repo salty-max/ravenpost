@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 // The one sign-in, as the browser goes through it: the inbox sends it back to
@@ -122,5 +126,96 @@ func TestSignInRefreshesWoWLocker(t *testing.T) {
 	a := r.app.store.Get().Activity
 	if l.Token != "wl-token" || a[0].Kind != "failed" || a[0].Service != WoWLocker {
 		t.Fatalf("link %+v, activity %+v", l, a)
+	}
+}
+
+// An inbox that hands back a code (0.6 on): the token never rides in the
+// address, Ravenpost trades the code for it over https.
+func TestTheSignInTradesACodeForItsToken(t *testing.T) {
+	r := testApp(t)
+	var traded, challenge string
+	inbox := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		q := req.URL.Query()
+		switch req.URL.Path {
+		case "/api/login":
+			if q.Get("v") != "2" || len(q.Get("challenge")) != 43 {
+				http.Error(w, "an old Ravenpost", http.StatusBadRequest)
+				return
+			}
+			challenge = q.Get("challenge")
+			http.Redirect(w, req, "http://127.0.0.1:"+q.Get("port")+"/linked?code=c0de&nonce="+q.Get("nonce"), http.StatusFound)
+		case "/api/login/exchange":
+			var body map[string]string
+			_ = json.NewDecoder(req.Body).Decode(&body)
+			traded = body["code"]
+			sum := sha256.Sum256([]byte(body["verifier"]))
+			if req.Method != http.MethodPost || traded != "c0de" || base64.RawURLEncoding.EncodeToString(sum[:]) != challenge {
+				http.Error(w, `{"error":"this sign-in has expired"}`, http.StatusBadRequest)
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]string{"token": sharedToken})
+		default:
+			http.NotFound(w, req)
+		}
+	}))
+	defer inbox.Close()
+	_ = r.app.store.SetLink(Shared, Link{Server: inbox.URL})
+	if err := r.Link(Shared); err != nil {
+		t.Fatal(err)
+	}
+	if res, err := http.Get(r.app.Pairing(Shared).URL); err != nil || res.StatusCode != http.StatusOK {
+		t.Fatalf("the browser: %v %v", res, err)
+	}
+	if l := r.app.store.Get().LinkFor(Shared); traded != "c0de" || l.Token != sharedToken || l.BattleTag != "Max#1234" {
+		t.Fatalf("traded %q, link %+v", traded, l)
+	}
+	if p := r.app.Pairing(Shared); p.Status != "paired" {
+		t.Fatalf("pairing %+v", p)
+	}
+}
+
+// A sharing token a month old is traded for a fresh one, quietly; a young
+// one, or an inbox that doesn't know the trade yet, leaves it as it is.
+func TestAMonthOldTokenIsRefreshed(t *testing.T) {
+	token := func(age time.Duration) string {
+		body, _ := json.Marshal(map[string]any{"sub": "abc123", "tag": "Max#1234", "iat": time.Now().Add(-age).Unix()})
+		return base64.RawURLEncoding.EncodeToString(body) + ".c2lnbmVk"
+	}
+	fresh := token(0)
+	for _, c := range []struct {
+		name   string
+		has    string
+		answer int
+		want   string
+	}{
+		{"a month old", token(31 * 24 * time.Hour), http.StatusOK, fresh},
+		{"a week old", token(7 * 24 * time.Hour), http.StatusOK, ""},
+		{"an older inbox", token(31 * 24 * time.Hour), http.StatusNotFound, ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			r := testApp(t)
+			asked := false
+			inbox := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				asked = true
+				if req.URL.Path != "/api/token/refresh" || req.Header.Get("Authorization") != "Bearer "+c.has || c.answer != http.StatusOK {
+					http.Error(w, `{"error":"no"}`, http.StatusNotFound)
+					return
+				}
+				_ = json.NewEncoder(w).Encode(map[string]string{"token": fresh})
+			}))
+			defer inbox.Close()
+			_ = r.app.store.SetLink(Shared, Link{Server: inbox.URL, Token: c.has, BattleTag: "Max#1234"})
+			r.app.refreshSharedToken(context.Background())
+			want := c.want
+			if want == "" {
+				want = c.has
+			}
+			if got := r.app.store.Get().LinkFor(Shared).Token; got != want {
+				t.Fatalf("token %q, want %q", got, want)
+			}
+			if c.name == "a week old" && asked {
+				t.Fatal("asked for a young token")
+			}
+		})
 	}
 }

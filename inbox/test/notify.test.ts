@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { app } from "../src/app";
-import { sign } from "../src/auth";
+import { signAs } from "../src/auth";
 import { digestOf } from "../src/digest";
 import * as events from "../src/events";
 import type { History } from "../src/stats";
@@ -22,7 +22,7 @@ afterEach(() => {
   globalThis.fetch = realFetch;
 });
 
-const owner = () => ({ cookie: `rp_stats=${sign({ tag: "Namzar#21586", exp: Math.floor(Date.now() / 1000) + 86400 })}` });
+const owner = () => ({ cookie: `rp_stats=${signAs("stats", { tag: "Namzar#21586", exp: Math.floor(Date.now() / 1000) + 86400 })}` });
 const json = (body: unknown, headers: Record<string, string> = {}) => ({ method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body) });
 
 describe("events", () => {

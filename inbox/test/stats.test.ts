@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { app } from "../src/app";
-import { sign, subOf, tokenFor } from "../src/auth";
+import { signAs, subOf, tokenFor } from "../src/auth";
 import { dashboard, seriesOf } from "../src/dashboard";
 import { backfillTraffic, collect, countToday, countUpload, history, ping, readPing, readUnique, record, setStatsFetch, today, uniquePeriods } from "../src/stats";
 
@@ -127,11 +127,11 @@ describe("the numbers", () => {
     try {
       // (a stranger: the sign-in page, Battle.net or a phone's code)
       expect(await (await app.request("/stats")).text()).toContain("/api/login?web=1");
-      const stranger = sign({ tag: "Someone#1", exp: Math.floor(Date.now() / 1000) + 60 });
+      const stranger = signAs("stats", { tag: "Someone#1", exp: Math.floor(Date.now() / 1000) + 60 });
       const theirs = await (await app.request("/stats", { headers: { cookie: `rp_stats=${stranger}` } })).text();
       expect(theirs).toContain("Sign in with Battle.net");
       expect(theirs).not.toContain("Downloads");
-      const owner = sign({ tag: "namzar#21586", exp: Math.floor(Date.now() / 1000) + 60 });
+      const owner = signAs("stats", { tag: "namzar#21586", exp: Math.floor(Date.now() / 1000) + 60 });
       const res = await app.request("/stats", { headers: { cookie: `rp_stats=${owner}` } });
       expect(res.status).toBe(200);
       expect(await res.text()).toContain('id="downloads"');

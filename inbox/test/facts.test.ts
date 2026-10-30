@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { app } from "../src/app";
 import { createPublicKey, verify as edVerify } from "node:crypto";
-import { setFetch, sharer, sign, subOf, tokenFor, verify } from "../src/auth";
+import { setFetch, sharer, signAs, subOf, tokenFor, verify } from "../src/auth";
 import { DEV_PUBLIC_KEY } from "../src/devkey";
 import { flatten } from "../src/facts";
 import type { Item } from "../src/inbox";
@@ -77,7 +77,7 @@ describe("facts", () => {
     const forged = Buffer.from(JSON.stringify({ sub: "someone", tag: "x" })).toString("base64url");
     expect(sharer(`Bearer ${forged}.${sig}`)).toBeNull();
     expect(sharer(`Bearer ${body}`)).toBeNull();
-    expect(verify(sign({ exp: Math.floor(Date.now() / 1000) - 1 }))).toBeNull();
+    expect(verify(signAs("share", { exp: Math.floor(Date.now() / 1000) - 1 }), "share")).toBeNull();
     process.env.INBOX_BLOCKED = subOf(42);
     try {
       expect(sharer(`Bearer ${t}`)).toBeNull();
@@ -99,7 +99,7 @@ describe("facts", () => {
       delete process.env.INBOX_DEV;
     }
     expect((await app.request("/api/login/callback?state=forged&code=x")).status).toBe(400);
-    const state = sign({ port: 51234, nonce: "abcdefghijklmnop", exp: Math.floor(Date.now() / 1000) + 60 });
+    const state = signAs("state", { port: 51234, nonce: "abcdefghijklmnop", exp: Math.floor(Date.now() / 1000) + 60 });
     const denied = await app.request(`/api/login/callback?state=${state}&error=access_denied`);
     expect(denied.headers.get("location")).toBe("http://127.0.0.1:51234/linked?error=denied&nonce=abcdefghijklmnop");
   });
@@ -115,7 +115,7 @@ describe("facts", () => {
       return new Response("", { status: 404 });
     });
     try {
-      const state = sign({ port: 51234, nonce: "abcdefghijklmnop", exp: Math.floor(Date.now() / 1000) + 60 });
+      const state = signAs("state", { port: 51234, nonce: "abcdefghijklmnop", exp: Math.floor(Date.now() / 1000) + 60 });
       const res = await app.request(`/api/login/callback?state=${state}&code=c0de`);
       const to = new URL(res.headers.get("location")!);
       expect(to.origin).toBe("http://127.0.0.1:51234");

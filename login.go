@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -19,9 +20,13 @@ import (
 // (inbox/), the way desktop apps do: Ravenpost listens on this computer, opens
 // the browser on the inbox's /api/login, Battle.net signs the player in, and
 // the inbox sends the browser back here
-// (http://127.0.0.1:<port>/linked?token=&passport=&nonce=) with the sharing
-// token (the addons' database: signed, the account as a hash and its
-// BattleTag) and a passport, handed at once to each site that takes one
+// (http://127.0.0.1:<port>/linked?code=&passport=&nonce=) with a code of two
+// minutes bound to a secret this sign-in keeps (PKCE's way), traded at once
+// over https with it for the sharing token (the addons'
+// database: signed, the account as a hash and its BattleTag, 90 days, traded
+// for a fresh one once a month: refreshSharedToken) so the browser's history
+// keeps no token (an inbox before the trade sends the token itself,
+// still taken), and a passport, handed at once to each site that takes one
 // (Hearthtale's /api/companion/signin) for its own upload token. The inbox
 // keeps nothing.
 
@@ -36,7 +41,10 @@ func (a *App) startSharedLogin() error {
 	}
 	port := ln.Addr().(*net.TCPAddr).Port
 	nonce := randomWord(32)
-	page := fmt.Sprintf("%s/api/login?port=%d&nonce=%s", link.Server, port, nonce)
+	// (the code comes back bound to this verifier's hash: only this Ravenpost can trade it)
+	verifier := randomWord(48)
+	sum := sha256.Sum256([]byte(verifier))
+	page := fmt.Sprintf("%s/api/login?port=%d&nonce=%s&v=2&challenge=%s", link.Server, port, nonce, base64.RawURLEncoding.EncodeToString(sum[:]))
 
 	ctx, cancel := context.WithTimeout(context.Background(), loginWait)
 	a.mu.Lock()
@@ -58,6 +66,9 @@ func (a *App) startSharedLogin() error {
 		}
 		t := loginStrings()
 		token := q.Get("token")
+		if code := q.Get("code"); code != "" {
+			token = a.tradeCode(r.Context(), link.Server, code, verifier)
+		}
 		tag, ok := tokenTag(token)
 		if !ok {
 			writePage(w, t.failedTitle, t.failedText)
@@ -138,24 +149,74 @@ func (a *App) refreshWoWLocker(ctx context.Context, passport string) {
 	}
 }
 
-// tokenTag: the BattleTag a token names (its signature is the inbox's to check).
-func tokenTag(token string) (string, bool) {
+// tradeCode: the sign-in's code for the sharing token, over https; none on a refusal.
+func (a *App) tradeCode(ctx context.Context, server, code, verifier string) string {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	var res struct {
+		Token string `json:"token"`
+	}
+	if err := call(ctx, "POST", server, "/api/login/exchange", "", map[string]string{"code": code, "verifier": verifier}, &res); err != nil {
+		log.Printf("sign-in: %v", err)
+		return ""
+	}
+	return res.Token
+}
+
+// How old a sharing token gets before it's traded for a fresh one (the inbox's end at 90 days).
+const tokenRefreshAge = 30 * 24 * time.Hour
+
+// refreshSharedToken: a sharing token a month old traded for a fresh one, quietly.
+// A refusal leaves it as it is: an inbox before the trade, a network down (the
+// next day tries again), or a token no longer good (the next upload's 401 says so).
+func (a *App) refreshSharedToken(ctx context.Context) {
+	link := a.store.Get().LinkFor(Shared)
+	c, ok := tokenClaims(link.Token)
+	if !ok || c.Iat == 0 || time.Since(time.Unix(c.Iat, 0)) < tokenRefreshAge {
+		return
+	}
+	var res struct {
+		Token string `json:"token"`
+	}
+	if err := call(ctx, "POST", link.Server, "/api/token/refresh", link.Token, nil, &res); err != nil {
+		log.Printf("token refresh: %v", err)
+		return
+	}
+	if _, ok := tokenClaims(res.Token); !ok {
+		return
+	}
+	_ = a.store.Update(func(cfg *Config) {
+		// (unless it changed meanwhile: signed out, or in again)
+		if l := cfg.Links[Shared]; l != nil && l.Token == link.Token {
+			l.Token = res.Token
+		}
+	})
+}
+
+type tokenPayload struct {
+	Sub string `json:"sub"`
+	Tag string `json:"tag"`
+	Iat int64  `json:"iat"`
+}
+
+// tokenClaims: what a token says (its signature is the inbox's to check).
+func tokenClaims(token string) (tokenPayload, bool) {
+	var p tokenPayload
 	body, _, ok := strings.Cut(token, ".")
 	if !ok || body == "" {
-		return "", false
+		return p, false
 	}
 	raw, err := base64.RawURLEncoding.DecodeString(body)
-	if err != nil {
-		return "", false
+	if err != nil || json.Unmarshal(raw, &p) != nil || p.Sub == "" {
+		return p, false
 	}
-	var p struct {
-		Sub string `json:"sub"`
-		Tag string `json:"tag"`
-	}
-	if json.Unmarshal(raw, &p) != nil || p.Sub == "" {
-		return "", false
-	}
-	return p.Tag, true
+	return p, true
+}
+
+// tokenTag: the BattleTag a token names.
+func tokenTag(token string) (string, bool) {
+	p, ok := tokenClaims(token)
+	return p.Tag, ok
 }
 
 func randomWord(n int) string {
