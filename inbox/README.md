@@ -124,7 +124,36 @@ still work for the current page.
 The daily job (`/api/cron/stats`, Vercel Cron at 05:17 UTC with
 `CRON_SECRET`; by hand with `INBOX_TOKEN`) counts yesterday's pings and
 uploads, then drops their files: only the sums stay, and each install's
-hash with its first and last day.
+hash with its first and last day. It also counts any of the 14 days before
+whose files are still there (a run that ran out of time, a day the cron
+missed), late rather than never. A day past `PING_READ_CAP` pings (20,000)
+is read in part: the installs are the whole list's, the versions, systems
+and links a sample (`sampled: true`, the hashed names making the first ones
+as good as any). The ten-minute look counts today's installs from the names
+alone and reads what each ping says once an hour (`sharingAt` in
+`stats/today.json`), so it costs no more as installs grow.
+
+### Limits
+
+Two doors are open to strangers: the ping (no sign-in at all) and the facts
+(any Battle.net account). Each refusal is a 429, which Ravenpost takes as any
+failure: it tries again later (0.5.1 included).
+
+- In the function's memory (`src/ratelimit.ts`, nothing written, addresses
+  hashed, an IPv6 one by its /64): a ping address 10 a minute and 50
+  different installs a day, a sharer 30 uploads a minute. Each instance
+  counts on its own, so a spread flood gets through in part, and an address
+  many share (a carrier's NAT) may see an install past the 50th wait a day.
+- In the sharer's own count, read before the upload is written: 300 uploads
+  or 2,000,000 facts a day (`FACTS_MAX_UPLOADS`, `FACTS_MAX_FACTS`). A
+  sharer past it sees "too many for now" in Ravenpost's window and it tries
+  each minute until the next UTC day: nothing is lost (each chunk is marked
+  as it goes), a first share of a big file just takes longer.
+- The real gate, set by hand in Vercel's dashboard (Firewall, a rate limit
+  rule, the project ravenpost-inbox): path equals `/api/ping`, 20 requests
+  per 60 s per IP, then deny (429); and path equals `/api/facts`, 60 per
+  60 s per IP. Until it's on, "Ravenpost in use" is honest against a stray
+  loop, not against someone who means it.
 
 ## The addons and the launch watch
 

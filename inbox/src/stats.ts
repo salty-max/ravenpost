@@ -31,7 +31,7 @@ import * as store from "./store";
 export type Day = {
   downloads?: Record<string, { curseforge?: number; wago?: number; github?: number }>;
   downloadsAt?: string;
-  ravenpost?: { installs: number; versions: Record<string, number>; os: Record<string, number>; linked: Record<string, number>; sharing: number; distinct?: Distinct };
+  ravenpost?: { installs: number; versions: Record<string, number>; os: Record<string, number>; linked: Record<string, number>; sharing: number; distinct?: Distinct; sampled?: boolean };
   sharing?: { sharers: number; uploads: number; facts: number; games: Record<string, number>; locales: Record<string, number> };
   merged?: Record<string, { uploads: number; newFacts: number }>;
   traffic?: Record<string, { pageviews: number; visitors: number }>;
@@ -132,6 +132,24 @@ export async function countUpload(sub: string, game: string, locales: Record<str
   bump(c.games, game, n);
   for (const [l, k] of Object.entries(locales)) bump(c.locales, l, k);
   await store.write(name, JSON.stringify(c));
+}
+
+/** A sharer's day full (FACTS_MAX_UPLOADS uploads, FACTS_MAX_FACTS facts): told before the upload is written. */
+export async function overCap(sub: string, now = new Date()): Promise<boolean> {
+  const c = JSON.parse((await store.read(`counts/${dayOf(now)}/${key(`sharer:${sub}`)}.json`)) ?? "null") as Count | null;
+  if (!c) return false;
+  return c.uploads >= Number(process.env.FACTS_MAX_UPLOADS ?? 300) || c.facts >= Number(process.env.FACTS_MAX_FACTS ?? 2_000_000);
+}
+
+/** Each item through `fn`, `n` at a time, none started after `until`; how many were. */
+async function pool<T>(items: T[], n: number, fn: (item: T) => Promise<void>, until = Infinity): Promise<number> {
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(n, items.length) }, async () => {
+      while (next < items.length && Date.now() < until) await fn(items[next++]);
+    }),
+  );
+  return Math.min(next, items.length);
 }
 
 // ── the history ──────────────────────────────────────────────────────────────
@@ -341,33 +359,49 @@ async function standing(): Promise<Day["curseforge"]> {
 }
 
 // ── today so far (the ten-minute look) ───────────────────────────────────────
-export type Today = { at: string; day: string; installs: number; sharing: number; sharers: number; uploads: number; facts: number; distinct?: Distinct; traffic?: Day["traffic"] };
+export type Today = { at: string; day: string; installs: number; sharing: number; sharingAt?: string; sampled?: boolean; sharers: number; uploads: number; facts: number; distinct?: Distinct; traffic?: Day["traffic"] };
 const TODAY = "stats/today.json";
 
-/** Today's pings and uploads so far, before the daily job sums them: counted and kept for the dashboard. */
+/**
+ * Today's pings and uploads so far, before the daily job sums them: counted
+ * and kept for the dashboard. The installs come from the names alone (a list
+ * is one call a thousand); what each ping says (sharing or not) is read once
+ * an hour, not at every look, so the look costs no more as installs grow.
+ */
 export async function countToday(now = new Date()): Promise<Today> {
   const day = dayOf(now);
   const t: Today = { at: now.toISOString(), day, installs: 0, sharing: 0, sharers: 0, uploads: 0, facts: 0 };
-  const [pings, counts, before, s, tr] = await Promise.all([store.all(`pings/${day}/`), store.all(`counts/${day}/`), store.all(`pings/${yesterday(now)}/`), seen(), traffic(day).catch(() => undefined)]);
+  const [pings, counts, before, s, tr, was] = await Promise.all([
+    store.all(`pings/${day}/`),
+    store.all(`counts/${day}/`),
+    store.all(`pings/${yesterday(now)}/`),
+    seen(),
+    traffic(day).catch(() => undefined),
+    today(now),
+  ]);
   // (the sites' visitors so far today: Web Analytics answers for a day not yet over)
   if (tr && Object.keys(tr).length) t.traffic = tr;
   t.installs = pings.length;
   // (different installs to today: yesterday's pings too, should the daily job not have counted them yet)
   const known = see(see(s, yesterday(now), before), day, pings);
   if (known) t.distinct = distinctOf(known, day);
-  await Promise.all([
-    ...pings.map(async (name) => {
+  const fresh = was?.sharingAt && now.getTime() - Date.parse(was.sharingAt) < 3_600_000;
+  if (fresh) [t.sharing, t.sharingAt, t.sampled] = [was.sharing, was.sharingAt, was.sampled];
+  else {
+    t.sharingAt = now.toISOString();
+    if (pings.length > readCap()) t.sampled = true;
+    await pool(pings.slice(0, readCap()), 25, async (name) => {
       const p = JSON.parse((await store.read(name)) ?? "null") as Omit<Ping, "id"> | null;
       if (p && p.sharing > 0) t.sharing++;
-    }),
-    ...counts.map(async (name) => {
-      const c = JSON.parse((await store.read(name)) ?? "null") as Count | null;
-      if (!c) return;
-      t.sharers++;
-      t.uploads += c.uploads;
-      t.facts += c.facts;
-    }),
-  ]);
+    });
+  }
+  await pool(counts, 25, async (name) => {
+    const c = JSON.parse((await store.read(name)) ?? "null") as Count | null;
+    if (!c) return;
+    t.sharers++;
+    t.uploads += c.uploads;
+    t.facts += c.facts;
+  });
   await store.write(TODAY, JSON.stringify(t));
   return t;
 }
@@ -428,42 +462,77 @@ export async function uniquePeriods(): Promise<UniquePeriods | null> {
 }
 
 // ── the daily job ────────────────────────────────────────────────────────────
-/** Yesterday's pings, counts and traffic, today's download totals, into the history. */
-export async function collect(now = new Date()): Promise<History> {
-  const day = yesterday(now);
-  const pings = await store.all(`pings/${day}/`);
-  const ravenpost: NonNullable<Day["ravenpost"]> = { installs: 0, versions: {}, os: {}, linked: {}, sharing: 0 };
-  for (const name of pings) {
-    const p = JSON.parse((await store.read(name)) ?? "null") as Omit<Ping, "id"> | null;
-    if (!p) continue;
-    ravenpost.installs++;
-    bump(ravenpost.versions, p.version);
-    bump(ravenpost.os, p.os);
-    for (const l of p.linked) bump(ravenpost.linked, l);
-    if (p.sharing > 0) ravenpost.sharing++;
+/** How many of a day's pings are read at most (PING_READ_CAP): past it the day's breakdowns are a sample. */
+const readCap = () => Number(process.env.PING_READ_CAP ?? 20_000);
+/** How far back the job looks for a day it never finished (its files still there). */
+const LOOK_BACK = 14;
+
+/**
+ * Yesterday's pings, counts and traffic, today's download totals, into the
+ * history; and any earlier day whose files are still there (a run that timed
+ * out, a day the cron missed), counted late instead of never. The pings are
+ * named by hash, so the first `readCap()` names are as good as a random
+ * sample; the installs are always the whole list's.
+ */
+export async function collect(now = new Date(), until = Date.now() + 40_000): Promise<History> {
+  // (yesterday first: a deadline reached on a leftover day never costs yesterday)
+  const days = Array.from({ length: LOOK_BACK }, (_, i) => daysBefore(dayOf(now), i + 1));
+  let known = await seen();
+  let seenMore = false;
+  const out: Record<string, Day> = {};
+  const done: string[] = [];
+  const had = (await history()).days;
+  for (const day of days) {
+    let [pings, counts] = await Promise.all([store.all(`pings/${day}/`), store.all(`counts/${day}/`)]);
+    const late = day !== yesterday(now);
+    // (a part of a day counted before whose files a cut-short run left: they go, the count stays)
+    if (late && had[day]?.ravenpost) [done.push(...pings), (pings = [])];
+    if (late && had[day]?.sharing) [done.push(...counts), (counts = [])];
+    if (late && !pings.length && !counts.length) continue;
+    const ravenpost: NonNullable<Day["ravenpost"]> = { installs: pings.length, versions: {}, os: {}, linked: {}, sharing: 0 };
+    const wanted = pings.slice(0, readCap());
+    const read = await pool(
+      wanted,
+      25,
+      async (name) => {
+        const p = JSON.parse((await store.read(name)) ?? "null") as Omit<Ping, "id"> | null;
+        if (!p) return;
+        bump(ravenpost.versions, p.version);
+        bump(ravenpost.os, p.os);
+        for (const l of p.linked) bump(ravenpost.linked, l);
+        if (p.sharing > 0) ravenpost.sharing++;
+      },
+      until,
+    );
+    // (the deadline reached within the day: left whole for the next run, its files kept)
+    if (read < wanted.length) continue;
+    if (wanted.length < pings.length) ravenpost.sampled = true;
+    known = see(known, day, pings);
+    seenMore ||= pings.length > 0;
+    // (a day counted late: installs seen since would count in its windows, so none)
+    if (known && !late) ravenpost.distinct = distinctOf(known, day);
+    const sharing: NonNullable<Day["sharing"]> = { sharers: 0, uploads: 0, facts: 0, games: {}, locales: {} };
+    await pool(counts, 25, async (name) => {
+      const c = JSON.parse((await store.read(name)) ?? "null") as Count | null;
+      if (!c) return;
+      sharing.sharers++;
+      sharing.uploads += c.uploads;
+      sharing.facts += c.facts;
+      for (const [g, n] of Object.entries(c.games)) bump(sharing.games, g, n);
+      for (const [l, n] of Object.entries(c.locales)) bump(sharing.locales, l, n);
+    });
+    // (run again the same day: what was counted stays, the files being gone)
+    out[day] = {
+      ravenpost: pings.length || !had[day]?.ravenpost ? ravenpost : had[day].ravenpost,
+      sharing: counts.length || !had[day]?.sharing ? sharing : had[day].sharing,
+    };
+    done.push(...pings, ...counts);
   }
-  const known = see(await seen(), day, pings);
-  if (known) ravenpost.distinct = distinctOf(known, day);
-  if (pings.length) await store.write(INSTALLS, JSON.stringify(known));
-  const counts = await store.all(`counts/${day}/`);
-  const sharing: NonNullable<Day["sharing"]> = { sharers: 0, uploads: 0, facts: 0, games: {}, locales: {} };
-  for (const name of counts) {
-    const c = JSON.parse((await store.read(name)) ?? "null") as Count | null;
-    if (!c) continue;
-    sharing.sharers++;
-    sharing.uploads += c.uploads;
-    sharing.facts += c.facts;
-    for (const [g, n] of Object.entries(c.games)) bump(sharing.games, g, n);
-    for (const [l, n] of Object.entries(c.locales)) bump(sharing.locales, l, n);
-  }
-  const [dl, tr, cf] = await Promise.all([downloads(), traffic(day), standing()]);
-  // (run again the same day: what was counted stays, the files being gone)
-  const had = (await history()).days[day];
-  const kept = {
-    ravenpost: pings.length || !had?.ravenpost ? ravenpost : had.ravenpost,
-    sharing: counts.length || !had?.sharing ? sharing : had.sharing,
-  };
-  const h = await record({ [day]: { ...kept, ...(tr && { traffic: tr }) }, [dayOf(now)]: { downloads: dl, downloadsAt: now.toISOString(), ...(cf && { curseforge: cf }) } });
-  await store.remove([...pings, ...counts]);
+  if (known && seenMore) await store.write(INSTALLS, JSON.stringify(known));
+  const [dl, tr, cf] = await Promise.all([downloads(), traffic(yesterday(now)), standing()]);
+  const y = yesterday(now);
+  out[y] = { ...out[y], ...(tr && { traffic: tr }) };
+  const h = await record({ ...out, [dayOf(now)]: { downloads: dl, downloadsAt: now.toISOString(), ...(cf && { curseforge: cf }) } });
+  await store.remove(done);
   return h;
 }

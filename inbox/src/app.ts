@@ -13,7 +13,8 @@ import { checks, githubLatest, lookGitHub, watch as watchLaunch } from "./launch
 import * as push from "./push";
 import * as store from "./store";
 import { lookUnique } from "./unique";
-import { backfillTraffic, collect, countToday, countUpload, history, ping, readPing, readUnique, record, recordUnique, today, uniquePeriods, type Day } from "./stats";
+import { addressOf, distinct, hit } from "./ratelimit";
+import { backfillTraffic, collect, countToday, countUpload, dayOf, history, overCap, ping, readPing, readUnique, record, recordUnique, today, uniquePeriods, type Day } from "./stats";
 import { account, authorizeUrl, sharer, sign, subOf, tokenFor, verify } from "./auth";
 import { flatten } from "./facts";
 import { passportFor } from "./passport";
@@ -92,6 +93,8 @@ app.post(
   async (c) => {
     const who = sharer(c.req.header("authorization"));
     if (!who) return c.json({ error: "sign in with Battle.net" }, 401);
+    // (a sharer's pace and day, before anything is written: Ravenpost tries again later on any refusal)
+    if (!hit("facts", who.sub, 30, 60_000) || (await overCap(who.sub))) return c.json({ error: "too many for now" }, 429);
     const body = await c.req.json().catch(() => null);
     const facts = flatten(body);
     if (!facts) return c.json({ error: "not a collect table" }, 400);
@@ -151,6 +154,9 @@ app.post("/api/inbox/stats", async (c) => {
 app.post("/api/ping", bodyLimit({ maxSize: 4096 }), async (c) => {
   const p = readPing(await c.req.json().catch(() => null));
   if (!p) return c.json({ error: "not a ping" }, 400);
+  // (one address: a few pings a minute, 50 different installs a day; a household, a café, most shared addresses fit)
+  const from = addressOf((h) => c.req.header(h));
+  if (!hit("ping", from, 10, 60_000) || !distinct("ping", from, p.id, 50, dayOf())) return c.json({ error: "too many for now" }, 429);
   // (the day it's filed under: Ravenpost keeps it, not its own clock's)
   return c.json({ ok: true, day: await ping(p) });
 });

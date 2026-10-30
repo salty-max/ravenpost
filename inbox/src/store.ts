@@ -73,6 +73,10 @@ export async function all(prefix: string): Promise<string[]> {
 
 export async function remove(list: string[]): Promise<void> {
   if (!list.length) return;
-  if (blob()) for (let i = 0; i < list.length; i += 100) await del(list.slice(i, i + 100));
+  // (a hundred names a call, five calls at once: a big day's pings go within the job's minute)
+  if (blob()) {
+    const batches = Array.from({ length: Math.ceil(list.length / 100) }, (_, i) => list.slice(i * 100, i * 100 + 100));
+    for (let i = 0; i < batches.length; i += 5) await Promise.all(batches.slice(i, i + 5).map((b) => del(b)));
+  }
   else for (const n of list) rmSync(path.join(folder(), n), { force: true });
 }
