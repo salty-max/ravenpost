@@ -246,6 +246,11 @@ bun run check    # typecheck, tests
 
 Ravenpost's development build talks to `http://localhost:3003`.
 
+`package.json`'s `overrides` lift undici (6.29.1) and zod (4.6.7) past the
+advisories `@vercel/blob` 2.8.2 still pulls in (its `^6.23.0`, and
+`@vercel/cli-config`'s exact zod): `bun audit` comes out clean. Drop them
+once `@vercel/blob` moves past them on its own.
+
 ## Where it runs
 
 https://ravenpost-inbox.vercel.app: the Vercel project `ravenpost-inbox`

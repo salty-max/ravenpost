@@ -1,6 +1,8 @@
 # Every push to main and every pull request: the window's pages (typecheck and
 # build), its bindings up to date, then vet and tests (macOS: the app needs cgo)
-# and vet for Windows; the inbox's typecheck and tests, the page's check and build.
+# and vet for Windows, the Go advisories reachable from the code (govulncheck,
+# pinned; a new one fails the build until the toolchain in go.mod is bumped);
+# the inbox's typecheck and tests, the page's check and build.
 name: CI
 
 on:
@@ -28,6 +30,11 @@ jobs:
       - run: go vet ./...
       - run: GOOS=windows go vet ./...
       - run: go test ./...
+      - name: No known Go advisory reachable (macOS, and the Windows exe)
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
+          "$(go env GOPATH)/bin/govulncheck" ./...
+          GOOS=windows "$(go env GOPATH)/bin/govulncheck" ./...
       - name: The inbox
         run: cd inbox && bun install --frozen-lockfile && bun run check
       - name: The page

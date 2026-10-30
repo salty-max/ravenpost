@@ -15,14 +15,15 @@ export interface Account {
 /**
  * Activity is one thing Ravenpost did, as the window's journal tells it: a
  * character's file sent (and what the site made of it), a site linked or
- * unlinked, an upload that failed. The last ones are kept in the config, so
+ * unlinked, an upload that failed, a settings file found unreadable at start
+ * and set aside (reset). The last ones are kept in the config, so
  * the window shows them after a restart.
  */
 export interface Activity {
     "at": string;
 
     /**
-     * sent | refused | failed | linked | unlinked | shared
+     * sent | refused | failed | linked | unlinked | shared | reset
      */
     "kind": string;
     "service": string;
@@ -35,7 +36,8 @@ export interface Activity {
 
     /**
      * The site's answer for a character (saved, synced, unlinked, removed,
-     * unknown, invalid), or the error of a failed upload. A shared upload's
+     * unknown, invalid), the error of a failed upload, or the name the
+     * unreadable settings were kept under (reset). A shared upload's
      * facts are its Events.
      */
     "detail"?: string;
