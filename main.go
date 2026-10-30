@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -31,12 +32,25 @@ func main() {
 		return
 	}
 
+	// (the log first: whatever stops a start is written down, and the Windows
+	// build, which has no console, shows it too)
+	setupLog()
 	store, err := LoadStore()
 	if err != nil {
-		log.Fatal(err)
+		t := startStrings()
+		log.Print(err)
+		showError(t.title, fmt.Sprintf(t.failed, err))
+		os.Exit(1)
 	}
-	setupLog()
 	app := NewApp(store)
+	if aside := store.SetAside(); aside != "" {
+		t := startStrings()
+		app.syncer.record(Activity{Kind: "reset", Detail: filepath.Base(aside)})
+		// (no box for a run from a terminal: it would die with the run)
+		if !*once && !*headless {
+			go showError(t.title, fmt.Sprintf(t.reset, aside))
+		}
+	}
 
 	if *once {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -84,6 +98,10 @@ func setupLog() {
 	if err != nil {
 		return
 	}
+	// (a first start: the folder isn't there until the config is saved)
+	if os.MkdirAll(dir, 0o700) != nil {
+		return
+	}
 	path := filepath.Join(dir, "ravenpost.log")
 	if st, err := os.Stat(path); err == nil && st.Size() > 1<<20 {
 		_ = os.Rename(path, path+".old")
@@ -93,4 +111,22 @@ func setupLog() {
 		return
 	}
 	log.SetOutput(io.MultiWriter(os.Stderr, f))
+}
+
+type startText struct{ title, failed, reset string }
+
+// startStrings: what a start that went wrong says, in the system's language.
+func startStrings() startText {
+	if strings.HasPrefix(systemLanguage(), "fr") {
+		return startText{
+			"Ravenpost",
+			"Ravenpost n'a pas pu démarrer : %v",
+			"Le fichier de réglages de Ravenpost était illisible. Il est gardé tel quel (%s) et Ravenpost repart de zéro : reliez vos sites dans sa fenêtre.",
+		}
+	}
+	return startText{
+		"Ravenpost",
+		"Ravenpost couldn't start: %v",
+		"Ravenpost's settings file couldn't be read. It's kept as it was (%s) and Ravenpost starts afresh: link your sites again in its window.",
+	}
 }

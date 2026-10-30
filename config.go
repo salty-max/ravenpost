@@ -3,10 +3,14 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sync"
+	"time"
 )
 
 // Link: Ravenpost linked to one site, or to the addons' database (Shared).
@@ -49,10 +53,32 @@ func (c Config) LinkFor(id string) Link {
 }
 
 type Store struct {
-	mu   sync.Mutex
-	path string
-	cfg  Config
+	mu    sync.Mutex
+	path  string
+	cfg   Config
+	aside string // (a config.json found unreadable at start, kept there)
 }
+
+var (
+	keptInstallID = regexp.MustCompile(`"installId"\s*:\s*"([0-9a-f]{32})"`)
+	keptLaunch    = regexp.MustCompile(`"launchAtLogin"\s*:\s*true`)
+)
+
+// salvage: from an unreadable config.json, what a fresh start shouldn't lose
+// and can find in its bytes: the install's id (else the ping counts it twice)
+// and launch at login (else the switch says off while the machine's login
+// item still starts it). The links go: signing in again is the safe way back.
+func salvage(b []byte) Config {
+	var c Config
+	if m := keptInstallID.FindSubmatch(b); m != nil {
+		c.InstallID = string(m[1])
+	}
+	c.LaunchAtLogin = keptLaunch.Match(b)
+	return c
+}
+
+// SetAside: where an unreadable config.json was kept at start, or "".
+func (s *Store) SetAside() string { return s.aside }
 
 func configDir() (string, error) {
 	if dir := os.Getenv("RAVENPOST_CONFIG_DIR"); dir != "" { // tests, several profiles
@@ -134,7 +160,14 @@ func LoadStore() (*Store, error) {
 		return nil, err
 	default:
 		if err := json.Unmarshal(b, &s.cfg); err != nil {
-			return nil, err
+			// (half-written by a hand edit, a sync tool or an antivirus: kept
+			// as it was beside it, and a fresh start rather than none at all)
+			aside := fmt.Sprintf("%s.bad-%s", s.path, time.Now().Format("20060102-150405"))
+			if rerr := os.Rename(s.path, aside); rerr != nil {
+				return nil, fmt.Errorf("config.json unreadable (%v), and it can't be set aside: %w", err, rerr)
+			}
+			log.Printf("config.json unreadable (%v): kept as %s, starting afresh", err, filepath.Base(aside))
+			s.cfg, s.aside = salvage(b), aside
 		}
 	}
 	if s.cfg.Links == nil {

@@ -16,6 +16,8 @@ export function describe(t: Strings, a: Activity, site: string): string {
       return t.activity.shared(a.events ?? 0);
     case "failed":
       return `${t.activity.failed(name)}${a.detail ? `: ${a.detail}` : ""}`;
+    case "reset":
+      return t.activity.reset;
     case "linked":
       return a.service === "shared" ? t.sharing.linked(name) : t.activity.linked(site, name);
     default:

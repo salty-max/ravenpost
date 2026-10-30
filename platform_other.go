@@ -23,3 +23,6 @@ func openURL(url string) error {
 }
 func pickFolder() (string, error) { return "", errors.New("no folder picker here") }
 func systemLanguage() string      { return os.Getenv("LANG") }
+
+// showError: nothing here, the log and stderr have it.
+func showError(title, text string) {}

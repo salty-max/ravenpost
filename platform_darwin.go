@@ -88,3 +88,7 @@ func systemLanguage() string {
 	out, _ := exec.Command("defaults", "read", "-g", "AppleLocale").Output()
 	return strings.TrimSpace(string(out))
 }
+
+// showError: nothing on macOS, where the log and stderr have it: a reset
+// shows in the window's journal, a start that fails outright only in the log.
+func showError(title, text string) {}

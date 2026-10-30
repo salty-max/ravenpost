@@ -293,7 +293,7 @@ function ActivityPanel() {
             <li key={`${a.at}-${i}`} className="flex items-center gap-3 py-2.5">
               <ActivityIcon kind={a.kind} />
               <span className="min-w-0 flex-1 truncate">{describe(t, a, siteName[a.service] ?? a.service)}</span>
-              <span className="tag shrink-0">{siteName[a.service] ?? a.service}</span>
+              {a.service && <span className="tag shrink-0">{siteName[a.service] ?? a.service}</span>}
               <time dateTime={a.at} className="w-24 shrink-0 text-right text-xs text-faint">
                 {ago(a.at, locale, t.ago.never, now)}
               </time>
@@ -309,7 +309,7 @@ function ActivityIcon({ kind }: { kind: string }) {
   const cls = "size-4 shrink-0";
   if (kind === "sent") return <CheckCircle2 className={`${cls} text-ok`} aria-hidden />;
   if (kind === "shared") return <Share2 className={`${cls} text-ok`} aria-hidden />;
-  if (kind === "refused") return <AlertTriangle className={`${cls} text-gold`} aria-hidden />;
+  if (kind === "refused" || kind === "reset") return <AlertTriangle className={`${cls} text-gold`} aria-hidden />;
   if (kind === "failed") return <XCircle className={`${cls} text-blood`} aria-hidden />;
   if (kind === "linked") return <Link2 className={`${cls} text-gold`} aria-hidden />;
   return <Unlink className={`${cls} text-faint`} aria-hidden />;

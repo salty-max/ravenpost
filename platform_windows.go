@@ -97,3 +97,14 @@ func systemLanguage() string {
 	}
 	return ""
 }
+
+// showError: a plain message box (user32, a direct call: no script host), for
+// a start that went wrong in a build that has no console.
+func showError(title, text string) {
+	t, err1 := windows.UTF16PtrFromString(title)
+	m, err2 := windows.UTF16PtrFromString(text)
+	if err1 != nil || err2 != nil {
+		return
+	}
+	_, _ = windows.MessageBox(0, m, t, windows.MB_OK|windows.MB_ICONWARNING|windows.MB_SETFOREGROUND)
+}
