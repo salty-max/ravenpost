@@ -32,6 +32,9 @@ func (r *Ravenpost) diagnostics() string {
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "Ravenpost %s (%s/%s), language %s\n", version, runtime.GOOS, runtime.GOARCH, systemLanguage())
+	if buildID != "" {
+		fmt.Fprintf(&b, "Test build: %s\n", buildID)
+	}
 	if u := r.app.Update(); u != nil {
 		fmt.Fprintf(&b, "Newer release known: %s\n", u.Version)
 	}

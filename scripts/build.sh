@@ -25,6 +25,10 @@ if [ -z "$INBOX" ]; then
   exit 1
 fi
 LDFLAGS="-s -w -X main.wowlockerServer=$WOWLOCKER -X main.hearthtaleServer=$HEARTHTALE -X main.inboxServer=$INBOX"
+# A test build (no TAG: the release workflow exports it) carries the time it was
+# built, so each is a new file: Smart App Control judges an unsigned file by its
+# hash, and the same commit built again is byte for byte the same file.
+[ -n "${TAG:-}" ] || LDFLAGS="$LDFLAGS -X main.buildID=$(date -u +%Y%m%d-%H%M%S)"
 ICON=assets/icon-512.png
 rm -rf dist && mkdir -p dist/tmp
 

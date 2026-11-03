@@ -141,11 +141,15 @@ stays there). The inbox: `inbox/README.md`. The icons: `assets/README.md`.
   of main (v0.3.0-20) was blocked while the same code built again, twice,
   ran, as did a build at each feature commit since v0.3.0 (sharing, the
   sign-in's listener, the ping): no code was to blame. A blocked build:
-  rebuild it (a new file: another version or commit) and try again before
-  suspecting the code. A release file blocked for players would need a new
-  release. Signing with a certificate of a CA in Microsoft's Trusted Root
-  Program is the lasting fix (Azure Artifact Signing takes individuals in the
-  US and Canada only; elsewhere an OV certificate), the user's decision.
+  build it again (a test build is a new file each time, see below) and try
+  again before suspecting the code. The build is reproducible (the same commit
+  built again is the same file, the same hash, 3 November 2026), so a test
+  build now carries its build time (`buildID`, `scripts/build.sh`, shown in
+  the diagnostics) and every one is a new file; a release build leaves it
+  empty. A release file blocked for players would need a new release.
+  Signing with a certificate of a CA in Microsoft's Trusted Root Program is
+  the lasting fix (Azure Artifact Signing takes individuals in the US and
+  Canada only; elsewhere an OV certificate), the user's decision.
 
 ## Tests, checks and releases
 

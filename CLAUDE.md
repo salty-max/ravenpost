@@ -41,8 +41,10 @@ q stamps only the repository's own check.
 
 - Windows builds are unsigned: never start PowerShell, rundll32, cmd or any
   script host; links through the service's `Open` (a direct Win32 call),
-  never Wails' `OpenURL`. A blocked build: rebuild it and try again before
-  blaming the code; signing is the user's decision.
+  never Wails' `OpenURL`. A blocked test build: build it again (each test
+  build carries its build time, so it is a new file) and try again before
+  blaming the code; a release build is reproducible, the same file; signing
+  is the user's decision.
 - Upload feedback stays inside the app: no system notifications.
 - SavedVariables are parsed as data, never executed. Nothing of the player
   in the ping. A PTR's facts are never sent (Forever's beta's are, on purpose).

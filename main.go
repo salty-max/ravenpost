@@ -21,6 +21,12 @@ import (
 
 var version = "0.5.2"
 
+// buildID is set by a test build only (scripts/build.sh, -X main.buildID=…):
+// the time it was built, so every test build is a new file. Windows' Smart App
+// Control judges an unsigned file by its hash, and a reproducible build gives
+// the same file again. A release build leaves it empty.
+var buildID = ""
+
 func main() {
 	headless := flag.Bool("headless", false, "no window nor icon: sync until interrupted")
 	background := flag.Bool("background", false, "started at login: the window waits for a click on the icon")
