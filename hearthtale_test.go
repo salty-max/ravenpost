@@ -43,6 +43,8 @@ HearthtaleChar = {
 	},
 	["book"] = {
 		["client"] = "classic",
+		["language"] = "frFR",
+		["sex"] = 3,
 		["at"] = 1790905640,
 		["level"] = 9,
 		["chapters"] = {
@@ -174,6 +176,12 @@ func TestUploadsABookAndOnlyWhatTheSiteReads(t *testing.T) {
 		if keys[i] != want[i] {
 			t.Fatalf("sent %v, want %v", keys, want)
 		}
+	}
+	// The book goes whole: its language and the character's sex ride inside it,
+	// for the site to frame the journal in the language it was written in.
+	book, _ := sent["book"].(map[string]any)
+	if book["language"] != "frFR" || book["sex"] != float64(3) {
+		t.Fatalf("the book's language and sex did not reach the site: %v", book)
 	}
 	ch := s.characters[Hearthtale+"|Player-6113-0B4A2201"]
 	if ch == nil || ch.Status != "saved" || ch.Name != "Brannok" || ch.Level != 9 || ch.Chapters != 1 {

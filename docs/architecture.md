@@ -20,7 +20,9 @@ stays there). The inbox: `inbox/README.md`. The icons: `assets/README.md`.
 - `sync.go`: polls file times every 3 s, uploads when a file's hash (+
   selection) changed. WoWLocker: the account's characters in one upload.
   Hearthtale: one character per request (Vercel takes 4.5 MB), only the fields
-  the site reads (`hearthtaleFields`); statuses saved / unlinked / invalid /
+  the site reads (`hearthtaleFields`: the book goes whole, its `language` and
+  the character's `sex` inside it, so the site frames a journal in the language
+  it was written in and Ravenpost reads neither); statuses saved / unlinked / invalid /
   removed (its owner took the book off the site: a new link code brings it back).
   WoWLocker's "gone" (the account no longer has the character: deleted) is
   kept in the config (`Gone`): left out of the lists, still uploaded, back
