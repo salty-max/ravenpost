@@ -75,7 +75,17 @@ stays there). The inbox: `inbox/README.md`. The icons: `assets/README.md`.
   link's token) to renew the characters it trusts: a character made since the
   last login on wow-locker.app syncs without one (the passport lists Classic
   Era's characters with realm and name; a refusal is a journal line, the link
-  stays).
+  stays). The passport (built in `inbox/src/auth.ts`, `account()`, the same
+  token for both) also carries Forever's characters, asked of
+  `profile-forever-<region>` beside Classic's `profile-classic1x-<region>`
+  (an error or a 404 in one never fails the other): an `owned` entry with
+  `game: "forever"` (Classic's have no `game`), `ids` the character ids and
+  `characters` `[id, "<pseudo-realm id>", "Name Surname"]`. Forever's list has
+  no realm object: the pseudo-realm is the first number of
+  `protected_character.href` (`.../protected-character/6946-550204`), read
+  by a strict pattern whose second number must be the character's own id,
+  else the id lists with no detail. `login.go` carries the passport on as an
+  opaque string, so it knows nothing of the games.
 - `app.go`: pairing per site (device code: `/api/companion/pair/start`, the
   page on the site, `/pair/poll` hands the token over once) and the settings
   (`ApplySettings`).

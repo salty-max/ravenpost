@@ -27,11 +27,16 @@ Blob store, and goes once merged.
     for the dashboard's cookie, `state` for a sign-in on its way, `code`)
     and is taken for nothing else;
   - a passport (`src/passport.ts`): the Battle.net id, BattleTag and the
-    characters the account owns in each region (Classic Era's profile), signed
+    characters the account owns in each region (Classic Era's profile, and
+    Forever's list as entries with `game: "forever"`), signed
     with the Ed25519 key `INBOX_SIGNING_KEY`, ten minutes, once. Ravenpost
     hands it to Hearthtale (`/api/companion/signin`), which checks it with the
     public key in its own code and gives Ravenpost its upload token. WoWLocker
-    will take it the same way.
+    will take it the same way. **Deploy order:** a passport now holds a second
+    entry per region for Forever, which a site that ignores `game` would read
+    as Classic ids (and Ravenpost sends every passport to WoWLocker too). Deploy
+    the inbox only after Hearthtale's `game` handling is live and WoWLocker
+    skips entries whose `game` is not `classic1x`.
   Nothing is kept. `src/devkey.ts`: a key pair for this computer (INBOX_DEV,
   tests), trusted by a Hearthtale running locally only.
 - `POST /api/facts`: an addon's collect table, from a signed-in player

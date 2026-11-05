@@ -110,8 +110,12 @@ describe("facts", () => {
     setFetch(async (url) => {
       if (url.endsWith("/token")) return Response.json({ access_token: "user-token" });
       if (url.endsWith("/userinfo")) return Response.json({ id: 4242, battletag: "Namzar#21586" });
-      if (url.startsWith("https://eu.api.blizzard.com")) return Response.json({ wow_accounts: [{ characters: [{ id: 11, name: "Ghurdil", realm: { slug: "soulseeker" } }, { id: 12 }] }] });
-      if (url.startsWith("https://us.api.blizzard.com")) return Response.json({ wow_accounts: [{ characters: [{ id: 99 }] }] });
+      if (url.includes("profile-forever-eu"))
+        return Response.json({
+          wow_accounts: [{ characters: [{ id: 550204, name: "Sealine", surname: "Dion", protected_character: { href: "https://eu.api.blizzard.com/profile/user/wow/protected-character/6946-550204?namespace=profile-forever-eu" } }] }],
+        });
+      if (url.includes("profile-classic1x-eu")) return Response.json({ wow_accounts: [{ characters: [{ id: 11, name: "Ghurdil", realm: { slug: "soulseeker" } }, { id: 12 }] }] });
+      if (url.includes("profile-classic1x-us")) return Response.json({ wow_accounts: [{ characters: [{ id: 99 }] }] });
       return new Response("", { status: 404 });
     });
     try {
@@ -127,6 +131,7 @@ describe("facts", () => {
       expect(p.owned).toEqual([
         { region: "us", ids: [99], characters: [] },
         { region: "eu", ids: [11, 12], characters: [[11, "soulseeker", "Ghurdil"]] },
+        { region: "eu", game: "forever", ids: [550204], characters: [[550204, "6946", "Sealine Dion"]] },
       ]);
       expect(p.exp - p.iat).toBe(600);
     } finally {

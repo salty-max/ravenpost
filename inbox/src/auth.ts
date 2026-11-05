@@ -1,5 +1,5 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
-import type { Owned } from "./passport";
+import type { Game, Owned } from "./passport";
 
 /**
  * Who shares: a Battle.net account, signed in through the inbox (no
@@ -143,10 +143,64 @@ const MAX_DETAILED = 100;
 
 export const REGIONS = ["us", "eu", "kr", "tw"] as const;
 
+type Headers = { Authorization: string };
+
+/** One region's characters on one game's profile, or null (404 for a region never played, an error, a timeout). */
+async function profile(region: string, game: Game, headers: Headers) {
+  const r = await fetchImpl(`https://${region}.api.blizzard.com/profile/user/wow?namespace=profile-${game}-${region}&locale=en_GB`, {
+    headers,
+    signal: AbortSignal.timeout(20_000),
+  }).catch(() => null);
+  if (!r?.ok) return null;
+  const p = (await r.json().catch(() => null)) as { wow_accounts?: { characters?: unknown[] }[] } | null;
+  return (p?.wow_accounts ?? []).flatMap((a) => a.characters ?? []);
+}
+
+async function classicList(region: string, headers: Headers): Promise<Owned> {
+  const chars = ((await profile(region, "classic1x", headers)) ?? []) as { id: number; name?: string; realm?: { slug?: string } }[];
+  return {
+    region,
+    ids: chars.map((ch) => ch.id),
+    // (compact, for the redirect's URL: WoWLocker wants each one's realm and name)
+    characters: chars.flatMap((ch): [number, string, string][] => (ch.realm?.slug && ch.name ? [[ch.id, ch.realm.slug, ch.name]] : [])),
+  };
+}
+
+/**
+ * Forever's list has no realm object: its pseudo-realm is the first number of
+ * the protected link (".../protected-character/6946-550204", realm 6946,
+ * character 550204). Only that exact shape counts, and its second number must
+ * be the character's own id; anything else is no realm (the id still lists).
+ */
+export function foreverRealm(href: unknown, id: number): string | null {
+  const m = typeof href === "string" ? href.match(/\/protected-character\/(\d{1,9})-(\d{1,12})(?:[?#].*)?$/) : null;
+  return m && Number(m[2]) === id ? m[1] : null;
+}
+
+async function foreverList(region: string, headers: Headers): Promise<Owned> {
+  const chars = ((await profile(region, "forever", headers)) ?? []) as {
+    id: number;
+    name?: string;
+    surname?: string;
+    protected_character?: { href?: string };
+  }[];
+  return {
+    region,
+    game: "forever",
+    ids: chars.map((ch) => ch.id),
+    // ([id, pseudo-realm id as a string, "Name Surname"]: the realm's slot, as Classic has its slug)
+    characters: chars.flatMap((ch): [number, string, string][] => {
+      const realm = foreverRealm(ch.protected_character?.href, ch.id);
+      const name = [ch.name, ch.surname].filter(Boolean).join(" ");
+      return realm && name ? [[ch.id, realm, name]] : [];
+    }),
+  };
+}
+
 /**
  * The account behind a one-time code: its id (stable), BattleTag and the
  * characters it owns in each region (Classic Era's profile, as Hearthtale's
- * own sign-in reads it). The access token is dropped at once.
+ * own sign-in reads it, and Forever's list beside it: a separate entry, `game: "forever"`). The access token is dropped at once.
  */
 export async function account(code: string): Promise<{ id: number; battletag: string; owned: Owned[] } | null> {
   const c = credentials();
@@ -163,29 +217,15 @@ export async function account(code: string): Promise<{ id: number; battletag: st
   if (!info.ok) return null;
   const { id, battletag } = (await info.json()) as { id?: number; battletag?: string };
   if (!id) return null;
-  // (every region at once: a region the account never played answers 404)
-  const owned = (
-    await Promise.all(
-      REGIONS.map(async (region) => {
-        const r = await fetchImpl(`https://${region}.api.blizzard.com/profile/user/wow?namespace=profile-classic1x-${region}&locale=en_GB`, {
-          headers: auth.headers,
-          signal: AbortSignal.timeout(20_000),
-        }).catch(() => null);
-        if (!r?.ok) return { region, ids: [] as number[] };
-        const p = (await r.json()) as { wow_accounts?: { characters?: { id: number; name?: string; realm?: { slug?: string } }[] }[] };
-        const chars = (p.wow_accounts ?? []).flatMap((a) => a.characters ?? []);
-        return {
-          region,
-          ids: chars.map((ch) => ch.id),
-          // (compact, for the redirect's URL: WoWLocker wants each one's realm and name)
-          characters: chars.flatMap((ch): [number, string, string][] => (ch.realm?.slug && ch.name ? [[ch.id, ch.realm.slug, ch.name]] : [])),
-        };
-      }),
-    )
-  ).filter((o) => o.ids.length);
+  // (every region at once, Classic and Forever side by side: a region the account never played answers 404, and one failing never fails the other)
+  const lists = await Promise.all(
+    REGIONS.flatMap((region) => [classicList(region, auth.headers), foreverList(region, auth.headers)]),
+  );
+  const owned = lists.filter((o) => o.ids.length);
   // (the passport rides in a URL, and Hearthtale refuses one over 20,000 characters: details for the first 100 only, the ids stay whole)
+  // (Forever's first: a site counts a Forever character as owned only through its detail, Classic's ids stand alone)
   let room = MAX_DETAILED;
-  for (const o of owned) {
+  for (const o of [...owned].sort((a, b) => Number(b.game === "forever") - Number(a.game === "forever"))) {
     o.characters = o.characters?.slice(0, room);
     room -= o.characters?.length ?? 0;
   }

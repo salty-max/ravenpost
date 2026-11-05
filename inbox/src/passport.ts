@@ -10,10 +10,16 @@ import { DEV_PRIVATE_KEY } from "./devkey";
  * the public key, which can't make one. Ten minutes, once: Ravenpost hands it
  * on at once.
  *   <base64url payload>.<base64url signature>
- *   { aud: "sites", bnetId, battletag, owned: [{ region, ids }], iat, exp, jti }
+ *   { aud: "sites", bnetId, battletag, owned: [{ region, game?, ids, characters? }], iat, exp, jti }
  */
-/** `characters`: [id, realm slug, name] of the same characters, for the sites that keep them (WoWLocker). */
-export type Owned = { region: string; ids: number[]; characters?: [number, string, string][] };
+export type Game = "classic1x" | "forever";
+/**
+ * `game`: absent means classic1x (a passport from before Forever is unchanged).
+ * `characters`: [id, realm slug, name] of the same characters, for the sites that keep them (WoWLocker).
+ * Forever has no realms: its entry's second slot is the pseudo-realm id as a
+ * string ("6946", from the protected link) and the name is "Name Surname".
+ */
+export type Owned = { region: string; game?: Game; ids: number[]; characters?: [number, string, string][] };
 export type Passport = { aud: "sites"; bnetId: number; battletag: string; owned: Owned[]; iat: number; exp: number; jti: string };
 
 function key() {
