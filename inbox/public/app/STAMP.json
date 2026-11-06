@@ -1,0 +1,21 @@
+{
+  "source": "0c1735091463dbfdfa79b0a9e9364a045a681aaa727c8b75714e28c5dc2380c6",
+  "schema": "965b3843aa474e74607927eabe183783bb0067a883ff790fbee32a2d41c86d2d",
+  "files": {
+    "assets/cinzel-latin-700-normal-C-gK7hA8.woff": "83ea41e439a253b4d436cc895d07a0d47f714c4816a23e86df35c442eddffafb",
+    "assets/cinzel-latin-700-normal-Dkw14w9r.woff2": "8efa224fe70fef188a39c095e218b81fd31061809f2752537e33a9ec7b9c2263",
+    "assets/index-B5c85v17.js": "76446eb7d51c10117aa8a4a3e451c0f97a9992e9e2431096a85702fdb7974c07",
+    "assets/index-B6mBrStb.css": "47743e9c363381b043099a0c781495943ad397b40791fd39e2600b0e0edfe3fe",
+    "assets/inter-latin-wght-normal-Dx4kXJAl.woff2": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62",
+    "icons/apple-touch-icon.png": "d2909770acfd613fd752848f083fad47a06b1fea533d949f000ea33a6aea0c65",
+    "icons/brand-64.png": "28904cb0b917b5a57df050941bded47de64e69cfcb0efd100b0321bbaf1d104e",
+    "icons/favicon-32.png": "88b85a8ab5fa9c65f0217529e1ce9409aa65c43bc39facf158fbd70cabced496",
+    "icons/favicon.ico": "a858536a96db0bfa0621cb3286da431d74f5a61be6575924ee9e9e984742d56c",
+    "icons/icon-192.png": "d6f164a031741e0ad38b677ac8e7c798320d727d0ba7dd39cf17d9ef7d7e664a",
+    "icons/icon-512.png": "670d7e81c9a9fd15a08d4acc78248345f5b253a53a8183b7f9f52e9d8dcd6c88",
+    "icons/maskable-512.png": "e87b0e45f9287693d5f45c4e7e7474e1ba066286250116e49092604abeecfc4a",
+    "index.html": "f2be2df6857d5fdf24ea56aff2a7e70027aa093cd85fca23b1d2301383315d74",
+    "manifest.webmanifest": "d12812335b00c54f4d40ebaac9d3cb9329bd8d0c3e28776d775334141afae58d",
+    "sw.js": "945494105bd6abe61d17ecc897bf8da94ef6fab1b793613bbbf3a77977afcc98"
+  }
+}

@@ -195,9 +195,10 @@ phone's PWA and Watchtower on the Mac, once they are built: the plan is
 `ideas/watchtower-inbox.md`, this is its M1). `src/owner.ts`; read only. The
 numbers come from the very functions the page uses (`src/numbers.ts`, which
 `src/dashboard.ts` draws from; `test/golden.test.ts` holds the old page to
-the byte), and the answers' shapes are `../ui/src/schema.ts` (zod, every
-object strict; the inbox imports it as types only, nothing of `ui/` is deployed
-with it, so a field nobody wrote there fails its tests, not an answer, and a
+the byte), and the answers' shapes are `src/owner-schema.ts` (zod, every
+object strict; a stamped copy of the one file that lives in Watchtower's
+`frontend/src/shared/schema.ts`, never edited here. The inbox imports it as types
+only, so a field nobody wrote there fails its tests, not an answer, and a
 record's keys are not checked).
 
 | GET (the cookie or `Authorization: Bearer <owner token>`) | Answers |
@@ -243,6 +244,31 @@ the uploads or any secret, and `test/owner.test.ts` fails on a hash, a
 cookie does (the numbers, the public comments, the activity's words) for 30
 days at most. Deploying it is additive (no existing route changes); to undo
 it, set `OWNER_API_OFF=1` or redeploy the previous build.
+
+## The new app at /stats/next (M2)
+
+Watchtower's phone app is served beside the old page at `/stats/next`. It is the
+second build mode of the one React app in the Watchtower repository's `frontend/`
+(the pages, the look and the schemas are written there once, for the phone and the
+Mac: `../../watchtower/docs/shared-ui.md`). What this repository holds is a stamped
+copy: `public/app/` (the built files and a `STAMP.json`) and `src/owner-schema.ts`,
+written by `bun scripts/ui-sync.ts` in Watchtower and **never edited here**
+(`scripts/check-app.ts`, part of `bun run check`, fails a file that is not the
+stamped one). The page, its manifest (named Watchtower, start `/stats/next/`), its
+service worker (scope `/stats/next/`) and its files under `/app/` are routed in
+`scripts/vercel-build.sh` (tested by `test/build.test.ts`). It reads the owner API
+above with the owner's cookie. `/stats` and its service worker are unchanged until
+M6. `/api/login?web=1&next=/stats/next/` signs in and comes back to the new app (any
+other `next` comes back to `/stats`).
+
+**Changing it** is a commit in Watchtower, then `bun scripts/ui-sync.ts` there, then a
+commit here (`chore: the phone app at <sha>`). **Deploying it** (the user's go, as
+always) is `vercel deploy --prod` from here: the built files are committed, so the
+CLI uploads them with nothing in between, and the build step refuses (naming the
+sync) when `public/app/index.html` is missing. What a deploy changes: three routes, the
+files under `/app/`, and the sign-in's `next` (the old flow unchanged). **Rollback**: the old page is `/stats`,
+untouched, and nobody is sent to the new one; redeploy the previous build (or stay on
+`/stats`) to remove it.
 
 ## The app on a phone, and its notifications
 
@@ -302,7 +328,7 @@ else).
 ```bash
 bun install
 bun run dev      # http://localhost:3003, uploads in .inbox/, a test account signs in (INBOX_DEV=1)
-bun run check    # typecheck, tests (the owner API also types itself by ../ui: cd ../ui && bun install once)
+bun run check    # typecheck, the stamped copies against their stamp, tests
 ```
 
 Ravenpost's development build talks to `http://localhost:3003`.

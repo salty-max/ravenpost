@@ -43,8 +43,12 @@ const page = (title: string, text: string) =>
 app.get("/api/login", (c) => {
   // (the dashboard's own sign-in, in the browser: back to /stats)
   if (c.req.query("web") === "1") {
-    if (!process.env.BNET_CLIENT_ID) return c.html(page("Ravenpost", "Signing in with Battle.net isn't open yet."), 503);
-    return c.redirect(authorizeUrl(signAs("state", { web: true, exp: Math.floor(Date.now() / 1000) + 600 })));
+    // (the new app's sign-in is Watchtower's own: its failure pages say so)
+    const app = c.req.query("next") === "/stats/next/" ? "Watchtower" : "Ravenpost";
+    if (!process.env.BNET_CLIENT_ID) return c.html(page(app, "Signing in with Battle.net isn't open yet."), 503);
+    // (back to the new app when it asked: only its own address, never one a link made up)
+    const next = c.req.query("next") === "/stats/next/" ? "/stats/next/" : "/stats";
+    return c.redirect(authorizeUrl(signAs("state", { web: true, next, exp: Math.floor(Date.now() / 1000) + 600 })));
   }
   const port = c.req.query("port");
   const nonce = c.req.query("nonce");
@@ -75,13 +79,13 @@ app.get("/api/login", (c) => {
 const handBack = (s: Sharer, chl: string | undefined): Record<string, string> => (chl ? { code: codeFor(s, chl) } : { token: tokenFor(s) });
 
 app.get("/api/login/callback", async (c) => {
-  const s = verify<{ port: number; nonce: string; web?: boolean; chl?: string; owner?: boolean }>(c.req.query("state") ?? "", "state");
+  const s = verify<{ port: number; nonce: string; web?: boolean; next?: string; chl?: string; owner?: boolean }>(c.req.query("state") ?? "", "state");
   if (!s) return c.html(page("Ravenpost", "This sign-in has expired. Click Sign in with Battle.net in Ravenpost again."), 400);
   if (s.web) {
     const who = c.req.query("code") ? await account(c.req.query("code")!).catch(() => null) : null;
-    if (!who || !statsAllowed(who.battletag)) return c.html(page("Ravenpost", "This page is its owner's."), 403);
+    if (!who || !statsAllowed(who.battletag)) return c.html(page(s.next === "/stats/next/" ? "Watchtower" : "Ravenpost", "This page is its owner's."), 403);
     signIn(c, who.battletag);
-    return c.redirect("/stats");
+    return c.redirect(s.next === "/stats/next/" ? "/stats/next/" : "/stats");
   }
   const code = c.req.query("code");
   if (!code) return c.redirect(back(s.port, { error: "denied", nonce: s.nonce }));
