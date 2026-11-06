@@ -17,7 +17,8 @@ facts players share. salty-max/ravenpost. Read the family's CLAUDE.md
 |---|---|
 | The app file by file: sites, config, folders, sync, shared facts, ping, sign-in, pairing, journal, window, service, frontend, tray, parser | `docs/architecture.md` |
 | Windows builds and Smart App Control (what happened, what to do) | `docs/architecture.md` |
-| The inbox: API, Blob store, cron, events, deploys | `inbox/README.md` |
+| The inbox: API, Blob store, cron, events, deploys, the owner API | `inbox/README.md` |
+| The shared UI package (so far the owner API's response shapes, `ui/src/schema.ts`; the plan `../ideas/watchtower-inbox.md`) | `ui/` |
 | The page players download from (ravenpost-site.vercel.app, Astro) | `site/README.md` |
 | The icons | `assets/README.md` |
 | What the app is, for a player | `README.md` |

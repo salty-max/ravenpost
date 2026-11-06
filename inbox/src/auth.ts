@@ -24,6 +24,11 @@ import type { Game, Owned } from "./passport";
  * account first signed in (`auth`) through every refresh, and none is
  * refreshed past a year of it: a token taken from someone dies within 90
  * days of its last refresh, and every one within a year and 90 days.
+ * The owner API's own pair (src/owner.ts): `owner` (the Watchtower app's
+ * token, read only, 30 days, renewed while the app is used, never past a year
+ * of the first sign-in) and `ownercode` (its two minutes' code, traded the
+ * same way as `code`). Neither works anywhere a sharing token or the stats
+ * cookie does, nor the reverse; both are signed with INBOX_SECRET as the rest.
  * The code is bound to the Ravenpost that asked (`chl`, a hash of a secret
  * it keeps, shown only to the exchange: PKCE's way), so an address read from
  * the history buys nothing even within its two minutes.
@@ -37,7 +42,7 @@ const secret = () => {
 const b64 = (b: Buffer | string) => Buffer.from(b).toString("base64url");
 const mac = (data: string) => createHmac("sha256", secret()).update(data).digest();
 
-export type Typ = "share" | "stats" | "state" | "code";
+export type Typ = "share" | "stats" | "state" | "code" | "owner" | "ownercode";
 export const SHARE_DAYS = 90;
 /** How long after the first sign-in a sharing token may still be refreshed. */
 export const REFRESH_DAYS = 365;
@@ -113,6 +118,66 @@ export function sharer(authorization: string | undefined): Sharer | null {
   const s = token ? verify<Sharer>(token, "share") : null;
   if (!s || typeof s.sub !== "string") return null;
   return blocked(s.sub) ? null : s;
+}
+
+// ── the owner's token (the owner API, src/owner.ts) ──────────────────────────
+export const OWNER_DAYS = 30;
+/** How long after the first sign-in an owner token may still be renewed. */
+export const OWNER_REFRESH_DAYS = 365;
+const DEV_OWNER = "Tester#1234";
+
+/** The BattleTags that may see the dashboard and the owner API (STATS_BATTLETAGS, comma-separated). The inbox's own dev account counts on this computer only. */
+export function statsAllowed(tag: string): boolean {
+  if (process.env.INBOX_DEV === "1" && !process.env.VERCEL && tag === DEV_OWNER) return true;
+  return (process.env.STATS_BATTLETAGS ?? "")
+    .split(",")
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean)
+    .includes(tag.toLowerCase());
+}
+
+export type OwnerToken = { tag: string; auth: number; iat: number };
+const ownerToken = (o: { tag: string; auth?: number }): { token: string; expires: number } => {
+  const iat = Math.floor(Date.now() / 1000);
+  const expires = iat + OWNER_DAYS * 86400;
+  return { token: signAs("owner", { tag: o.tag, auth: o.auth ?? iat, iat, exp: expires }), expires };
+};
+/** A new owner token for a BattleTag that just signed in. */
+export const ownerTokenFor = (tag: string) => ownerToken({ tag });
+/** A fresh token for this one, or null once its first sign-in is a year old (then sign in again). */
+export function ownerRefreshed(o: OwnerToken): { token: string; expires: number } | null {
+  return o.auth + OWNER_REFRESH_DAYS * 86400 < Date.now() / 1000 ? null : ownerToken(o);
+}
+/** The two minutes' code that stands for the owner in the address back to the app (no token in it), bound to its challenge. */
+export const ownerCodeFor = (tag: string, chl: string) => signAs("ownercode", { tag, chl, exp: Math.floor(Date.now() / 1000) + 120 });
+/** The BattleTag an owner code stands for, or null (expired, forged, not an owner code, not on the list, not this app's verifier). */
+export function redeemOwner(code: string, verifier: string): string | null {
+  const c = verify<{ tag: string; chl: string }>(code, "ownercode");
+  if (!c || typeof c.tag !== "string" || typeof c.chl !== "string" || !statsAllowed(c.tag)) return null;
+  const want = Buffer.from(c.chl);
+  const got = Buffer.from(challengeOf(verifier));
+  return got.length === want.length && timingSafeEqual(got, want) ? c.tag : null;
+}
+
+/**
+ * OWNER_REVOKED_BEFORE: every owner token made before this (an ISO time or
+ * epoch seconds) is refused, the cookie and the web untouched. Set but not a
+ * time: every owner token refused, the safe way to read a typo.
+ */
+function revokedBefore(): number | null {
+  const v = process.env.OWNER_REVOKED_BEFORE?.trim();
+  if (!v) return null;
+  const t = /^\d+$/.test(v) ? Number(v) : Date.parse(v) / 1000;
+  return Number.isFinite(t) ? t : Infinity;
+}
+
+/** The owner a request's bearer token names, or null (none, forged, expired, revoked, no longer on the list). */
+export function ownerFrom(authorization: string | undefined): OwnerToken | null {
+  const token = authorization?.match(/^Bearer (.+)$/)?.[1];
+  const o = token ? verify<OwnerToken>(token, "owner") : null;
+  if (!o || typeof o.tag !== "string" || typeof o.iat !== "number" || typeof o.auth !== "number" || !statsAllowed(o.tag)) return null;
+  const cut = revokedBefore();
+  return cut !== null && o.iat < cut ? null : o;
 }
 
 // ── Battle.net ───────────────────────────────────────────────────────────────

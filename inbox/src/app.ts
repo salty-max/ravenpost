@@ -3,7 +3,7 @@ import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { getCookie, setCookie } from "hono/cookie";
 import { cors } from "hono/cors";
-import { recentThreads, watch } from "./comments";
+import { watch } from "./comments";
 import * as curseforge from "./curseforge";
 import { dashboard, signinPage } from "./dashboard";
 import { digestOf } from "./digest";
@@ -14,8 +14,9 @@ import * as push from "./push";
 import * as store from "./store";
 import { lookUnique } from "./unique";
 import { addressOf, distinct, hit } from "./ratelimit";
-import { backfillTraffic, collect, countToday, countUpload, dayOf, history, overCap, ping, readPing, readUnique, record, recordUnique, today, uniquePeriods, type Day } from "./stats";
-import { account, authorizeUrl, codeFor, isChallenge, redeem, refreshed, sharer, signAs, subOf, tokenFor, verify, type Sharer } from "./auth";
+import { backfillTraffic, collect, countToday, countUpload, dayOf, history, overCap, ping, readPing, readUnique, record, recordUnique, type Day } from "./stats";
+import { account, authorizeUrl, codeFor, isChallenge, ownerCodeFor, redeem, refreshed, sharer, signAs, statsAllowed, subOf, tokenFor, verify, type Sharer } from "./auth";
+import { load, mountOwner } from "./owner";
 import { flatten } from "./facts";
 import { passportFor } from "./passport";
 import { drop, names, read, remove } from "./inbox";
@@ -51,8 +52,12 @@ app.get("/api/login", (c) => {
   // (v=2 and its challenge: a Ravenpost that trades a code for its token; an older one gets the token itself)
   const chl = c.req.query("v") === "2" ? c.req.query("challenge") : undefined;
   if (c.req.query("v") === "2" && !isChallenge(chl)) return c.html(page("Ravenpost", "This page opens from Ravenpost's window."), 400);
-  const state = signAs("state", { port: Number(port), nonce, ...(chl && { chl }), exp: Math.floor(Date.now() / 1000) + 600 });
+  // (the owner's app, Watchtower, signing in the same way: owner=1 wants the v=2 challenge, and gets an owner code, never a sharing token or a passport)
+  const asOwner = c.req.query("owner") === "1";
+  if (asOwner && !chl) return c.html(page("Ravenpost", "This page opens from Ravenpost's window."), 400);
+  const state = signAs("state", { port: Number(port), nonce, ...(chl && { chl }), ...(asOwner && { owner: true }), exp: Math.floor(Date.now() / 1000) + 600 });
   // (on this computer only, INBOX_DEV=1: a test account, no Battle.net)
+  if (asOwner && process.env.INBOX_DEV === "1" && !process.env.VERCEL) return c.redirect(back(port!, { code: ownerCodeFor("Tester#1234", chl!), nonce: nonce! }));
   if (process.env.INBOX_DEV === "1" && !process.env.VERCEL)
     return c.redirect(
       back(port!, {
@@ -70,7 +75,7 @@ app.get("/api/login", (c) => {
 const handBack = (s: Sharer, chl: string | undefined): Record<string, string> => (chl ? { code: codeFor(s, chl) } : { token: tokenFor(s) });
 
 app.get("/api/login/callback", async (c) => {
-  const s = verify<{ port: number; nonce: string; web?: boolean; chl?: string }>(c.req.query("state") ?? "", "state");
+  const s = verify<{ port: number; nonce: string; web?: boolean; chl?: string; owner?: boolean }>(c.req.query("state") ?? "", "state");
   if (!s) return c.html(page("Ravenpost", "This sign-in has expired. Click Sign in with Battle.net in Ravenpost again."), 400);
   if (s.web) {
     const who = c.req.query("code") ? await account(c.req.query("code")!).catch(() => null) : null;
@@ -82,6 +87,11 @@ app.get("/api/login/callback", async (c) => {
   if (!code) return c.redirect(back(s.port, { error: "denied", nonce: s.nonce }));
   const who = await account(code).catch(() => null);
   if (!who) return c.redirect(back(s.port, { error: "failed", nonce: s.nonce }));
+  // (the owner's app: only the listed BattleTags, and only a code to trade, bound to the app's challenge)
+  if (s.owner) {
+    if (!s.chl || !statsAllowed(who.battletag)) return c.redirect(back(s.port, { error: "denied", nonce: s.nonce }));
+    return c.redirect(back(s.port, { code: ownerCodeFor(who.battletag, s.chl), nonce: s.nonce }));
+  }
   // (the sharing token, and the passport that links the sites in the same go)
   return c.redirect(
     back(s.port, {
@@ -202,13 +212,6 @@ app.get("/api/cron/stats", async (c) => {
 // ── the dashboard, for its owner (STATS_BATTLETAGS, signed in with Battle.net) ─
 const STATS_COOKIE = "rp_stats";
 const COOKIE_DAYS = 90;
-function statsAllowed(tag: string): boolean {
-  return (process.env.STATS_BATTLETAGS ?? "")
-    .split(",")
-    .map((t) => t.trim().toLowerCase())
-    .filter(Boolean)
-    .includes(tag.toLowerCase());
-}
 function signIn(c: Context, tag: string) {
   setCookie(c, STATS_COOKIE, signAs("stats", { tag, exp: Math.floor(Date.now() / 1000) + COOKIE_DAYS * 86400 }), {
     httpOnly: true,
@@ -227,31 +230,16 @@ function owner(c: Context): string | null {
   return viewer.tag;
 }
 
+// ── the same numbers as JSON, for the owner's apps (src/owner.ts): the cookie or an owner token ──
+mountOwner(app, { cookie: owner });
+
 app.get("/stats", async (c) => {
   const tag = owner(c);
   c.header("Cache-Control", "private, no-store");
   if (!tag) return c.html(signinPage());
-  const day = new Date().toISOString().slice(0, 10);
-  const yday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
-  // (the day before too: the dashboard's 24 hours before reach back into it)
-  const yday2 = new Date(Date.now() - 2 * 86_400_000).toISOString().slice(0, 10);
-  // (the problems GitHub has seen settled since, asked as the page is made: a few seconds at most)
-  const settled = events.recent().then(async (ev) => [ev, await github.settle(ev).catch(() => ({}))] as const);
-  const [h, [ev, resolved], devices, rb, r0, r1, releases, threads, now, unique, gh] = await Promise.all([
-    history(),
-    settled,
-    push.devices(),
-    curseforge.readings(yday2),
-    curseforge.readings(yday),
-    curseforge.readings(day),
-    curseforge.latest(),
-    recentThreads(),
-    today(),
-    uniquePeriods(),
-    githubLatest(),
-  ]);
+  const [d, devices] = await Promise.all([load(), push.devices()]);
   return c.html(
-    dashboard(h, { viewer: tag, events: ev, pushKey: push.vapid()?.publicKey ?? null, devices, readings: [...rb, ...r0, ...r1], releases, threads, resolved, today: now, unique, github: gh }),
+    dashboard(d.h, { viewer: tag, events: d.events, pushKey: push.vapid()?.publicKey ?? null, devices, readings: d.readings, releases: d.releases, threads: d.threads, resolved: d.resolved, today: d.today, unique: d.unique, github: d.github }),
   );
 });
 app.get("/", (c) => c.redirect("/stats"));

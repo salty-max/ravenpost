@@ -24,8 +24,8 @@ Blob store, and goes once merged.
     Ravenpost of 0.5.1 or before never refreshes: its players sign in again
     every 90 days. A token from before (no end in it) holds 90 days from
     when it was made. Each signed thing says what it is (`typ`: `share`, `stats`
-    for the dashboard's cookie, `state` for a sign-in on its way, `code`)
-    and is taken for nothing else;
+    for the dashboard's cookie, `state` for a sign-in on its way, `code`, and
+    the owner API's pair, `owner` and `ownercode`) and is taken for nothing else;
   - a passport (`src/passport.ts`): the Battle.net id, BattleTag and the
     characters the account owns in each region (Classic Era's profile, and
     Forever's list as entries with `game: "forever"`), signed
@@ -188,6 +188,62 @@ warning (not that note) or good word is told once a day to the owner's devices
 until GitHub says it's settled, and these settle by themselves. No new secret,
 no new route; the deploy is the user's go.
 
+## The owner API
+
+The dashboard's numbers as JSON, for the apps that draw them themselves (the
+phone's PWA and Watchtower on the Mac, once they are built: the plan is
+`ideas/watchtower-inbox.md`, this is its M1). `src/owner.ts`; read only. The
+numbers come from the very functions the page uses (`src/numbers.ts`, which
+`src/dashboard.ts` draws from; `test/golden.test.ts` holds the old page to
+the byte), and the answers' shapes are `../ui/src/schema.ts` (zod, every
+object strict; the inbox imports it as types only, nothing of `ui/` is deployed
+with it, so a field nobody wrote there fails its tests, not an answer, and a
+record's keys are not checked).
+
+| GET (the cookie or `Authorization: Bearer <owner token>`) | Answers |
+|---|---|
+| `/api/owner/summary` | the headline: how things stand, the four figures, comments waiting, open problems, whether CurseForge's people counts are stale, the launch watch's warnings, and a stamp (the ETag) for each part below |
+| `/api/owner/numbers?range=7\|30\|90\|all` | downloads a day by addon and store, totals, CurseForge's people and rank, the last 48 hours, the releases to mark; the daily arrays cut to the last days asked for |
+| `/api/owner/players` | Ravenpost's installs and different installs, facts shared by game and language, the sites' visitors |
+| `/api/owner/comments` | CurseForge's threads, newest first, and how many wait |
+| `/api/owner/activity` | how things stand and the workflows' events, with what GitHub saw settle |
+| `/api/owner/releases` | each addon's newest release on GitHub and CurseForge, its last data job, its rank, and the launch watch |
+
+Every answer has an `ETag` (a hash of the bytes) and `Cache-Control: private,
+no-store`, and an `If-None-Match` that still holds is a 304 with no body; the
+inbox still reads its files to know (the saving is the client's, and the
+wire's). `summary`'s `stamps` are each part's own ETag for its default
+question (`numbers` for `range=all`), so a client reads the summary every
+minute and fetches only the part whose stamp moved. 120 reads a minute for an
+owner, then 429.
+
+**Signing in** is Ravenpost's own route with one more word: the app listens on
+a port of this computer, opens `/api/login?port=&nonce=&v=2&challenge=&owner=1`
+in the browser, Battle.net signs the owner in, the callback checks the BattleTag
+against `STATS_BATTLETAGS` and goes back to
+`http://127.0.0.1:<port>/linked?code=&nonce=` (a code of kind `ownercode`, two
+minutes, bound to the challenge, no token in the address; a BattleTag off the
+list gets `error=denied`). The app trades it with its verifier, over https:
+`POST /api/owner/exchange {code, verifier}` answers `{token, expires}`. The
+token (kind `owner`, signed with `INBOX_SECRET` as the others) is good 30 days;
+`POST /api/owner/refresh` (the token as bearer) answers a fresh one, until a
+year after the first sign-in. It opens the six GETs and nothing else, and no
+other token (sharing, cookie, code) opens them: the cookie opens the GETs, not
+the two POSTs. On this computer (`INBOX_DEV=1`) the dev account signs in with
+no Battle.net.
+
+**Switches** (Vercel environment, both optional): `OWNER_REVOKED_BEFORE`, an ISO
+time or epoch seconds, refuses every owner token made before it (the cookie and
+the web untouched; a value that is no time refuses all of them);
+`OWNER_API_OFF=1` makes the whole of `/api/owner/*` answer 404.
+
+**What it never says**: no route reads the install hashes, a sharing token's `sub`,
+the uploads or any secret, and `test/owner.test.ts` fails on a hash, a
+`sub`, a file name or a token in any answer. A leaked token shows what the
+cookie does (the numbers, the public comments, the activity's words) for 30
+days at most. Deploying it is additive (no existing route changes); to undo
+it, set `OWNER_API_OFF=1` or redeploy the previous build.
+
 ## The app on a phone, and its notifications
 
 The dashboard is an app (`public/`: its manifest, its service worker
@@ -246,7 +302,7 @@ else).
 ```bash
 bun install
 bun run dev      # http://localhost:3003, uploads in .inbox/, a test account signs in (INBOX_DEV=1)
-bun run check    # typecheck, tests
+bun run check    # typecheck, tests (the owner API also types itself by ../ui: cd ../ui && bun install once)
 ```
 
 Ravenpost's development build talks to `http://localhost:3003`.
