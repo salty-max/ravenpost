@@ -1,0 +1,16 @@
+{
+  "name": "ravenpost-ui",
+  "private": true,
+  "description": "Ravenpost's shared UI: the owner API's response shapes (src/schema.ts), the one contract between the inbox and every screen that reads it",
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit && bun test"
+  },
+  "dependencies": {
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.4",
+    "typescript": "^5.9.3"
+  }
+}
