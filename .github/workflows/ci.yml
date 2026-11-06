@@ -2,7 +2,7 @@
 # build), its bindings up to date, then vet and tests (macOS: the app needs cgo)
 # and vet for Windows, the Go advisories reachable from the code (govulncheck,
 # pinned; a new one fails the build until the toolchain in go.mod is bumped);
-# the shared UI's and the inbox's typecheck and tests, the page's check and build.
+# the inbox's typecheck, tests and stamped-copy check, the page's check and build.
 name: CI
 
 on:
@@ -35,8 +35,6 @@ jobs:
           go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
           "$(go env GOPATH)/bin/govulncheck" ./...
           GOOS=windows "$(go env GOPATH)/bin/govulncheck" ./...
-      - name: The shared UI (the owner API's shapes)
-        run: cd ui && bun install --frozen-lockfile && bun run check
       - name: The inbox
         run: cd inbox && bun install --frozen-lockfile && bun run check
       - name: The page

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "INBOX_DEV=1 INBOX_TOKEN=local PORT=3003 bun --watch src/server.ts",
     "start": "bun src/server.ts",
-    "check": "tsc --noEmit && bun test"
+    "check": "tsc --noEmit && bun scripts/check-app.ts && bun test"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.5",
@@ -16,7 +16,8 @@
   "devDependencies": {
     "@types/bun": "^1.4.4",
     "@types/node": "^26.6.6",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "zod": "4.6.7"
   },
   "overrides": {
     "undici": "6.29.1",

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Context, Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
-import type { Activity, Comments, Numbers, Players, Range, Releases, Summary } from "../../ui/src/schema";
+import type { Activity, Comments, Numbers, Players, Range, Releases, Summary } from "./owner-schema";
 import { recentThreads, type Thread } from "./comments";
 import * as curseforge from "./curseforge";
 import type { Reading, Release } from "./curseforge";
@@ -21,7 +21,7 @@ import { ownerFrom, ownerRefreshed, ownerTokenFor, redeemOwner } from "./auth";
  * themselves (the phone's, Watchtower on the Mac). Read only. Six GETs under
  * /api/owner/ (summary, numbers, players, comments, activity, releases), each
  * made by the same functions as the page (numbers.ts), shaped by
- * ui/src/schema.ts (types here, the tests parse every answer against it), answered to the owner's cookie (the PWA) or to an owner
+ * owner-schema.ts (a stamped copy of the one file in Watchtower's frontend: types here, the tests parse every answer against it), answered to the owner's cookie (the PWA) or to an owner
  * token (the Mac), nothing else. Each carries an ETag and answers 304 to an
  * If-None-Match that still holds: a quiet minute costs the client nothing.
  *

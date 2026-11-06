@@ -1,3 +1,4 @@
+// A stamped copy of watchtower/frontend/src/shared/schema.ts, made by `bun scripts/ui-sync.ts` in the Watchtower repository: never edit it here.
 import { z } from "zod";
 
 /**

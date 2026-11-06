@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { ENDPOINTS } from "../../ui/src/schema";
+import { ENDPOINTS } from "../src/owner-schema";
 import { app } from "../src/app";
 import { setFetch, signAs, tokenFor, ownerTokenFor, ownerCodeFor, subOf } from "../src/auth";
 import { dashboard } from "../src/dashboard";
@@ -454,5 +454,28 @@ describe("the owner API reads, it never writes, and says nothing of one player",
     const t = token();
     for (let i = 0; i < 5; i++) expect((await app.request("/api/owner/refresh", { method: "POST", headers: withToken(t) })).status).toBe(200);
     expect((await app.request("/api/owner/refresh", { method: "POST", headers: withToken(t) })).status).toBe(429);
+  });
+});
+
+describe("signing in to the phone app", () => {
+  test("the page's sign-in may ask to come back to the new app, and only to it", async () => {
+    process.env.BNET_CLIENT_ID = "id";
+    process.env.INBOX_ORIGIN = "https://inbox.test";
+    const came = async (q: string) => {
+      const bn = new URL((await get(`/api/login?web=1${q}`)).headers.get("location")!);
+      setFetch(async (u: string | URL | Request) => String(u).includes("/token") ? new Response(JSON.stringify({ access_token: "t" })) : new Response(JSON.stringify({ id: 1, battletag: OWNER })));
+      const back = await get(`/api/login/callback?code=bn&state=${encodeURIComponent(bn.searchParams.get("state")!)}`);
+      return back.headers.get("location");
+    };
+    expect(await came("&next=/stats/next/")).toBe("/stats/next/");
+    expect(await came("")).toBe("/stats");
+    expect(await came("&next=https://evil.test/")).toBe("/stats");
+  });
+  test("a sign-in that fails for the new app says Watchtower, the old page's says Ravenpost", async () => {
+    delete process.env.BNET_CLIENT_ID;
+    const fresh = await (await get("/api/login?web=1&next=/stats/next/")).text();
+    const old = await (await get("/api/login?web=1")).text();
+    expect(fresh).toContain("<title>Watchtower</title>");
+    expect(old).toContain("<title>Ravenpost</title>");
   });
 });
